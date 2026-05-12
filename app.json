@@ -1,0 +1,43 @@
+{
+  "expo": {
+    "name": "ShantiLink",
+    "slug": "shantilink",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "backgroundColor": "#0F1D36"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "ma.shantilink.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0F1D36"
+      },
+      "package": "ma.shantilink.app",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.RECORD_AUDIO"
+      ]
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Autoriser ShantiLink à accéder à vos photos."
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "082cf80e-37cb-4c8f-a289-512da209d7f5"
+      }
+    },
+    "owner": "shantilink"
+  }
+}
