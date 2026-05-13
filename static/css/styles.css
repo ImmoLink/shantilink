@@ -363,7 +363,7 @@ nav.scrolled{box-shadow:0 2px 20px rgba(0,0,0,.25)}
 
 /* ── Responsive ── */
 @media(max-width:700px){
-  nav{padding:.7rem 1rem}.nav-c{display:none}.nghost{display:none}
+  nav{padding:.7rem 1rem}.nav-c{display:none}.nghost{display:none}.nav-r{display:none}
   .mob-menu-btn{display:flex}
   .stats-in{grid-template-columns:repeat(2,1fr)}
   .prob-grid{grid-template-columns:1fr}
