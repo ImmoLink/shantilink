@@ -353,18 +353,41 @@ nav.scrolled{box-shadow:0 2px 20px rgba(0,0,0,.25)}
 .phase-row{display:flex;align-items:center;justify-content:space-between;gap:.8rem;padding:.6rem .8rem;border-radius:8px;margin-bottom:.4rem;border:.5px solid var(--border);background:var(--white);transition:all .15s}
 .phase-row:hover{border-color:var(--clay);background:var(--clay-pp)}
 
+/* ── Hamburger button (hidden on desktop) ── */
+.mob-menu-btn{display:none;align-items:center;justify-content:center;width:36px;height:36px;background:rgba(255,255,255,.08);border:none;border-radius:8px;cursor:pointer;flex-direction:column;gap:4px;padding:0}
+.mob-menu-btn span{display:block;width:18px;height:2px;background:white;border-radius:2px;transition:all .25s}
+
+/* ── Mobile sidebar overlay ── */
+.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:299;backdrop-filter:blur(2px)}
+.sidebar-overlay.open{display:block}
+
 /* ── Responsive ── */
 @media(max-width:700px){
   nav{padding:.7rem 1rem}.nav-c{display:none}.nghost{display:none}
+  .mob-menu-btn{display:flex}
   .stats-in{grid-template-columns:repeat(2,1fr)}
   .prob-grid{grid-template-columns:1fr}
   .sim-layout{grid-template-columns:1fr}
   .foot-t{grid-template-columns:1fr}.auth-wrap{grid-template-columns:1fr}
-  .auth-l{display:none}.dash-wrap{grid-template-columns:1fr;padding-top:60px}.sidebar{display:none}
+  .auth-l{display:none}.dash-wrap{grid-template-columns:1fr;padding-top:60px}
   .dash-main{padding:1rem}
   .fg-row{grid-template-columns:1fr}
   .dh{flex-direction:column;gap:.5rem}
   .kpi-row{grid-template-columns:repeat(2,1fr)}
+
+  /* Sidebar devient un drawer slide-in */
+  .sidebar{
+    display:flex !important;
+    position:fixed;
+    left:-280px;
+    top:0;bottom:0;
+    width:260px;
+    z-index:300;
+    transition:left .25s cubic-bezier(.4,0,.2,1);
+    box-shadow:4px 0 32px rgba(0,0,0,.35);
+    overflow-y:auto;
+  }
+  .sidebar.mob-open{left:0}
 }
 @media(max-width:400px){
   .kpi-row{grid-template-columns:1fr}

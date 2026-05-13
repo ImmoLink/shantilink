@@ -34,6 +34,22 @@ window.resetDashboardState = function() {
 };
 
 // ── Panel switching ───────────────────────────────────────────────────────────
+// ── Mobile sidebar drawer ─────────────────────────────────────────────────────
+window.toggleMobileSidebar = function() {
+  const sb = document.querySelector('.sidebar');
+  const ov = document.getElementById('sidebar-overlay');
+  if (!sb) return;
+  const isOpen = sb.classList.contains('mob-open');
+  sb.classList.toggle('mob-open', !isOpen);
+  if (ov) ov.classList.toggle('open', !isOpen);
+};
+window.closeMobileSidebar = function() {
+  const sb = document.querySelector('.sidebar');
+  const ov = document.getElementById('sidebar-overlay');
+  if (sb) sb.classList.remove('mob-open');
+  if (ov) ov.classList.remove('open');
+};
+
 window.showDashPanel = function(name, btn) {
   document.querySelectorAll('.dash-panel').forEach(p => p.classList.remove('on'));
   const panel = document.getElementById('panel-' + name);
@@ -42,6 +58,8 @@ window.showDashPanel = function(name, btn) {
   // If no btn passed, try to find it by the sb-* id pattern inside the button
   const activBtn = btn || document.querySelector('.sblink [id="sb-' + name + '"]')?.closest('.sblink');
   if (activBtn) activBtn.classList.add('on');
+  // Close mobile drawer after selecting a section
+  closeMobileSidebar();
   if (name === 'pros') initMap();
   if (name === 'profil') loadProfilePanel();
   if (name === 'messages') loadConversations();

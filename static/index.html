@@ -39,9 +39,15 @@
   </div>
 </div>
 
+<!-- Mobile sidebar overlay -->
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="closeMobileSidebar()"></div>
+
 <!-- NAV -->
 <nav>
   <div style="display:flex;align-items:center;gap:.6rem">
+    <button class="mob-menu-btn" id="mob-menu-btn" onclick="toggleMobileSidebar()" aria-label="Menu">
+      <span></span><span></span><span></span>
+    </button>
     <button id="back-nav-btn" onclick="goBack()" title="Retour" style="display:none;align-items:center;gap:.3rem;font-size:12px;font-weight:600;padding:5px 12px;border:.5px solid var(--border);border-radius:100px;background:var(--white);color:var(--ink);cursor:pointer;font-family:Outfit,sans-serif;transition:all .2s">&#8592; <span data-i18n="nav_back">Retour</span></button>
     <div class="logo" onclick="goPage('landing')" style="display:flex;align-items:center;gap:10px;text-transform:none;letter-spacing:0"><svg width="32" height="32" viewBox="0 0 42 42" fill="none"><rect width="42" height="42" rx="10" fill="#E8B84B"/><path d="M9 24 L21 12 L33 24" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M13 24 L13 32 L29 32 L29 24" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/><rect x="18" y="25" width="6" height="7" rx="1" fill="#1A1A1A"/></svg><span style="font-size:18px;font-weight:500;color:white;letter-spacing:-0.3px">Shanti<span style="color:#E8B84B">Link</span></span></div>
   </div>
