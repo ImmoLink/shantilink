@@ -1,0 +1,1658 @@
+﻿<!DOCTYPE html>
+<html lang="fr" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ShantiLink — Pilotez votre chantier avec confiance</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 42 42'><rect width='42' height='42' rx='10' fill='%23E8B84B'/><path d='M9 24 L21 12 L33 24' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round' fill='none'/><path d='M13 24 L13 32 L29 32 L29 24' stroke='white' stroke-width='2.5' stroke-linecap='round' fill='none'/><rect x='18' y='25' width='6' height='7' rx='1' fill='%231A1A1A'/></svg>">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/exifr@7.1.3/dist/lite.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<link rel="stylesheet" href="/static/css/styles.css?v=6">
+</head>
+<body>
+
+<div id="toast" class="toast"></div>
+
+<!-- WELCOME MODAL -->
+<div id="welcome-modal">
+  <div style="background:var(--white);border-radius:24px;max-width:480px;width:100%;overflow:hidden;box-shadow:0 32px 80px rgba(0,0,0,.3);max-height:90vh;overflow-y:auto">
+    <div style="background:var(--ink);padding:1.8rem 2rem;text-align:center">
+      <div style="display:flex;align-items:center;justify-content:center;gap:9px"><svg width="28" height="28" viewBox="0 0 42 42" fill="none"><rect width="42" height="42" rx="10" fill="#E8B84B"/><path d="M9 24 L21 12 L33 24" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M13 24 L13 32 L29 32 L29 24" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/><rect x="18" y="25" width="6" height="7" rx="1" fill="#1A1A1A"/></svg><span style="font-family:'Outfit',sans-serif;font-size:22px;font-weight:700;color:var(--white)">Shanti<span style="color:#E8B84B">Link</span></span></div>
+      <div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:3px" data-i18n="welcome_tagline">Construisez au Maroc en toute confiance</div>
+    </div>
+    <div style="padding:1.8rem 2rem">
+      <p style="font-size:15px;font-weight:600;color:var(--ink);text-align:center;margin-bottom:.3rem" data-i18n="welcome_who">Vous êtes...</p>
+      <p style="font-size:12px;color:var(--muted);text-align:center;margin-bottom:1.2rem" data-i18n="welcome_choose">Choisissez votre profil pour une expérience personnalisée</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin-bottom:.8rem">
+        <button onclick="setProfile('client')" style="padding:.9rem;border:.5px solid var(--border);border-radius:12px;background:var(--clay-pp);cursor:pointer;font-family:'Outfit',sans-serif;text-align:center"><div style="font-size:1.6rem;margin-bottom:.3rem">🏠</div><div style="font-size:12px;font-weight:600;color:var(--ink)" data-i18n="profile_client_label">Client / MRE</div><div style="font-size:10px;color:var(--muted)" data-i18n="profile_client_sub">Je construis ma maison</div></button>
+        <button onclick="setProfile('promoteur')" style="padding:.9rem;border:.5px solid var(--border);border-radius:12px;background:var(--clay-pp);cursor:pointer;font-family:'Outfit',sans-serif;text-align:center"><div style="font-size:1.6rem;margin-bottom:.3rem">🏗️</div><div style="font-size:12px;font-weight:600;color:var(--ink)" data-i18n="profile_promoteur_label">Promoteur</div><div style="font-size:10px;color:var(--muted)" data-i18n="profile_promoteur_sub">Je gère des chantiers</div></button>
+        <button onclick="setProfile('architecte')" style="padding:.9rem;border:.5px solid var(--border);border-radius:12px;background:var(--clay-pp);cursor:pointer;font-family:'Outfit',sans-serif;text-align:center"><div style="font-size:1.6rem;margin-bottom:.3rem">📐</div><div style="font-size:12px;font-weight:600;color:var(--ink)" data-i18n="profile_arch_label">Architecte / BE</div><div style="font-size:10px;color:var(--muted)" data-i18n="profile_arch_sub">Je conçois des projets</div></button>
+        <button onclick="setProfile('autre')" style="padding:.9rem;border:.5px solid var(--border);border-radius:12px;background:var(--clay-pp);cursor:pointer;font-family:'Outfit',sans-serif;text-align:center"><div style="font-size:1.6rem;margin-bottom:.3rem">💼</div><div style="font-size:12px;font-weight:600;color:var(--ink)" data-i18n="profile_autre_label">Autre acteur</div><div style="font-size:10px;color:var(--muted)" data-i18n="profile_autre_sub">Comptable, notaire...</div></button>
+      </div>
+      <button onclick="closeWelcome()" style="width:100%;padding:9px;border:none;background:transparent;font-size:12px;color:var(--muted);cursor:pointer;font-family:'Outfit',sans-serif" data-i18n="welcome_skip">Passer →</button>
+    </div>
+  </div>
+</div>
+
+<!-- NAV -->
+<nav>
+  <div style="display:flex;align-items:center;gap:.6rem">
+    <button id="back-nav-btn" onclick="goBack()" title="Retour" style="display:none;align-items:center;gap:.3rem;font-size:12px;font-weight:600;padding:5px 12px;border:.5px solid var(--border);border-radius:100px;background:var(--white);color:var(--ink);cursor:pointer;font-family:Outfit,sans-serif;transition:all .2s">&#8592; <span data-i18n="nav_back">Retour</span></button>
+    <div class="logo" onclick="goPage('landing')" style="display:flex;align-items:center;gap:10px;text-transform:none;letter-spacing:0"><svg width="32" height="32" viewBox="0 0 42 42" fill="none"><rect width="42" height="42" rx="10" fill="#E8B84B"/><path d="M9 24 L21 12 L33 24" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M13 24 L13 32 L29 32 L29 24" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/><rect x="18" y="25" width="6" height="7" rx="1" fill="#1A1A1A"/></svg><span style="font-size:18px;font-weight:500;color:white;letter-spacing:-0.3px">Shanti<span style="color:#E8B84B">Link</span></span></div>
+  </div>
+  <div class="nav-c">
+    <a onclick="goSection('solutions')" data-i18n="nav_solutions">Solutions</a>
+    <a onclick="goSection('simulator')" data-i18n="nav_simulator">Simulateur</a>
+    <a onclick="goPage('pg-community')" data-i18n="nav_community">Communauté</a>
+    <a onclick="goSection('pricing')" data-i18n="nav_pricing">Tarifs</a>
+    <a onclick="goPage('pg-about')" data-i18n="nav_about">À propos</a>
+  </div>
+  <div class="nav-r">
+    <div class="ltog">
+      <button class="lbtn on" onclick="setLang('fr',this)">FR</button>
+      <button class="lbtn" onclick="setLang('en',this)">EN</button>
+      <button class="lbtn" onclick="setLang('ar',this)" style="font-family:Arial,sans-serif">عربي</button>
+    </div>
+    <button class="nghost" id="nav-login-btn" data-i18n="nav_login" onclick="goPage('auth');switchTab('login')">Connexion</button>
+    <button class="nbtn" id="nav-dash-btn" data-i18n="nav_dashboard" onclick="goPage('dashboard')" style="display:none">Mon espace</button>
+    <button class="nbtn" id="nav-reg-btn" data-i18n="nav_register" onclick="goPage('auth');switchTab('register')">S'inscrire</button>
+  </div>
+</nav>
+
+<!-- ===== LANDING ===== -->
+<div id="pg-landing" class="pg on">
+<section class="hero">
+  <div class="orb1"></div><div class="orb2"></div>
+  <div class="hero-in">
+    <!-- Left: text & CTAs -->
+    <div class="hero-text">
+      <div class="eyebrow-badge fu1"><div class="pulsedot"></div><span id="hero-eyebrow" data-i18n="hero_eyebrow">Plateforme de confiance pour construire au Maroc</span></div>
+      <h1 class="fu2" id="hero-h1" data-i18n="hero_title">Construisez au Maroc<br>en toute <em>confiance</em></h1>
+      <p class="hero-sub fu3" data-i18n="hero_sub">Suivi en temps réel, rapports IA hebdomadaires, simulateur de budget et professionnels vérifiés. De près ou depuis l'étranger.</p>
+      <div class="hero-btns fu4">
+        <button class="btn-p" onclick="goPage('auth');switchTab('register')" id="hero-cta" data-i18n="hero_cta1">Commencer — 3 mois gratuits</button>
+        <button class="btn-g" onclick="goSection('demo-section')" data-i18n="hero_cta2">Voir la démo</button>
+      </div>
+      <div class="trust-row fu4">
+        <div class="tpill" data-i18n="trust_free">3 mois gratuits</div>
+        <div class="tpill" data-i18n="trust_no_card">Sans carte bancaire</div>
+        <div class="tpill" data-i18n="trust_langs">FR et Arabe</div>
+        <div class="tpill" data-i18n="trust_data">Données sécurisées</div>
+      </div>
+    </div>
+    <!-- Right: construction site visual -->
+    <div class="hero-visual fu3">
+
+      <!-- Main image: immeuble en chantier -->
+      <div style="position:relative;border-radius:20px;overflow:hidden;box-shadow:0 24px 60px rgba(0,0,0,.45)">
+        <img src="https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=800&q=80" alt="Immeuble en construction" style="width:100%;height:230px;object-fit:cover;display:block;object-position:center 40%">
+        <div style="position:absolute;inset:0;background:linear-gradient(180deg,transparent 35%,rgba(15,29,54,.92) 100%)"></div>
+        <!-- Live badge -->
+        <div style="position:absolute;top:.9rem;right:.9rem;display:flex;align-items:center;gap:.35rem;background:rgba(255,255,255,.12);backdrop-filter:blur(8px);border-radius:100px;padding:.3rem .75rem;border:.5px solid rgba(255,255,255,.18)">
+          <span style="width:7px;height:7px;background:#4ADE80;border-radius:50%;display:inline-block;animation:pulse 1.8s infinite"></span>
+          <span style="font-size:9px;font-weight:700;color:white;letter-spacing:.08em;text-transform:uppercase">Suivi live</span>
+        </div>
+        <div style="position:absolute;bottom:1.1rem;left:1.2rem;right:1.2rem">
+          <div style="font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--clay-l);margin-bottom:.35rem">De la fondation aux finitions</div>
+          <div style="font-size:14px;font-weight:600;color:var(--white);line-height:1.4">Construction, rénovation, extension —<br>chaque étape maîtrisée depuis n'importe où</div>
+        </div>
+      </div>
+
+      <!-- Row: architect card + stat card -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.7rem;animation:fadeUp .7s .5s both">
+
+        <!-- Architect card -->
+        <div style="position:relative;border-radius:14px;overflow:hidden;box-shadow:0 10px 28px rgba(0,0,0,.38);cursor:pointer" onclick="goPage('auth');switchTab('register')">
+          <img src="https://images.unsplash.com/photo-1503387762-592deb58ef4e?auto=format&fit=crop&w=400&q=80" alt="Architecte plans" style="width:100%;height:130px;object-fit:cover;display:block;object-position:center 30%">
+          <div style="position:absolute;inset:0;background:linear-gradient(160deg,rgba(160,82,45,.18) 0%,rgba(15,29,54,.88) 100%)"></div>
+          <div style="position:absolute;bottom:.7rem;left:.75rem;right:.75rem">
+            <div style="font-size:8px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--clay-l);margin-bottom:.2rem">Professionnels</div>
+            <div style="font-size:12px;font-weight:700;color:var(--white);line-height:1.25">80+ architectes<br>&amp; entrepreneurs</div>
+          </div>
+          <!-- Verified badge -->
+          <div style="position:absolute;top:.55rem;right:.55rem;background:var(--clay);border-radius:100px;padding:2px 7px;font-size:8px;font-weight:700;color:white;letter-spacing:.04em">✓ Vérifiés</div>
+        </div>
+
+        <!-- Stats card -->
+        <div class="hv-card">
+          <div class="hv-card-title">🏗️ Projets suivis</div>
+          <div style="font-family:'Playfair Display',serif;font-size:1.4rem;color:var(--white);line-height:1">100+</div>
+          <div style="font-size:10px;color:rgba(255,255,255,.45);margin-top:.3rem">Villas · Immeubles · Rénovations</div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="stats">
+  <div class="stats-in">
+    <div><div class="sv" id="stat-pros">80+</div><div class="sl">Pros vérifiés</div></div>
+    <div><div class="sv" id="stat-cities">12</div><div class="sl">Villes couvertes</div></div>
+    <div><div class="sv" id="stat-projects">100+</div><div class="sl">Projets gérés</div></div>
+    <div><div class="sv">3 mois</div><div class="sl">Essai gratuit</div></div>
+  </div>
+</div>
+
+<!-- COMMENT ÇA MARCHE -->
+<section style="background:var(--white);padding:4rem 1.5rem">
+  <div style="max-width:860px;margin:0 auto;text-align:center">
+    <span style="font-size:10px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--clay);display:block;margin-bottom:.8rem">Simple &amp; rapide</span>
+    <h2 style="font-family:'Playfair Display',serif;font-size:clamp(1.6rem,3.5vw,2.2rem);color:var(--ink);font-weight:400;margin-bottom:.6rem">Comment ça marche ?</h2>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:3rem">Démarrez en moins de 90 secondes. Aucune installation, aucun abonnement caché.</p>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1.5rem;text-align:left">
+      <div style="background:var(--clay-pp);border-radius:16px;padding:1.4rem;position:relative">
+        <div style="width:36px;height:36px;border-radius:50%;background:var(--clay);color:white;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;margin-bottom:1rem">1</div>
+        <div style="font-size:15px;font-weight:600;margin-bottom:.4rem">Créez votre compte</div>
+        <div style="font-size:13px;color:var(--muted);line-height:1.6">Inscription en 60 secondes. Choisissez votre profil : maître d'ouvrage ou professionnel BTP.</div>
+      </div>
+      <div style="background:var(--clay-pp);border-radius:16px;padding:1.4rem">
+        <div style="width:36px;height:36px;border-radius:50%;background:var(--clay);color:white;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;margin-bottom:1rem">2</div>
+        <div style="font-size:15px;font-weight:600;margin-bottom:.4rem">Pilotez votre chantier</div>
+        <div style="font-size:13px;color:var(--muted);line-height:1.6">Créez votre projet, suivez l'avancement, gérez le budget et les dépenses depuis votre téléphone.</div>
+      </div>
+      <div style="background:var(--clay-pp);border-radius:16px;padding:1.4rem">
+        <div style="width:36px;height:36px;border-radius:50%;background:var(--clay);color:white;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;margin-bottom:1rem">3</div>
+        <div style="font-size:15px;font-weight:600;margin-bottom:.4rem">Trouvez les bons pros</div>
+        <div style="font-size:13px;color:var(--muted);line-height:1.6">Publiez votre demande de devis, recevez des offres de professionnels vérifiés et contactez-les via WhatsApp.</div>
+      </div>
+    </div>
+    <div style="margin-top:2.5rem">
+      <button class="btn-p" style="font-size:14px;padding:14px 32px" onclick="goPage('auth');switchTab('register')">Commencer gratuitement →</button>
+    </div>
+  </div>
+</section>
+
+<!-- VIDEO SHOWCASE -->
+<section id="demo-section" class="video-showcase" style="display:none"><!-- legacy --></section>
+<section id="video-section" class="video-showcase">
+  <div style="max-width:980px;margin:0 auto">
+    <div style="text-align:center;margin-bottom:3rem">
+      <span style="font-size:10px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--clay-l);display:block;margin-bottom:.8rem">La plateforme en action</span>
+      <h2 style="font-family:'Playfair Display',serif;font-size:clamp(1.8rem,4vw,2.5rem);color:var(--white);font-weight:400;line-height:1.2;margin-bottom:.6rem">Découvrez ShantiLink <em style="color:var(--clay-l);font-style:italic">en 3 démos</em></h2>
+      <p style="font-size:13px;color:rgba(255,255,255,.7)">Cliquez sur une démo pour l'agrandir · 30 secondes par démo · contrôles play / pause / scrub</p>
+    </div>
+    <div class="video-grid">
+      <!-- Démo 1 : Suivi de chantier -->
+      <div class="video-card" onclick="openDemoModal(0)" style="cursor:pointer">
+        <div class="video-thumb" style="cursor:pointer">
+          <div class="demo-screen">
+            <!-- Browser bar -->
+            <div class="ds-bar">
+              <div class="ds-dot" style="background:#ff5f57"></div>
+              <div class="ds-dot" style="background:#febc2e"></div>
+              <div class="ds-dot" style="background:#28c840"></div>
+              <div class="ds-url">ShantiLink.ma · Suivi de chantier</div>
+            </div>
+            <!-- Live badge -->
+            <div class="ds-badge-live">● Live demo</div>
+            <!-- Project title -->
+            <div style="font-size:9px;font-weight:700;color:#1D5FA6;margin-bottom:.4rem">🏗️ Villa Ouazzani — Casablanca</div>
+            <!-- Progress bar -->
+            <div class="ds-row"><span style="font-size:7.5px;color:rgba(255,255,255,.45)">Avancement général</span><span style="font-size:8px;font-weight:700;color:#1D5FA6">68%</span></div>
+            <div style="height:5px;background:rgba(255,255,255,.08);border-radius:3px;overflow:hidden;margin-bottom:.6rem">
+              <div style="height:100%;background:linear-gradient(90deg,#1D5FA6,#1D9E75);border-radius:3px;animation:d1bar 7s ease-in-out infinite"></div>
+            </div>
+            <!-- Phases -->
+            <div class="ds-phase" style="background:rgba(40,200,64,.12);color:#28c840;animation:d1p1 7s ease-out infinite">✓ Terrassement</div>
+            <div class="ds-phase" style="background:rgba(40,200,64,.12);color:#28c840;animation:d1p2 7s ease-out infinite">✓ Fondations</div>
+            <div class="ds-phase" style="background:rgba(29,95,166,.15);color:#1D5FA6;animation:d1p3 7s ease-out infinite">⚙ Gros œuvre — en cours</div>
+            <div class="ds-phase" style="background:rgba(255,255,255,.04);color:rgba(255,255,255,.3);animation:d1p4 7s ease-out infinite">⏳ Charpente — en attente</div>
+            <!-- KPIs -->
+            <div class="ds-kpi-row" style="animation:d1kpi 7s ease-out infinite">
+              <div class="ds-kpi"><div class="ds-kpi-val">850K</div><div class="ds-kpi-lbl">Budget DH</div></div>
+              <div class="ds-kpi"><div class="ds-kpi-val">23</div><div class="ds-kpi-lbl">Photos GPS</div></div>
+              <div class="ds-kpi"><div class="ds-kpi-val">2/4</div><div class="ds-kpi-lbl">Phases ✓</div></div>
+            </div>
+          </div>
+        </div>
+        <div class="video-card-body">
+          <div class="video-cat">Suivi &amp; Contrôle</div>
+          <div class="video-title">Pilotez votre chantier à distance</div>
+          <div class="video-desc">Dashboard live, phases actualisées, photos GPS vérifiées. Votre chantier sous contrôle — depuis n'importe où.</div>
+          <div class="video-duration" style="color:var(--clay);font-weight:600;font-size:11px">● Animation en direct — sans inscription</div>
+        </div>
+      </div>
+
+      <!-- Démo 2 : Simulateur de budget -->
+      <div class="video-card" onclick="openDemoModal(1)" style="cursor:pointer">
+        <div class="video-thumb" style="cursor:pointer">
+          <div class="demo-screen">
+            <div class="ds-bar">
+              <div class="ds-dot" style="background:#ff5f57"></div>
+              <div class="ds-dot" style="background:#febc2e"></div>
+              <div class="ds-dot" style="background:#28c840"></div>
+              <div class="ds-url">ShantiLink.ma · Simulateur de budget</div>
+            </div>
+            <div class="ds-badge-live">● Live demo</div>
+            <div style="font-size:9px;font-weight:700;color:rgba(255,255,255,.6);margin-bottom:.5rem">Estimez votre projet en 30 secondes</div>
+            <!-- Form rows animating in -->
+            <div style="animation:d2row 7s ease-out infinite">
+              <div style="font-size:7px;color:rgba(255,255,255,.35);margin-bottom:2px">Ville</div>
+              <div style="font-size:9px;font-weight:600;color:#fff;background:rgba(255,255,255,.07);border-radius:5px;padding:4px 7px;margin-bottom:.4rem">📍 Casablanca</div>
+            </div>
+            <div style="animation:d2row2 7s ease-out infinite">
+              <div style="font-size:7px;color:rgba(255,255,255,.35);margin-bottom:2px">Surface habitable</div>
+              <div style="font-size:9px;font-weight:600;color:#fff;background:rgba(255,255,255,.07);border-radius:5px;padding:4px 7px;margin-bottom:.4rem">📐 250 m²</div>
+            </div>
+            <div style="animation:d2row3 7s ease-out infinite">
+              <div style="font-size:7px;color:rgba(255,255,255,.35);margin-bottom:2px">Finition</div>
+              <div style="font-size:9px;font-weight:600;color:#fff;background:rgba(255,255,255,.07);border-radius:5px;padding:4px 7px;margin-bottom:.5rem">✨ Haut standing</div>
+            </div>
+            <!-- Budget result -->
+            <div style="background:rgba(29,95,166,.12);border:.5px solid rgba(29,95,166,.3);border-radius:8px;padding:.5rem .6rem;animation:d2num 7s ease-out infinite">
+              <div style="font-size:7.5px;color:rgba(255,255,255,.45);margin-bottom:2px">Estimation totale</div>
+              <div style="font-size:1.1rem;font-weight:700;color:#1D5FA6;font-family:'Playfair Display',serif">1 812 500 DH</div>
+              <div style="height:4px;background:rgba(255,255,255,.08);border-radius:2px;margin-top:.35rem;overflow:hidden">
+                <div style="height:100%;background:linear-gradient(90deg,#1D5FA6,#1D9E75);border-radius:2px;animation:d2bar 7s ease-out infinite"></div>
+              </div>
+              <div style="font-size:7px;color:rgba(255,255,255,.35);margin-top:3px">Fourchette : 1,6M — 2M DH</div>
+            </div>
+          </div>
+        </div>
+        <div class="video-card-body">
+          <div class="video-cat">Planification financière</div>
+          <div class="video-title">Calculez votre budget en 30 sec</div>
+          <div class="video-desc">Ville, surface, finition — notre simulateur calcule une estimation réaliste basée sur les prix moyens marocains 2025.</div>
+          <div class="video-duration" style="color:var(--clay);font-weight:600;font-size:11px">● Animation en direct — sans inscription</div>
+        </div>
+      </div>
+
+      <!-- Démo 3 : Annuaire des professionnels -->
+      <div class="video-card" onclick="openDemoModal(2)" style="cursor:pointer">
+        <div class="video-thumb" style="cursor:pointer">
+          <div class="demo-screen">
+            <div class="ds-bar">
+              <div class="ds-dot" style="background:#ff5f57"></div>
+              <div class="ds-dot" style="background:#febc2e"></div>
+              <div class="ds-dot" style="background:#28c840"></div>
+              <div class="ds-url">ShantiLink.ma · Annuaire professionnel</div>
+            </div>
+            <div class="ds-badge-live">● Live demo</div>
+            <div style="font-size:9px;font-weight:700;color:rgba(255,255,255,.6);margin-bottom:.5rem">Professionnels vérifiés 📍 Maroc</div>
+            <!-- Pro cards slide in -->
+            <div class="ds-pro-card" style="animation:d3c1 7s ease-out infinite">
+              <div class="ds-pro-av" style="background:#B45309">📐</div>
+              <div style="flex:1;min-width:0">
+                <div class="ds-pro-name">Karim Benali</div>
+                <div class="ds-pro-role">Architecte · Casablanca</div>
+              </div>
+              <div class="ds-pro-badge">✓ Vérifié</div>
+            </div>
+            <div class="ds-pro-card" style="animation:d3c2 7s ease-out infinite">
+              <div class="ds-pro-av" style="background:#0E7490">📊</div>
+              <div style="flex:1;min-width:0">
+                <div class="ds-pro-name">SBE Ingénierie</div>
+                <div class="ds-pro-role">Bureau d'études · Rabat</div>
+              </div>
+              <div class="ds-pro-badge">✓ Vérifié</div>
+            </div>
+            <div class="ds-pro-card" style="animation:d3c3 7s ease-out infinite">
+              <div class="ds-pro-av" style="background:#D97706">⚡</div>
+              <div style="flex:1;min-width:0">
+                <div class="ds-pro-name">Yassine Tazi</div>
+                <div class="ds-pro-role">Électricien · Marrakech</div>
+              </div>
+              <div class="ds-pro-badge">✓ Vérifié</div>
+            </div>
+            <div class="ds-pro-card" style="animation:d3c4 7s ease-out infinite">
+              <div class="ds-pro-av" style="background:#6D28D9">⚖️</div>
+              <div style="flex:1;min-width:0">
+                <div class="ds-pro-name">Me. Fatima Haddou</div>
+                <div class="ds-pro-role">Notaire · Agadir</div>
+              </div>
+              <div class="ds-pro-badge">✓ Vérifié</div>
+            </div>
+          </div>
+        </div>
+        <div class="video-card-body">
+          <div class="video-cat">Communauté &amp; Réseau</div>
+          <div class="video-title">Trouvez le bon professionnel</div>
+          <div class="video-desc">Architectes, bureaux d'études, électriciens, notaires — tous vérifiés par ShantiLink. Contactez directement via messagerie sécurisée.</div>
+          <div class="video-duration" style="color:var(--clay);font-weight:600;font-size:11px">● Animation en direct — sans inscription</div>
+        </div>
+      </div>
+    </div>
+    <div style="text-align:center;margin-top:2.5rem">
+      <button onclick="goPage('auth');switchTab('register')" style="font-size:14px;font-weight:600;padding:13px 30px;background:var(--clay);color:white;border:none;border-radius:100px;cursor:pointer;font-family:'Outfit',sans-serif">Accéder à la plateforme — 3 mois gratuits &#x2192;</button>
+    </div>
+  </div>
+</section>
+
+<!-- DEMO MODAL (interactive animated demo player) -->
+<div id="demo-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:800;align-items:center;justify-content:center;padding:1rem" onclick="if(event.target===this)closeDemoModal()">
+  <div style="background:#0F1D36;border-radius:20px;width:100%;max-width:600px;overflow:hidden;display:flex;flex-direction:column;max-height:92vh;box-shadow:0 40px 80px rgba(0,0,0,.6)">
+    <!-- Header -->
+    <div style="background:#162847;padding:.9rem 1.3rem;display:flex;align-items:center;justify-content:space-between;border-bottom:.5px solid rgba(255,255,255,.08);flex-shrink:0">
+      <div style="min-width:0">
+        <div style="font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#1D5FA6;margin-bottom:2px">ShantiLink · Démo interactive</div>
+        <div id="dm-modal-title" style="font-family:'Playfair Display',serif;font-size:1rem;color:#fff;font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
+        <div id="dm-modal-sub" style="font-size:9.5px;color:rgba(255,255,255,.4);margin-top:1px"></div>
+      </div>
+      <button onclick="closeDemoModal()" style="width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.08);border:none;color:rgba(255,255,255,.6);cursor:pointer;font-size:14px;font-family:Outfit,sans-serif;flex-shrink:0;margin-left:.8rem">✕</button>
+    </div>
+    <!-- Animated demo screen -->
+    <div id="dm-screen" style="flex:1;overflow-y:auto;padding:1.1rem 1.3rem;min-height:280px"></div>
+    <!-- Playback controls -->
+    <div style="background:#162847;padding:.75rem 1.3rem;display:flex;align-items:center;gap:.8rem;border-top:.5px solid rgba(255,255,255,.08);flex-shrink:0">
+      <button id="dm-play-btn" onclick="toggleDemoPlay()" style="width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.1);border:none;color:#fff;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0">⏸</button>
+      <button onclick="restartDemo()" title="Recommencer" style="width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,.07);border:none;color:rgba(255,255,255,.5);cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0">↺</button>
+      <input type="range" id="dm-seek" min="0" max="100" value="0" step="0.5" oninput="seekDemo(this.value)" style="flex:1;cursor:pointer">
+      <span id="dm-time" style="font-size:9.5px;color:rgba(255,255,255,.4);white-space:nowrap;min-width:52px;text-align:right;font-family:Outfit,sans-serif">0s / 30s</span>
+    </div>
+    <!-- Footer CTA -->
+    <div style="background:#0a1628;padding:.7rem 1.3rem;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+      <div style="font-size:10px;color:rgba(255,255,255,.3)">Accès complet · 3 mois gratuits</div>
+      <button onclick="closeDemoModal();goPage('auth');switchTab('register')" style="font-size:11px;font-weight:700;padding:7px 18px;background:#1D5FA6;color:#fff;border:none;border-radius:100px;cursor:pointer;font-family:Outfit,sans-serif">Rejoindre →</button>
+    </div>
+  </div>
+</div>
+
+<!-- PROBLÈME -->
+<section class="sec-prob">
+  <div class="sec-in">
+    <span class="etag" data-i18n="prob_tag">Le problème</span>
+    <h2 data-i18n="prob_title">Construire au Maroc sans contrôle,<br>c'est risquer <em>gros</em></h2>
+    <p class="sec-lead" data-i18n="prob_sub">Des milliers de familles construisent chaque année sans visibilité réelle sur leur chantier.</p>
+    <div class="prob-grid">
+      <div class="pcard"><div class="pn">01</div><h4 data-i18n="prob1_title">Aucune visibilité à distance</h4><p data-i18n="prob1_desc">Vous apprenez les retards des semaines après. Trop tard pour agir.</p></div>
+      <div class="pcard"><div class="pn">02</div><h4 data-i18n="prob2_title">Budget incontrôlable</h4><p data-i18n="prob2_desc">L'argent part sans traçabilité. Les dépassements s'accumulent en silence.</p></div>
+      <div class="pcard"><div class="pn">03</div><h4 data-i18n="prob3_title">Trouver un professionnel fiable</h4><p data-i18n="prob3_desc">Impossible de vérifier la réputation sans référence solide.</p></div>
+      <div class="pcard"><div class="pn">04</div><h4 data-i18n="prob4_title">Aucune idée du budget réel</h4><p data-i18n="prob4_desc">Impossible de planifier sans connaître les vrais coûts avant de commencer.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- SOLUTIONS -->
+<section id="solutions">
+  <div class="sec-in">
+    <span class="etag" data-i18n="sol_tag">Nos solutions</span>
+    <h2 data-i18n="sol_title">Tout pour construire <em>sereinement</em></h2>
+    <div class="tab-row">
+      <button class="tbtn on" onclick="showTab('suivi',this)" data-i18n="sol_tab1">Suivi de chantier</button>
+      <button class="tbtn" onclick="showTab('relation',this)" data-i18n="sol_tab2">Mise en relation</button>
+      <button class="tbtn" onclick="showTab('rapports',this)" data-i18n="sol_tab3">Rapports IA</button>
+    </div>
+    <div id="tab-suivi" class="tpanel on">
+      <div class="grid-3">
+        <div class="card"><div class="card-ico">📊</div><h3 data-i18n="card_s1t">Dashboard temps réel</h3><p data-i18n="card_s1d">Avancement, budget, planning en un coup d'œil. Mis à jour en permanence.</p></div>
+        <div class="card"><div class="card-ico">💰</div><h3 data-i18n="card_s2t">Suivi budgétaire précis</h3><p data-i18n="card_s2d">Chaque dépense tracée avec justificatif. Comparaison avec le marché local.</p></div>
+        <div class="card"><div class="card-ico">📸</div><h3 data-i18n="card_s3t">Photos GPS vérifiées</h3><p data-i18n="card_s3d">Date, heure et GPS archivés automatiquement. Infalsifiable.</p></div>
+        <div class="card"><div class="card-ico">🔔</div><h3 data-i18n="card_s4t">Alertes intelligentes</h3><p data-i18n="card_s4d">Dépassement, retard, anomalie — alerte immédiate.</p></div>
+        <div class="card"><div class="card-ico">📱</div><h3 data-i18n="card_s5t">App mobile terrain</h3><p data-i18n="card_s5d">L'entrepreneur upload photos et données depuis le chantier.</p></div>
+        <div class="card"><div class="card-ico">🤖</div><h3 data-i18n="card_s6t">IA intégrée</h3><p data-i18n="card_s6d">Détection automatique d'anomalies budgétaires et de retards.</p></div>
+      </div>
+    </div>
+    <div id="tab-relation" class="tpanel">
+      <div class="grid-3">
+        <div class="card"><div class="card-ico">🔍</div><h3 data-i18n="card_r1t">Professionnels vérifiés</h3><p data-i18n="card_r1d">Entrepreneurs, architectes, bureaux d'études, comptables, notaires — tous vérifiés.</p></div>
+        <div class="card"><div class="card-ico">🗺️</div><h3 data-i18n="card_r2t">Recherche géographique</h3><p data-i18n="card_r2d">Trouvez un professionnel par zone géographique sur une carte interactive.</p></div>
+        <div class="card"><div class="card-ico">🛡️</div><h3 data-i18n="card_r3t">Messagerie sécurisée</h3><p data-i18n="card_r3d">Échangez en toute sécurité. Coordonnées révélées après accord mutuel.</p></div>
+        <div class="card"><div class="card-ico">⭐</div><h3 data-i18n="card_r4t">Avis vérifiés</h3><p data-i18n="card_r4d">Chaque collaboration génère un avis authentique visible par tous.</p></div>
+        <div class="card"><div class="card-ico">📋</div><h3 data-i18n="card_r5t">Devis en ligne</h3><p data-i18n="card_r5d">Recevez et comparez des devis directement sur la plateforme.</p></div>
+        <div class="card"><div class="card-ico">🏆</div><h3 data-i18n="card_r6t">Badge de confiance</h3><p data-i18n="card_r6d">Les pros certifiés se distinguent et inspirent confiance aux clients.</p></div>
+      </div>
+    </div>
+    <div id="tab-rapports" class="tpanel">
+      <div class="grid-3">
+        <div class="card"><div class="card-ico">📄</div><h3 data-i18n="card_p1t">Rapport PDF hebdomadaire</h3><p data-i18n="card_p1d">Rapport complet généré automatiquement chaque semaine. Téléchargeable en un clic.</p></div>
+        <div class="card"><div class="card-ico">📊</div><h3 data-i18n="card_p2t">Analyse budgétaire</h3><p data-i18n="card_p2d">Comparaison prévisionnel vs réalisé, alertes dépassement, tendances.</p></div>
+        <div class="card"><div class="card-ico">📸</div><h3 data-i18n="card_p3t">Galerie photos datée</h3><p data-i18n="card_p3d">Toutes les photos du chantier organisées par semaine et par phase.</p></div>
+        <div class="card"><div class="card-ico">🎯</div><h3 data-i18n="card_p4t">Indicateurs de performance</h3><p data-i18n="card_p4d">Avancement, respect des délais, qualité — mesurés automatiquement.</p></div>
+        <div class="card"><div class="card-ico">📧</div><h3 data-i18n="card_p5t">Envoi automatique</h3><p data-i18n="card_p5d">Rapport envoyé par email chaque semaine sans aucune action requise.</p></div>
+        <div class="card"><div class="card-ico">🔐</div><h3 data-i18n="card_p6t">Archivage sécurisé</h3><p data-i18n="card_p6d">Tous les rapports archivés et accessibles à tout moment.</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SIMULATEUR -->
+<section class="sec-sim" id="simulator">
+  <div class="sec-in">
+    <span class="etag" data-i18n="sim_tag">Simulateur de budget</span>
+    <h2 data-i18n="sim_title">Estimez votre budget <em>en 30 secondes</em></h2>
+    <div class="sim-layout">
+      <div class="sim-form">
+        <div class="ff"><label data-i18n="sim_ville_lbl">Ville</label>
+          <select id="s-ville" class="city-select" onchange="calcBudget()">
+            <option value="Oujda">Oujda</option><option value="Fès">Fès</option>
+            <option value="Meknès">Meknès</option><option value="Rabat">Rabat</option>
+            <option value="Casablanca" selected>Casablanca</option><option value="Marrakech">Marrakech</option>
+            <option value="Agadir">Agadir</option><option value="Tanger">Tanger</option>
+          </select>
+        </div>
+        <div class="ff"><label><span data-i18n="sim_surface_lbl">Surface</span> — <span id="sv">150</span> m²</label>
+          <input type="range" id="s-surface" min="60" max="500" value="150" step="10" oninput="updS();calcBudget()">
+          <div class="rr"><span>60 m²</span><span>500 m²</span></div>
+        </div>
+        <div class="ff"><label data-i18n="sim_etages_lbl">Étages</label>
+          <select id="s-etages" onchange="calcBudget()">
+            <option value="0">RDC seul</option><option value="1">R+1</option>
+            <option value="2" selected>R+2</option><option value="3">R+3</option>
+            <option value="4">R+4</option>
+          </select>
+        </div>
+        <div class="ff"><label data-i18n="sim_finition_lbl">Finition</label>
+          <select id="s-finition" onchange="calcBudget()">
+            <option value="Économique">Économique</option><option value="Standard" selected>Standard</option>
+            <option value="Haut standing">Haut standing</option><option value="Luxe">Luxe</option>
+          </select>
+        </div>
+        <button class="sim-cta" data-i18n="sim_cta" onclick="goSimDash()">Obtenir une estimation détaillée →</button>
+      </div>
+      <div class="sim-res">
+        <div style="font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.3);margin-bottom:1.2rem" data-i18n="sim_total_lbl">ESTIMATION TOTALE</div>
+        <div style="font-family:'Playfair Display',serif;font-size:2.2rem;color:var(--white);font-weight:600;line-height:1;margin-bottom:.3rem" id="sim-tot">1 080 000 DH</div>
+        <div style="font-size:11px;color:rgba(255,255,255,.35);margin-bottom:1.5rem" id="sim-rng">Fourchette : 950 000 — 1 210 000 DH</div>
+        <div>
+          <div style="padding:.5rem 0;border-bottom:.5px solid rgba(255,255,255,.06)"><div style="font-size:11px;color:rgba(255,255,255,.5)" data-i18n="sim_go_lbl">Gros œuvre (50%)</div><div style="font-size:13px;font-weight:600;color:var(--white)" id="v-go">540 000 DH</div></div>
+          <div style="padding:.5rem 0;border-bottom:.5px solid rgba(255,255,255,.06)"><div style="font-size:11px;color:rgba(255,255,255,.5)" data-i18n="sim_fi_lbl">Finitions (25%)</div><div style="font-size:13px;font-weight:600;color:var(--white)" id="v-fi">270 000 DH</div></div>
+          <div style="padding:.5rem 0;border-bottom:.5px solid rgba(255,255,255,.06)"><div style="font-size:11px;color:rgba(255,255,255,.5)" data-i18n="sim_ep_lbl">Élec &amp; Plomberie (15%)</div><div style="font-size:13px;font-weight:600;color:var(--white)" id="v-ep">162 000 DH</div></div>
+          <div style="padding:.5rem 0"><div style="font-size:11px;color:rgba(255,255,255,.5)" data-i18n="sim_fe_lbl">Finitions ext. (10%)</div><div style="font-size:13px;font-weight:600;color:var(--white)" id="v-fe">108 000 DH</div></div>
+        </div>
+        <p style="font-size:9px;color:rgba(255,255,255,.25);margin-top:1.2rem;line-height:1.7" data-i18n="sim_note_txt">Estimation indicative. Hors terrain, architecte et frais administratifs.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CONFIANCE -->
+<section>
+  <div class="sec-in">
+    <span class="etag" data-i18n="conf_tag">Pourquoi nous faire confiance</span>
+    <h2 data-i18n="conf_title">La confiance ne se déclare pas,<br>elle se <em>prouve</em></h2>
+    <div class="tg">
+      <div class="tc"><div style="font-size:24px;margin-bottom:.8rem">📍</div><h3 data-i18n="conf1_title">Photos GPS infalsifiables</h3><p data-i18n="conf1_desc">Chaque photo contient date, heure et GPS archivés automatiquement.</p></div>
+      <div class="tc"><div style="font-size:24px;margin-bottom:.8rem">🧾</div><h3 data-i18n="conf2_title">Dépenses archivées</h3><p data-i18n="conf2_desc">Chaque livraison photographiée. Vérification des quantités et prix.</p></div>
+      <div class="tc"><div style="font-size:24px;margin-bottom:.8rem">📊</div><h3 data-i18n="conf3_title">Comparaison marché auto</h3><p data-i18n="conf3_desc">L'IA compare chaque dépense aux prix moyens locaux et alerte en cas d'anomalie.</p></div>
+      <div class="tc"><div style="font-size:24px;margin-bottom:.8rem">✅</div><h3 data-i18n="conf4_title">Professionnels vérifiés</h3><p data-i18n="conf4_desc">Documents, registre de commerce, références vérifiés par ShantiLink.</p></div>
+      <div class="tc"><div style="font-size:24px;margin-bottom:.8rem">📹</div><h3 data-i18n="conf5_title">Contrôle vidéo à la demande</h3><p data-i18n="conf5_desc">Demandez une vidéo en direct du chantier à tout moment.</p></div>
+      <div class="tc"><div style="font-size:24px;margin-bottom:.8rem">💯</div><h3 data-i18n="conf6_title">Remboursement garanti</h3><p data-i18n="conf6_desc">Si les informations ne correspondent pas à la réalité, nous remboursons le mois.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- TÉMOIGNAGE -->
+<section class="sec-test">
+  <div class="test-in">
+    <span class="qmark">"</span>
+    <p class="ttext" data-i18n="test_quote">J'ai suivi mon projet de construction au Maroc depuis Lyon sans y aller une seule fois pendant les travaux. ShantiLink m'a donné une visibilité totale chaque semaine.</p>
+    <div style="font-size:13px;font-weight:600;color:var(--clay)" data-i18n="test_author">Karim B.</div>
+    <div style="font-size:12px;color:var(--muted);margin-top:3px" data-i18n="test_location">Primo-utilisateur ShantiLink — Paris, France</div>
+  </div>
+</section>
+
+<!-- COMMENT ÇA MARCHE -->
+<section class="sec-how">
+  <div class="sec-in">
+    <span class="etag" data-i18n="how_tag">Comment ça marche</span>
+    <h2 data-i18n="how_title">Démarrez en <em>5 minutes</em></h2>
+    <div class="steps-g">
+      <div class="step-i"><div class="sn">01</div><h4 data-i18n="how1_title">Créez votre compte</h4><p data-i18n="how1_desc">Inscription en 2 minutes. Choisissez votre profil selon votre rôle.</p></div>
+      <div class="step-i"><div class="sn">02</div><h4 data-i18n="how2_title">Décrivez votre projet</h4><p data-i18n="how2_desc">Ville, surface, budget et phases de construction.</p></div>
+      <div class="step-i"><div class="sn">03</div><h4 data-i18n="how3_title">Trouvez un professionnel</h4><p data-i18n="how3_desc">Parcourez les profils vérifiés et lancez la mise en relation.</p></div>
+      <div class="step-i"><div class="sn">04</div><h4 data-i18n="how4_title">Suivez en temps réel</h4><p data-i18n="how4_desc">Dashboard live, rapports hebdomadaires et alertes automatiques.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- TARIFS -->
+<section id="pricing">
+  <div class="sec-in">
+    <span class="etag" data-i18n="pricing_tag">Tarifs</span>
+    <h2 data-i18n="pricing_title">Simple, transparent, <em>sans mauvaise surprise</em></h2>
+    <div style="display:inline-flex;align-items:center;gap:8px;background:var(--green-b);border:.5px solid rgba(31,107,58,.2);border-radius:100px;padding:6px 16px;font-size:12px;font-weight:600;color:var(--green);margin-bottom:2rem" data-i18n="pricing_free_note">3 mois gratuits — Sans carte — Annulation à tout moment</div>
+    <div class="price-g">
+      <div class="plan">
+        <div class="plan-for" data-i18n="plan1_for">Client / Maître d'ouvrage</div>
+        <div class="plan-name" data-i18n="plan1_name">Essentiel</div>
+        <div class="plan-price">199 DH</div>
+        <div class="plan-per" data-i18n="plan1_per">/ mois après 3 mois offerts</div>
+        <ul class="plan-feats">
+          <li data-i18n="plan1_f1">1 projet actif</li><li data-i18n="plan1_f2">Dashboard temps réel</li><li data-i18n="plan1_f3">Rapport mensuel PDF</li><li data-i18n="plan1_f4">Accès marketplace</li><li data-i18n="plan1_f5">Messagerie sécurisée</li>
+        </ul>
+        <button class="plan-btn" onclick="goPage('auth');switchTab('register')" data-i18n="plan1_btn">Démarrer 3 mois gratuits</button>
+      </div>
+      <div class="plan hot">
+        <div class="plan-tag" data-i18n="plan2_tag">LE PLUS CHOISI</div>
+        <div class="plan-for" data-i18n="plan2_for">Client / Maître d'ouvrage</div>
+        <div class="plan-name" data-i18n="plan2_name">Premium</div>
+        <div class="plan-price">349 DH</div>
+        <div class="plan-per" data-i18n="plan2_per">/ mois après 3 mois offerts</div>
+        <ul class="plan-feats">
+          <li data-i18n="plan2_f1">Projets illimités</li><li data-i18n="plan2_f2">Rapport IA hebdomadaire</li><li data-i18n="plan2_f3">Alertes intelligentes</li><li data-i18n="plan2_f4">Photos GPS vérifiées</li><li data-i18n="plan2_f5">Comparateur prix marché</li><li data-i18n="plan2_f6">Contrôle vidéo à la demande</li>
+        </ul>
+        <button class="plan-btn" onclick="goPage('auth');switchTab('register')" data-i18n="plan2_btn">Démarrer 3 mois gratuits</button>
+      </div>
+      <div class="plan">
+        <div class="plan-for" data-i18n="plan3_for">Promoteur / Architecte / Bureau</div>
+        <div class="plan-name" data-i18n="plan3_name">Pro</div>
+        <div class="plan-price">549 DH</div>
+        <div class="plan-per" data-i18n="plan3_per">/ mois après 3 mois offerts</div>
+        <ul class="plan-feats">
+          <li data-i18n="plan3_f1">Profil vérifié et badge</li><li data-i18n="plan3_f2">Chantiers illimités</li><li data-i18n="plan3_f3">Rapports clients auto</li><li data-i18n="plan3_f4">Visibilité marketplace</li><li data-i18n="plan3_f5">App mobile terrain</li><li data-i18n="plan3_f6">Demandes clients qualifiées</li>
+        </ul>
+        <button class="plan-btn" onclick="goPage('auth');switchTab('register')" data-i18n="plan3_btn">Démarrer 3 mois gratuits</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CONTACT -->
+<section class="sec-contact" id="contact">
+  <div class="sec-in">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:3rem;align-items:start">
+      <div>
+        <span class="etag" data-i18n="contact_tag">Nous contacter</span>
+        <h2 style="font-family:'Playfair Display',serif;font-size:clamp(1.8rem,3.5vw,2.4rem);font-weight:400;line-height:1.2;margin-bottom:1rem" data-i18n="contact_title">Une question ?<br>On est <em style="color:var(--clay);font-style:italic">là pour vous</em></h2>
+        <p style="font-size:14px;color:var(--muted);line-height:1.85;margin-bottom:1rem" data-i18n="contact_sub">Notre équipe répond sous 24h.</p>
+        <div style="font-size:13px;color:var(--muted);margin-top:.5rem">📧 contact@ShantiLink.ma</div>
+      </div>
+      <div style="background:var(--white);border-radius:18px;padding:2rem;border:.5px solid var(--border)">
+        <div class="fg-row">
+          <div class="fg"><label data-i18n="contact_prenom_lbl">Prénom</label><input type="text" id="cp" placeholder="Youssef"/></div>
+          <div class="fg"><label data-i18n="contact_nom_lbl">Nom</label><input type="text" id="cn" placeholder="Benali"/></div>
+        </div>
+        <div class="fg"><label data-i18n="contact_email_lbl">Email</label><input type="email" id="ce" placeholder="vous@email.com"/></div>
+        <div class="fg"><label data-i18n="contact_role_lbl">Vous êtes</label>
+          <select id="cr">
+            <option>Client / Maître d'ouvrage</option><option>Promoteur / Entrepreneur</option>
+            <option>Architecte / Bureau</option><option>Comptable</option><option>Notaire</option><option>Autre</option>
+          </select>
+        </div>
+        <div class="fg"><label data-i18n="contact_msg_lbl">Message</label><textarea id="cm" placeholder="Votre question ou projet..."></textarea></div>
+        <button style="width:100%;padding:12px;border-radius:100px;background:var(--clay);color:white;border:none;font-size:14px;font-weight:600;font-family:'Outfit',sans-serif;cursor:pointer" onclick="submitContact()" data-i18n="contact_send_btn">Envoyer →</button>
+        <div id="c-ok" style="display:none;padding:.8rem;background:var(--green-b);border-radius:9px;font-size:13px;color:var(--green);margin-top:.7rem;text-align:center" data-i18n="contact_ok">Message envoyé ! Réponse sous 24h. ✓</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="foot-in">
+    <div class="foot-t">
+      <div>
+        <span class="flogo" onclick="goPage('landing')" style="display:inline-flex;align-items:center;gap:8px;text-transform:none;letter-spacing:0;font-family:'Outfit',sans-serif;font-weight:700"><svg width="22" height="22" viewBox="0 0 42 42" fill="none"><rect width="42" height="42" rx="10" fill="#E8B84B"/><path d="M9 24 L21 12 L33 24" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M13 24 L13 32 L29 32 L29 24" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/><rect x="18" y="25" width="6" height="7" rx="1" fill="#1A1A1A"/></svg><span>Shanti<span style="color:#E8B84B">Link</span></span></span>
+        <div style="font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--clay);margin-bottom:.8rem;margin-top:-.3rem" data-i18n="footer_slogan">Connecter · Construire · Concrétiser</div>
+        <p class="fdesc" data-i18n="footer_desc">La plateforme intelligente de gestion et suivi de projets de construction au Maroc.</p>
+      </div>
+      <div>
+        <div class="fctit" data-i18n="footer_col1">Plateforme</div>
+        <ul class="flinks">
+          <li><a onclick="goSection('solutions')" data-i18n="footer_link_solutions">Solutions</a></li>
+          <li><a onclick="goSection('simulator')" data-i18n="footer_link_simulator">Simulateur budget</a></li>
+          <li><a onclick="goSection('pricing')" data-i18n="footer_link_pricing">Tarifs</a></li>
+          <li><a onclick="goPage('pg-about')" data-i18n="footer_link_about">À propos</a></li>
+        </ul>
+      </div>
+      <div>
+        <div class="fctit" data-i18n="footer_col2">Compte</div>
+        <ul class="flinks">
+          <li><a onclick="goPage('auth');switchTab('register')" data-i18n="footer_link_register">S'inscrire</a></li>
+          <li><a onclick="goPage('auth');switchTab('login')" data-i18n="footer_link_login">Se connecter</a></li>
+          <li><a onclick="goPage('pg-legal')" data-i18n="footer_link_legal">Mentions légales</a></li>
+          <li><a onclick="goPage('pg-cgu')" data-i18n="footer_link_cgu">CGU</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="foot-b">
+      <span>© 2025 ShantiLink</span><span data-i18n="footer_country">Maroc — France — Belgique</span>
+    </div>
+  </div>
+</footer>
+</div><!-- /pg-landing -->
+
+<!-- FLOATING WHATSAPP BUTTON (visible on all pages) -->
+<a id="wa-float-btn" href="https://wa.me/212624957433?text=Bonjour%2C%20je%20souhaite%20en%20savoir%20plus%20sur%20ShantiLink" target="_blank" title="Nous contacter sur WhatsApp" style="position:fixed;bottom:5.5rem;right:1.5rem;z-index:9999;width:52px;height:52px;border-radius:50%;background:#25D366;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 20px rgba(37,211,102,.4);transition:transform .2s;text-decoration:none" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
+  <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+</a>
+
+<!-- ===== AUTH ===== -->
+<div id="pg-auth" class="pg">
+  <div class="auth-wrap">
+    <div class="auth-l">
+      <div class="auth-l-logo" onclick="goPage('landing')" style="display:flex;align-items:center;gap:8px;font-style:normal;text-transform:none;letter-spacing:0"><svg width="24" height="24" viewBox="0 0 42 42" fill="none"><rect width="42" height="42" rx="10" fill="#E8B84B"/><path d="M9 24 L21 12 L33 24" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M13 24 L13 32 L29 32 L29 24" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/><rect x="18" y="25" width="6" height="7" rx="1" fill="#1A1A1A"/></svg><span>Shanti<span style="color:#E8B84B">Link</span></span></div>
+      <div class="auth-l-body">
+        <h2 data-i18n="auth_left_title">Construisez au Maroc en toute <em>confiance</em></h2>
+        <p data-i18n="auth_left_sub">Rejoignez des centaines de clients et professionnels qui font confiance à ShantiLink.</p>
+        <ul class="auth-feats">
+          <li data-i18n="auth_feat1">Suivi en temps réel de votre chantier</li>
+          <li data-i18n="auth_feat2">Rapports IA hebdomadaires automatiques</li>
+          <li data-i18n="auth_feat3">Professionnels vérifiés et certifiés</li>
+          <li data-i18n="auth_feat4">3 mois gratuits, sans carte bancaire</li>
+          <li data-i18n="auth_feat5">Données sécurisées — chiffrement JWT</li>
+        </ul>
+      </div>
+      <div style="font-size:11px;color:rgba(255,255,255,.2)">© 2025 ShantiLink</div>
+    </div>
+    <div class="auth-r">
+      <div class="auth-box">
+        <div class="auth-tabs">
+          <button class="atab" id="atab-login" data-i18n="auth_login_tab" onclick="switchTab('login')">Connexion</button>
+          <button class="atab on" id="atab-register" data-i18n="auth_register_tab" onclick="switchTab('register')">Inscription</button>
+        </div>
+        <!-- LOGIN -->
+        <div id="apanel-login" class="apanel">
+          <h2 class="auth-title" data-i18n="auth_login_title">Bon retour !</h2>
+          <p class="auth-sub" data-i18n="auth_login_sub">Connectez-vous à votre espace ShantiLink.</p>
+          <div id="login-err" class="aerr"></div>
+          <div class="fg"><label data-i18n="auth_email_lbl">Email</label><input type="email" id="l-email" placeholder="vous@email.com"/></div>
+          <div class="fg"><label data-i18n="auth_pwd_lbl">Mot de passe</label><input type="password" id="l-pwd" placeholder="Mot de passe" onkeydown="if(event.key==='Enter')doLogin()"/></div>
+          <button class="asubmit" data-i18n="auth_login_btn" onclick="doLogin()">Se connecter →</button>
+          <div style="text-align:center;margin-top:1rem">
+            <span style="font-size:13px;color:var(--clay);cursor:pointer" onclick="switchTab('register')" data-i18n="auth_no_account">Pas de compte ? S'inscrire</span>
+          </div>
+        </div>
+        <!-- REGISTER -->
+        <div id="apanel-register" class="apanel on">
+          <div style="display:inline-flex;align-items:center;gap:.4rem;background:var(--clay-p);border:.5px solid var(--clay);border-radius:100px;padding:.25rem .75rem;margin-bottom:.8rem">
+            <span style="font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--clay)">🔒 Accès bêta contrôlé</span>
+          </div>
+          <h2 class="auth-title">Demandez votre accès</h2>
+          <p class="auth-sub">Places limitées — Vérification du profil avant activation de l'espace</p>
+          <div id="reg-ok" class="aok">Demande envoyée ! Votre espace est en cours d'activation...</div>
+          <div id="reg-err" class="aerr"></div>
+          <div class="fg-row">
+            <div class="fg"><label data-i18n="auth_prenom_lbl">Prénom</label><input type="text" id="rp" placeholder="Youssef"/></div>
+            <div class="fg"><label data-i18n="auth_nom_lbl">Nom</label><input type="text" id="rn" placeholder="Benali"/></div>
+          </div>
+          <div class="fg"><label data-i18n="auth_email_lbl">Email professionnel</label><input type="email" id="re" placeholder="vous@email.com"/></div>
+          <div class="fg"><label data-i18n="auth_role_lbl">Votre rôle</label>
+            <select id="r-role">
+              <option value="client">Client / Maître d'ouvrage</option>
+              <option value="promoteur">Promoteur / Entrepreneur</option>
+              <option value="architecte">Architecte / Bureau d'études</option>
+              <option value="comptable">Comptable / Gestionnaire</option>
+              <option value="bureau">Bureau d'études / Ingénieur</option>
+              <option value="notaire">Notaire / Juriste</option>
+              <option value="electricien">Électricien</option>
+              <option value="plombier">Plombier</option>
+              <option value="autre">Autre acteur du BTP</option>
+            </select>
+          </div>
+          <div class="fg"><label data-i18n="auth_ville_lbl">Ville principale</label><input type="text" id="r-ville" placeholder="Casablanca, Rabat..."/></div>
+          <div class="fg"><label data-i18n="auth_pwd_lbl">Mot de passe</label><input type="password" id="r-pwd" placeholder="Minimum 6 caractères" onkeydown="if(event.key==='Enter')doRegister()"/></div>
+          <div id="ref-code-row" class="fg" style="display:none"><label>Code de parrainage (optionnel)</label><input type="text" id="r-ref-code" placeholder="Ex: SLXXXXXX" style="font-family:monospace;letter-spacing:.05em"/></div>
+          <button class="asubmit" id="reg-btn" onclick="doRegister()">Demander l'accès →</button>
+          <p style="font-size:11px;color:var(--muted);margin-top:1rem;text-align:center;line-height:1.6">Votre profil sera examiné sous 24h. 3 mois d'accès complet offerts à la validation.</p>
+        </div>
+        <div style="margin-top:1.5rem;text-align:center">
+          <span style="font-size:12px;color:var(--muted);cursor:pointer" onclick="goPage('landing')" data-i18n="auth_back">← Retour au site</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== DASHBOARD ===== -->
+<div id="pg-dashboard" class="pg">
+  <div class="dash-wrap">
+    <div class="sidebar">
+      <span class="sb-logo" onclick="goPage('landing')" style="display:flex;align-items:center;gap:7px;font-style:normal;text-transform:none;letter-spacing:0"><svg width="22" height="22" viewBox="0 0 42 42" fill="none"><rect width="42" height="42" rx="10" fill="#E8B84B"/><path d="M9 24 L21 12 L33 24" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M13 24 L13 32 L29 32 L29 24" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/><rect x="18" y="25" width="6" height="7" rx="1" fill="#1A1A1A"/></svg><span>Shanti<span style="color:#E8B84B">Link</span></span></span>
+      <div id="ws-role-badge" style="display:none;margin:.3rem .5rem .8rem;padding:.35rem .8rem;border-radius:100px;font-size:10px;font-weight:700;letter-spacing:.05em;text-align:center;text-transform:uppercase"></div>
+      <div class="sb-sec" data-i18n="dash_sb_principal">Principal</div>
+      <button class="sblink on" onclick="showDashPanel('overview',this)"><span>📊</span> <span id="sb-overview">Vue d'ensemble</span></button>
+      <button class="sblink" onclick="showDashPanel('projets',this)"><span>🏗️</span> <span id="sb-projects">Mes projets</span></button>
+      <button class="sblink" onclick="showDashPanel('planning',this)"><span>📋</span> <span id="sb-planning">Planning</span></button>
+      <button class="sblink" onclick="showDashPanel('rapports',this)"><span>📄</span> <span id="sb-reports">Rapports</span></button>
+      <button class="sblink" onclick="showDashPanel('depenses',this)"><span>💰</span> <span id="sb-expenses">Budget &amp; Dépenses</span></button>
+      <button class="sblink" onclick="showDashPanel('photos',this)"><span>📸</span> <span id="sb-photos">Photos GPS</span></button>
+      <button class="sblink" onclick="showDashPanel('simulateur',this)"><span>🧮</span> <span id="sb-simulateur">Simulateur</span></button>
+      <div class="sb-sec" data-i18n="dash_sb_marketplace">Marketplace</div>
+      <button class="sblink" onclick="showDashPanel('pros',this)"><span>🔍</span> <span id="sb-pros">Trouver un pro</span></button>
+      <button class="sblink" onclick="showDashPanel('devis',this)"><span>📝</span> <span>Demandes de devis</span></button>
+      <button class="sblink" onclick="showDashPanel('messages',this)"><span>💬</span> <span id="sb-messages">Messages</span></button>
+      <button class="sblink" onclick="showDashPanel('communaute',this)"><span>🌐</span> <span>Communauté</span></button>
+      <div class="sb-sec" data-i18n="dash_sb_compte">Compte</div>
+      <button class="sblink" onclick="showDashPanel('profil',this)"><span>👤</span> <span id="sb-profile">Mon profil</span></button>
+      <button class="sblink" onclick="showDashPanel('parrainage',this)"><span>🎁</span> <span>Parrainage</span></button>
+      <button class="sblink" onclick="showDashPanel('params',this)"><span>⚙️</span> <span data-i18n="dash_sb_params">Paramètres</span></button>
+      <button class="sblink" style="margin-top:auto" onclick="doLogout()"><span>🚪</span> <span data-i18n="dash_sb_logout">Déconnexion</span></button>
+    </div>
+    <div class="dash-main">
+      <!-- Banner new user -->
+      <div id="new-user-banner" style="display:none;background:var(--green-b);border:.5px solid rgba(31,107,58,.2);border-radius:14px;padding:1.2rem 1.5rem;margin-bottom:1.5rem">
+        <div style="font-size:14px;font-weight:600;color:var(--green);margin-bottom:.4rem">Bienvenue sur ShantiLink ! 🎉</div>
+        <p style="font-size:13px;color:var(--green);line-height:1.6;margin-bottom:.8rem">Votre compte a été créé. Commencez par créer votre premier projet.</p>
+        <div style="display:flex;gap:.6rem;flex-wrap:wrap">
+          <button onclick="showDashPanel('projets',null);toggleForm('add-proj-form')" style="font-size:12px;font-weight:600;padding:8px 16px;background:var(--green);color:white;border:none;border-radius:100px;cursor:pointer;font-family:'Outfit',sans-serif">+ Créer mon premier projet</button>
+          <button onclick="showDashPanel('pros',null)" style="font-size:12px;font-weight:500;padding:8px 14px;background:transparent;color:var(--green);border:.5px solid rgba(31,107,58,.3);border-radius:100px;cursor:pointer;font-family:'Outfit',sans-serif">Trouver un professionnel</button>
+          <button onclick="this.parentElement.parentElement.style.display='none'" style="font-size:11px;color:rgba(31,107,58,.5);background:none;border:none;cursor:pointer;margin-left:auto">✕</button>
+        </div>
+      </div>
+
+      <!-- OVERVIEW -->
+      <div id="panel-overview" class="dash-panel on">
+        <div id="ws-banner" style="display:none;border-radius:14px;padding:1.2rem 1.5rem;margin-bottom:1.2rem"></div>
+        <div id="ov-sim-banner" style="display:none;background:var(--white);border:.5px solid var(--sand);border-radius:14px;padding:1.4rem 1.6rem;margin-bottom:1.5rem"></div>
+        <div class="dh">
+          <div><div class="dh-title" id="dash-greet">Bonjour !</div><div class="dh-sub">Voici l'état de vos projets</div></div>
+          <div style="display:flex;gap:.7rem;flex-wrap:wrap">
+            <button class="submit-btn" style="margin:0;font-size:12px;padding:8px 16px" onclick="showDashPanel('projets',null);toggleForm('add-proj-form')">+ Nouveau projet</button>
+            <button style="font-size:12px;padding:8px 14px;background:var(--white);color:var(--ink);border:.5px solid var(--border);border-radius:100px;cursor:pointer;font-family:'Outfit',sans-serif" onclick="showDashPanel('pros',null)">Trouver un pro</button>
+          </div>
+        </div>
+        <!-- KPI row — chaque carte est cliquable -->
+        <div class="kpi-row">
+          <div class="kpi" style="cursor:pointer" onclick="showDashPanel('projets',null)"><div class="kpi-lbl">PROJETS ACTIFS</div><div class="kpi-val" id="kpi-proj">0</div><div class="kpi-note" id="kpi-proj-note">—</div></div>
+          <div class="kpi ok" style="cursor:pointer" onclick="showDashPanel('depenses',null)"><div class="kpi-lbl">BUDGET TOTAL</div><div class="kpi-val" id="kpi-bud">—</div><div class="kpi-note" id="kpi-bud-note">—</div></div>
+          <div class="kpi" style="cursor:pointer" onclick="showDashPanel('depenses',null)"><div class="kpi-lbl">DÉPENSES</div><div class="kpi-val" id="kpi-dep">0 DH</div><div class="kpi-note" id="kpi-dep-note">—</div></div>
+          <div class="kpi" style="cursor:pointer" onclick="showDashPanel('photos',null)"><div class="kpi-lbl">PHOTOS GPS</div><div class="kpi-val" id="kpi-photos">0</div><div class="kpi-note" id="kpi-photos-note">—</div></div>
+          <div class="kpi" style="cursor:pointer" onclick="showDashPanel('planning',null)"><div class="kpi-lbl">PHASES</div><div class="kpi-val" id="kpi-phases">—</div><div class="kpi-note" id="kpi-phases-note">—</div></div>
+        </div>
+        <!-- Charts row 1 -->
+        <div class="ov-grid-2">
+          <div class="dcard">
+            <div class="dcard-tit">📊 Avancement des projets</div>
+            <div id="ov-chart-progress-wrap" style="position:relative;height:180px"><canvas id="chart-proj-progress"></canvas></div>
+            <div id="ov-no-proj-msg" style="display:none;text-align:center;padding:2rem;color:var(--muted);font-size:13px">Aucun projet. <span style="color:var(--clay);cursor:pointer" onclick="showDashPanel('projets',null);toggleForm('add-proj-form')">Créer →</span></div>
+          </div>
+          <div class="dcard">
+            <div class="dcard-tit">💰 Budget vs Dépenses</div>
+            <div style="position:relative;height:180px"><canvas id="chart-budget"></canvas></div>
+            <div id="ov-budget-legend" style="display:flex;gap:.8rem;justify-content:center;margin-top:.5rem;flex-wrap:wrap"></div>
+          </div>
+        </div>
+        <!-- Charts row 2 -->
+        <div class="ov-grid-phases">
+          <div class="dcard">
+            <div class="dcard-tit">🔄 État des phases</div>
+            <div style="position:relative;height:160px"><canvas id="chart-phases"></canvas></div>
+            <div id="ov-phases-legend" style="font-size:10px;margin-top:.4rem"></div>
+          </div>
+          <div class="dcard">
+            <div class="dcard-tit">⚡ Activité récente</div>
+            <div id="ov-activite" style="max-height:200px;overflow-y:auto"><div style="font-size:13px;color:var(--muted);text-align:center;padding:1rem">Aucune activité récente</div></div>
+          </div>
+        </div>
+        <!-- Projects list -->
+        <div class="dcard">
+          <div class="dcard-tit"><span>🏗️ Mes projets</span> <span style="cursor:pointer;color:var(--clay);font-weight:500" onclick="showDashPanel('projets',null)">Voir tout →</span></div>
+          <div id="ov-projets"></div>
+        </div>
+      </div>
+
+      <!-- PROJETS -->
+      <div id="panel-projets" class="dash-panel">
+        <div class="dh">
+          <div><div class="dh-title" data-i18n="dash_projects">Mes projets</div><div class="dh-sub" data-i18n="panel_projs_sub">Gérez vos projets de construction</div></div>
+          <button class="submit-btn" style="margin:0;font-size:12px;padding:8px 16px" onclick="toggleForm('add-proj-form')" data-i18n="panel_projs_btn">+ Nouveau projet</button>
+        </div>
+        <div id="add-proj-form" class="form-section" style="display:none">
+          <div class="form-title" data-i18n="panel_projs_form_title">Nouveau projet</div>
+          <div class="fg"><label data-i18n="panel_projs_nom_lbl">Nom du projet</label><input type="text" id="proj-nom" data-i18n-ph="panel_projs_nom_lbl" placeholder="Villa familiale, Appartement Agdal..."/></div>
+          <div class="fg-row">
+            <div class="fg"><label data-i18n="panel_projs_budget_lbl">Budget total (DH)</label><input type="number" id="proj-budget" placeholder="850000"/></div>
+            <div class="fg"><label data-i18n="panel_projs_type_lbl">Type de projet</label>
+              <select id="proj-type">
+                <option>Villa / Maison individuelle</option>
+                <option>Appartement</option>
+                <option>Immeuble collectif / Promoteur</option>
+                <option>Bureau / Local commercial</option>
+                <option>Rénovation / Extension</option>
+              </select>
+            </div>
+          </div>
+          <div class="fg-row">
+            <div class="fg"><label data-i18n="panel_projs_etages_lbl">Nombre d'étages</label>
+              <select id="proj-etages">
+                <option value="0">RDC uniquement (rez-de-chaussée)</option>
+                <option value="1">R+1 (2 niveaux)</option>
+                <option value="2">R+2 (3 niveaux)</option>
+                <option value="3">R+3 (4 niveaux)</option>
+                <option value="4">R+4 (5 niveaux)</option>
+                <option value="5">R+5 et plus</option>
+              </select>
+            </div>
+            <div class="fg"><label data-i18n="panel_projs_ville_lbl">Ville</label><input type="text" id="proj-ville" data-i18n-ph="panel_projs_ville_lbl" placeholder="Casablanca..."/></div>
+          </div>
+          <div class="fg"><label data-i18n="panel_projs_desc_lbl">Description (optionnel)</label><textarea id="proj-desc" data-i18n-ph="panel_projs_desc_lbl" placeholder="Décrivez votre projet..."></textarea></div>
+          <button class="submit-btn" onclick="addProjet()" data-i18n="panel_projs_create_btn">Créer le projet</button>
+          <button class="cancel-btn" onclick="toggleForm('add-proj-form')" data-i18n="panel_projs_cancel">Annuler</button>
+        </div>
+        <div id="projets-list"></div>
+      </div>
+
+      <!-- PLANNING -->
+      <div id="panel-planning" class="dash-panel">
+        <div class="dh">
+          <div><div class="dh-title">📋 Planning de chantier</div><div class="dh-sub">Phases, avancement et diagramme de Gantt</div></div>
+          <select id="plan-proj-select" onchange="switchPlanProject(this.value)" style="font-size:12px;padding:7px 12px;border:.5px solid var(--border);border-radius:100px;background:white;color:var(--ink);font-family:Outfit,sans-serif;cursor:pointer;display:none"></select>
+        </div>
+        <div id="plan-panel-box">
+          <div style="text-align:center;padding:3rem;color:var(--muted)"><div style="font-size:2.5rem;margin-bottom:1rem">📋</div><div style="font-size:14px;font-weight:600;margin-bottom:.4rem">Aucun projet sélectionné</div><div style="font-size:12px">Créez un projet ou cliquez sur <b>Planning</b> depuis la liste de vos projets.</div></div>
+        </div>
+      </div>
+
+      <!-- PROJET DETAIL -->
+      <div id="panel-projet-detail" class="dash-panel">
+        <div class="dh">
+          <div style="display:flex;align-items:center;gap:.8rem">
+            <button onclick="showDashPanel('projets',null)" style="font-size:12px;padding:6px 14px;background:var(--sand);color:var(--muted);border:.5px solid var(--border);border-radius:100px;cursor:pointer;font-family:Outfit,sans-serif">← Retour</button>
+            <div><div class="dh-title" id="proj-detail-name">Projet</div><div class="dh-sub" id="proj-detail-sub"></div></div>
+          </div>
+          <button class="submit-btn" style="margin:0;font-size:12px;padding:8px 16px" onclick="openPlanningPanel(window._detailPid)">📋 Planning complet</button>
+        </div>
+        <div id="proj-detail-box"></div>
+      </div>
+
+      <!-- RAPPORTS -->
+      <div id="panel-rapports" class="dash-panel">
+        <div class="dh">
+          <div><div class="dh-title">📊 Rapports &amp; Analyses</div><div class="dh-sub">Vue globale et suivi détaillé par projet</div></div>
+          <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+            <button class="submit-btn" style="margin:0;font-size:12px;padding:8px 16px;background:var(--clay-pp);color:var(--clay);border:.5px solid rgba(29,95,166,.3)" onclick="exportRapportExcel()">📥 Export CSV</button>
+            <button class="submit-btn" style="margin:0;font-size:12px;padding:8px 16px" onclick="generatePDF()">⬇ Export PDF</button>
+          </div>
+        </div>
+        <!-- Tabs -->
+        <div style="display:flex;gap:.5rem;margin-bottom:1.2rem">
+          <button class="rap-tab on" id="rap-tab-global" onclick="switchRapTab('global')">📊 Vue globale</button>
+          <button class="rap-tab" id="rap-tab-projets" onclick="switchRapTab('projets')">📋 Par projet</button>
+        </div>
+        <!-- Global view -->
+        <div id="rap-global-view">
+          <div class="rap-kpi-grid" id="rap-kpi-row"></div>
+          <div class="rap-charts-grid">
+            <div class="rap-chart-box">
+              <div class="rap-chart-title">Statut des projets</div>
+              <div style="position:relative;height:220px"><canvas id="rap-chart-status"></canvas></div>
+            </div>
+            <div class="rap-chart-box">
+              <div class="rap-chart-title">Budget vs Dépenses par projet</div>
+              <div style="position:relative;height:220px"><canvas id="rap-chart-budget"></canvas></div>
+            </div>
+          </div>
+          <div class="rap-chart-box" style="margin-bottom:1rem">
+            <div class="rap-chart-title">Avancement par projet (%)</div>
+            <div style="position:relative;height:160px"><canvas id="rap-chart-progress"></canvas></div>
+          </div>
+          <div id="rap-activity-feed"></div>
+        </div>
+        <!-- Per-project view -->
+        <div id="rap-projets-view" style="display:none">
+          <div class="rap-proj-grid" id="rapports-list"></div>
+        </div>
+      </div>
+
+      <!-- DÉPENSES -->
+      <div id="panel-depenses" class="dash-panel">
+        <div class="dh">
+          <div><div class="dh-title" data-i18n="dash_expenses">Budget &amp; Dépenses</div><div class="dh-sub" data-i18n="panel_dep_sub">Suivi financier de vos projets</div></div>
+          <button class="submit-btn" style="margin:0;font-size:12px;padding:8px 16px" onclick="toggleForm('add-dep-form')" data-i18n="panel_dep_btn">+ Ajouter dépense</button>
+        </div>
+        <div id="add-dep-form" class="form-section" style="display:none">
+          <div class="form-title" data-i18n="panel_dep_form_title">Nouvelle dépense</div>
+          <div class="fg-row">
+            <div class="fg"><label data-i18n="panel_dep_desc_lbl">Description</label><input type="text" id="dep-desc" data-i18n-ph="panel_dep_desc_lbl" placeholder="Béton B25, Main d'œuvre, Carrelage..."/></div>
+            <div class="fg"><label data-i18n="panel_dep_montant_lbl">Montant (DH)</label><input type="number" id="dep-montant" placeholder="5600"/></div>
+          </div>
+          <div class="fg-row">
+            <div class="fg"><label data-i18n="panel_dep_cat_lbl">Catégorie</label>
+              <select id="dep-cat">
+                <option>Gros œuvre</option><option>Matériaux</option><option>Main d'œuvre</option>
+                <option>Fondations</option><option>Électricité</option><option>Plomberie</option>
+                <option>Menuiserie</option><option>Carrelage</option><option>Peinture</option>
+                <option>Finitions</option><option>Honoraires</option><option>Autre</option>
+              </select>
+            </div>
+            <div class="fg"><label data-i18n="panel_dep_proj_lbl">Projet associé</label>
+              <select id="dep-project">
+                <option value="">— Sans projet spécifique —</option>
+              </select>
+            </div>
+          </div>
+          <div class="fg-row">
+            <div class="fg"><label data-i18n="panel_dep_date_lbl">Date</label><input type="date" id="dep-date"/></div>
+            <div class="fg"><label data-i18n="panel_dep_note_lbl">Note (optionnel)</label><input type="text" id="dep-note" data-i18n-ph="panel_dep_note_lbl" placeholder="Bon de livraison #123..."/></div>
+          </div>
+          <button class="submit-btn" onclick="addDepense()" data-i18n="panel_dep_save_btn">Enregistrer</button>
+          <button class="cancel-btn" onclick="toggleForm('add-dep-form')" data-i18n="panel_dep_cancel">Annuler</button>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1rem;margin-bottom:1.5rem">
+          <div class="kpi"><div class="kpi-lbl" data-i18n="kpi_total_dep">TOTAL DÉPENSÉ</div><div class="kpi-val" id="total-dep">0 DH</div><div class="kpi-note" data-i18n="kpi_total_note">Projets actifs</div></div>
+          <div class="kpi ok"><div class="kpi-lbl" data-i18n="kpi_week">CETTE SEMAINE</div><div class="kpi-val" id="dep-sem">0 DH</div></div>
+          <div class="kpi"><div class="kpi-lbl" data-i18n="kpi_cat">CATÉGORIE PRINCIPALE</div><div class="kpi-val" style="font-size:1rem" id="dep-cat-main">—</div></div>
+        </div>
+        <div class="dcard">
+          <div class="dcard-tit"><span data-i18n="dep_active_title">Dépenses actives</span> <span><button data-show="" onclick="toggleHistorique(this)" style="font-size:11px;padding:4px 12px;background:var(--sand);color:var(--muted);border:none;border-radius:100px;cursor:pointer;font-family:Outfit,sans-serif" data-i18n="dep_hist_btn">📋 Voir historique complet</button></span></div>
+          <div style="overflow-x:auto">
+            <table class="dep-table" id="dep-table">
+              <thead><tr><th data-i18n="dep_table_desc">Description</th><th data-i18n="dep_table_proj">Projet</th><th data-i18n="dep_table_cat">Catégorie</th><th data-i18n="dep_table_montant">Montant</th><th data-i18n="dep_table_date">Date</th><th></th></tr></thead>
+              <tbody id="dep-tbody"><tr><td colspan="6" style="text-align:center;color:var(--muted);padding:2rem">Aucune dépense enregistrée</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- PHOTOS -->
+      <div id="panel-photos" class="dash-panel">
+        <div class="dh">
+          <div><div class="dh-title" data-i18n="dash_photos">Photos GPS</div><div class="dh-sub" data-i18n="panel_photos_sub">Galerie de votre chantier</div></div>
+          <button class="submit-btn" style="margin:0;font-size:12px;padding:8px 16px" onclick="toggleForm('add-photo-form')" data-i18n="panel_photos_btn">+ Ajouter photo</button>
+        </div>
+        <div id="add-photo-form" class="form-section" style="display:none">
+          <div class="form-title" data-i18n="panel_photos_form_title">Ajouter une photo</div>
+
+          <!-- Camera / file picker buttons -->
+          <div style="display:flex;gap:.6rem;margin-bottom:1rem">
+            <button type="button" onclick="openCamera()" style="flex:1;display:flex;align-items:center;justify-content:center;gap:.4rem;padding:10px;border:2px dashed var(--clay);border-radius:10px;cursor:pointer;font-size:13px;font-weight:600;color:var(--clay);background:var(--clay-pp);font-family:Outfit,sans-serif">
+              <span data-i18n="panel_photos_take">📷 Prendre une photo</span>
+              <input type="file" id="photo-file-cam" accept="image/*" capture="environment" style="display:none" onchange="previewPhoto(this)"/>
+            </button>
+            <label style="flex:1;display:flex;align-items:center;justify-content:center;gap:.4rem;padding:10px;border:2px dashed var(--border);border-radius:10px;cursor:pointer;font-size:13px;font-weight:600;color:var(--muted);background:var(--sand)">
+              <span data-i18n="panel_photos_pick">🖼️ Choisir un fichier</span>
+              <input type="file" id="photo-file-pick" accept="image/*" style="display:none" onchange="previewPhoto(this)"/>
+            </label>
+          </div>
+
+          <!-- Preview -->
+          <div id="photo-preview-wrap" style="display:none;margin-bottom:1rem;text-align:center">
+            <img id="photo-preview-img" style="max-width:100%;max-height:220px;border-radius:10px;object-fit:cover;border:1px solid var(--border)"/>
+            <div style="font-size:11px;color:var(--muted);margin-top:.3rem" id="photo-preview-name"></div>
+          </div>
+
+          <div class="fg"><label data-i18n="panel_photos_desc_lbl">Description</label><input type="text" id="photo-desc" data-i18n-ph="panel_photos_desc_lbl" placeholder="Coulage dalle R+1..."/></div>
+          <div class="fg-row">
+            <div class="fg"><label data-i18n="panel_photos_date_lbl">Date</label><input type="date" id="photo-date"/></div>
+            <div class="fg"><label data-i18n="panel_photos_phase_lbl">Phase</label>
+              <select id="photo-phase" onchange="togglePhaseCustom(this)">
+                <optgroup label="Études &amp; Préparation">
+                  <option>Étude &amp; permis</option>
+                  <option>Préparation terrain</option>
+                  <option>Terrassement</option>
+                </optgroup>
+                <optgroup label="Gros œuvre">
+                  <option selected>Fondations</option>
+                  <option>Gros œuvre RDC</option>
+                  <option>Gros œuvre R+1</option>
+                  <option>Gros œuvre R+2</option>
+                  <option>Gros œuvre R+3</option>
+                  <option>Toiture / Dalle terrasse</option>
+                  <option>Charpente</option>
+                </optgroup>
+                <optgroup label="Second œuvre">
+                  <option>Plomberie</option>
+                  <option>Électricité</option>
+                  <option>Isolation</option>
+                  <option>Plâtrerie</option>
+                  <option>Menuiseries extérieures</option>
+                  <option>Menuiseries intérieures</option>
+                </optgroup>
+                <optgroup label="Finitions">
+                  <option>Revêtement sols et murs</option>
+                  <option>Peintures</option>
+                  <option>Revêtement extérieur</option>
+                  <option>Finitions</option>
+                  <option>Aménagement extérieur</option>
+                  <option>Réception des travaux</option>
+                </optgroup>
+                <option value="__autre__">✏️ Autre (à saisir)</option>
+              </select>
+              <input type="text" id="photo-phase-custom" placeholder="Décrire la phase…" style="display:none;margin-top:.4rem;width:100%;box-sizing:border-box;font-size:12px;padding:7px 10px;border:.5px solid var(--border);border-radius:8px;font-family:Outfit,sans-serif"/>
+            </div>
+          </div>
+          <div class="fg"><label data-i18n="panel_photos_type_lbl">Type de vue</label>
+            <select id="photo-emoji">
+              <optgroup label="Structure">
+                <option value="🏗️">🏗️ Structure / Grue</option>
+                <option value="🧱">🧱 Maçonnerie / Béton</option>
+                <option value="🏠">🏠 Vue générale du chantier</option>
+                <option value="🔩">🔩 Charpente / Métal</option>
+              </optgroup>
+              <optgroup label="Matériaux &amp; Livraison">
+                <option value="🚛">🚛 Livraison matériaux</option>
+                <option value="📦">📦 Stock / Matériaux</option>
+              </optgroup>
+              <optgroup label="Technique">
+                <option value="⚡">⚡ Électricité</option>
+                <option value="🔧">🔧 Plomberie</option>
+                <option value="🧯">🧯 Isolation / Étanchéité</option>
+                <option value="🪟">🪟 Menuiseries</option>
+              </optgroup>
+              <optgroup label="Finitions">
+                <option value="🎨">🎨 Peinture / Revêtements</option>
+                <option value="🪵">🪵 Bois / Parquet</option>
+                <option value="🛁">🛁 Sanitaires</option>
+              </optgroup>
+              <optgroup label="Autres">
+                <option value="📐">📐 Plans / Mesures</option>
+                <option value="🌿">🌿 Jardin / Extérieur</option>
+                <option value="📸">📸 Documentation générale</option>
+              </optgroup>
+            </select>
+          </div>
+          <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem;flex-wrap:wrap">
+            <button type="button" id="photo-gps-btn" onclick="captureGPS()" style="font-size:11px;font-weight:600;padding:6px 14px;background:var(--blue-b);color:var(--blue);border:.5px solid rgba(26,79,139,.2);border-radius:100px;cursor:pointer;font-family:Outfit,sans-serif;white-space:nowrap">📍 Capturer ma position</button>
+            <div id="photo-gps-status" style="font-size:11px;padding:5px 10px;border-radius:8px;display:none;flex:1"></div>
+          </div>
+          <button class="submit-btn" onclick="addPhoto()" data-i18n="panel_photos_save_btn">Archiver avec GPS</button>
+          <button class="cancel-btn" onclick="toggleForm('add-photo-form')" data-i18n="panel_photos_cancel">Annuler</button>
+        </div>
+        <div id="photos-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:1rem">
+          <div style="text-align:center;padding:3rem;color:var(--muted);grid-column:1/-1;font-size:13px"><div style="font-size:2rem;margin-bottom:.8rem">📸</div><span data-i18n="panel_photos_empty">Ajoutez des photos de votre chantier avec GPS</span></div>
+        </div>
+      </div>
+
+      <!-- PROFESSIONNELS -->
+      <div id="panel-pros" class="dash-panel">
+        <div class="dh"><div><div class="dh-title" data-i18n="panel_pros_title">Trouver un professionnel</div><div class="dh-sub" data-i18n="panel_pros_sub">82 professionnels vérifiés au Maroc — filtrez par type et par ville</div></div></div>
+        <div class="map-filter">
+          <select id="pro-type-filter" onchange="filterPros()">
+            <option value="" data-i18n="pro_filter_all_types">Tous les types</option>
+            <option value="entrepreneur">Entrepreneur / Maçon</option>
+            <option value="architecte">Architecte</option>
+            <option value="electricien">Électricien</option>
+            <option value="plombier">Plombier</option>
+            <option value="bureau">Bureau d'études</option>
+            <option value="comptable">Comptable BTP</option>
+            <option value="notaire">Notaire</option>
+          </select>
+          <select id="pro-ville-filter" onchange="filterPros()">
+            <option value="" data-i18n="pro_filter_all_cities">Toutes les villes</option>
+            <option value="Casablanca">Casablanca</option>
+            <option value="Rabat">Rabat</option>
+            <option value="Sale">Salé</option>
+            <option value="Marrakech">Marrakech</option>
+            <option value="Fes">Fès</option>
+            <option value="Tanger">Tanger</option>
+            <option value="Agadir">Agadir</option>
+            <option value="Oujda">Oujda</option>
+            <option value="Meknes">Meknès</option>
+            <option value="Kenitra">Kénitra</option>
+            <option value="Tetouan">Tétouan</option>
+            <option value="El Jadida">El Jadida</option>
+            <option value="Nador">Nador</option>
+            <option value="Beni Mellal">Beni Mellal</option>
+            <option value="Safi">Safi</option>
+            <option value="Settat">Settat</option>
+            <option value="Mohammedia">Mohammedia</option>
+            <option value="Ouarzazate">Ouarzazate</option>
+            <option value="Laayoune">Laâyoune</option>
+          </select>
+          <input type="text" id="pro-search" placeholder="Rechercher..." data-i18n-ph="pro_search_ph" onkeyup="filterPros()" style="border-radius:100px;padding:8px 16px;border:.5px solid var(--border);font-family:'Outfit',sans-serif;font-size:12px;outline:none"/>
+        </div>
+        <div id="pros-map"></div>
+        <div id="pros-list"></div>
+      </div>
+
+      <!-- MESSAGES -->
+      <div id="panel-messages" class="dash-panel">
+        <div class="dh"><div><div class="dh-title" data-i18n="dash_messages">Messages</div><div class="dh-sub">Messages directs entre inscrits</div></div></div>
+        <div style="display:grid;grid-template-columns:1fr 2fr;gap:1rem;height:520px">
+          <!-- Colonne gauche : liste + recherche -->
+          <div style="background:var(--white);border-radius:14px;border:.5px solid var(--border);overflow:hidden;display:flex;flex-direction:column">
+            <div style="padding:.7rem;border-bottom:.5px solid var(--border)">
+              <input id="user-search-input" type="text" placeholder="Chercher un inscrit..." oninput="searchUsersForChat(this.value)"
+                style="width:100%;padding:7px 11px;border:.5px solid var(--border);border-radius:8px;font-size:12px;font-family:'Outfit',sans-serif;outline:none;box-sizing:border-box"/>
+              <div id="user-search-results" style="display:none;margin-top:.4rem;max-height:160px;overflow-y:auto;border:.5px solid var(--border);border-radius:8px;background:var(--white)"></div>
+            </div>
+            <div style="padding:.5rem .7rem;border-bottom:.5px solid var(--border);font-size:12px;font-weight:600;color:var(--muted)">CONVERSATIONS</div>
+            <div id="conv-list" style="padding:.5rem;overflow-y:auto;flex:1">
+              <div style="font-size:13px;color:var(--muted);text-align:center;padding:1rem">Chargement...</div>
+            </div>
+          </div>
+          <!-- Colonne droite : messages -->
+          <div style="background:var(--white);border-radius:14px;border:.5px solid var(--border);overflow:hidden;display:flex;flex-direction:column">
+            <div style="padding:.8rem 1rem;border-bottom:.5px solid var(--border);font-size:13px;font-weight:600;display:flex;align-items:center;gap:.5rem" id="conv-name">Sélectionnez une conversation</div>
+            <div style="flex:1;padding:1rem;overflow-y:auto;display:flex;flex-direction:column;gap:.5rem" id="conv-msgs">
+              <div style="text-align:center;color:var(--muted);font-size:13px;margin-top:2rem">Cherchez un inscrit ou cliquez sur une conversation pour démarrer</div>
+            </div>
+            <div style="padding:.8rem;border-top:.5px solid var(--border);display:flex;gap:.5rem">
+              <input type="text" id="msg-input" placeholder="Votre message..." onkeydown="if(event.key==='Enter')sendMsg()" style="flex:1;padding:9px 13px;border:.5px solid var(--border);border-radius:100px;font-size:13px;font-family:'Outfit',sans-serif;outline:none"/>
+              <button onclick="sendMsg()" style="padding:9px 18px;background:var(--clay);color:white;border:none;border-radius:100px;cursor:pointer;font-family:'Outfit',sans-serif;font-size:13px;font-weight:600">Envoyer</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- COMMUNAUTÉ -->
+      <div id="panel-communaute" class="dash-panel">
+        <div class="dh">
+          <div><div class="dh-title">Communauté</div><div class="dh-sub">Annuaire des professionnels et fil d'actualité</div></div>
+          <button class="submit-btn" style="margin:0;font-size:12px;padding:8px 16px" onclick="openCommComposer()">+ Publier une update</button>
+        </div>
+
+        <!-- Post composer (hidden by default) -->
+        <div id="comm-composer-dash" style="display:none;background:var(--white);border:.5px solid var(--border);border-radius:14px;padding:1.2rem;margin-bottom:1.2rem">
+          <textarea id="comm-post-text" placeholder="Partagez une actualité, une réalisation, une question..." style="width:100%;min-height:90px;resize:vertical;border:.5px solid var(--border);border-radius:10px;padding:.7rem;font-family:'Outfit',sans-serif;font-size:13px;color:var(--ink);box-sizing:border-box"></textarea>
+          <div style="display:flex;gap:.6rem;margin-top:.6rem;justify-content:flex-end">
+            <button onclick="document.getElementById('comm-composer-dash').style.display='none'" style="font-size:12px;padding:7px 14px;background:none;border:.5px solid var(--border);border-radius:100px;cursor:pointer;font-family:'Outfit',sans-serif">Annuler</button>
+            <button onclick="submitCommPost()" style="font-size:12px;font-weight:600;padding:7px 16px;background:var(--clay);color:white;border:none;border-radius:100px;cursor:pointer;font-family:'Outfit',sans-serif">Publier →</button>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 320px;gap:1.5rem;align-items:start">
+          <!-- Feed -->
+          <div>
+            <div style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.8rem">Fil d'actualité</div>
+            <div id="dash-comm-posts" style="display:flex;flex-direction:column;gap:.8rem"></div>
+          </div>
+          <!-- Directory sidebar -->
+          <div>
+            <div style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.8rem">Profils en vedette</div>
+            <div style="display:flex;gap:.5rem;margin-bottom:.8rem">
+              <input id="dash-comm-search" placeholder="Rechercher..." onkeyup="loadDashComm()" style="flex:1;padding:.45rem .7rem;border:.5px solid var(--border);border-radius:8px;font-family:'Outfit',sans-serif;font-size:12px"/>
+            </div>
+            <div id="dash-comm-dir" style="display:flex;flex-direction:column;gap:.6rem"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PROFIL -->
+      <div id="panel-profil" class="dash-panel">
+        <div class="dh"><div><div class="dh-title" data-i18n="dash_profile">Mon profil</div><div class="dh-sub" data-i18n="panel_profil_sub">Gérez vos informations personnelles</div></div></div>
+        <div class="form-section">
+          <div style="display:flex;align-items:center;gap:1.5rem;margin-bottom:2rem">
+            <div style="width:68px;height:68px;border-radius:50%;background:var(--clay-p);display:flex;align-items:center;justify-content:center;font-size:26px;border:.5px solid var(--sand)" id="profil-av">P</div>
+            <div>
+              <div style="font-size:18px;font-weight:600" id="profil-name">—</div>
+              <div style="font-size:13px;color:var(--muted)" id="profil-role">—</div>
+              <div style="font-size:12px;color:var(--clay);margin-top:2px" id="profil-email">—</div>
+            </div>
+          </div>
+          <div class="form-title" data-i18n="profil_info_title">Informations personnelles</div>
+          <div class="fg-row">
+            <div class="fg"><label data-i18n="profil_prenom_lbl">Prénom</label><input type="text" id="edit-prenom"/></div>
+            <div class="fg"><label data-i18n="profil_nom_lbl">Nom</label><input type="text" id="edit-nom"/></div>
+          </div>
+          <div class="fg"><label data-i18n="profil_email_lbl">Email</label><input type="email" id="edit-email" readonly style="background:var(--clay-pp);color:var(--muted)"/></div>
+          <div class="fg"><label data-i18n="profil_ville_lbl">Ville du projet</label><input type="text" id="edit-ville"/></div>
+          <div class="fg"><label data-i18n="profil_tel_lbl">Téléphone</label><input type="tel" id="edit-tel" placeholder="+212 6XX XXX XXX"/></div>
+          <button class="submit-btn" onclick="saveProfile()" data-i18n="profil_save_btn">Sauvegarder</button>
+        </div>
+        <div class="form-section">
+          <div class="form-title" data-i18n="profil_trial_title">Période d'essai</div>
+          <div style="display:flex;align-items:center;gap:1rem;padding:1rem;background:var(--green-b);border-radius:12px">
+            <div style="font-size:2rem">🎉</div>
+            <div><div style="font-size:14px;font-weight:600;color:var(--green)" data-i18n="profil_trial_active">3 mois gratuits activés</div>
+            <div style="font-size:12px;color:var(--green);margin-top:2px" data-i18n="profil_trial_desc">Accès complet à toutes les fonctionnalités</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PARAMÈTRES -->
+      <!-- SIMULATEUR -->
+      <div id="panel-simulateur" class="dash-panel">
+        <div class="dh">
+          <div><div class="dh-title" data-i18n="dash_simulator">Simulateur de budget</div><div class="dh-sub" data-i18n="panel_sim_sub">Estimez votre projet en détail — adapté au marché marocain</div></div>
+        </div>
+        <div class="form-section">
+          <div class="form-title" data-i18n="sim_params_title">Paramètres de votre projet</div>
+          <div class="fg-row">
+            <div class="fg"><label data-i18n="dsim_region_lbl">Région / Ville</label>
+              <select id="dsim-region" class="city-select">
+                <option value="Casablanca">Casablanca</option><option value="Rabat">Rabat</option><option value="Marrakech">Marrakech</option>
+                <option value="Tanger">Tanger</option><option value="Agadir">Agadir</option><option value="Fès">Fès</option>
+                <option value="Meknès">Meknès</option><option value="Kénitra">Kénitra</option><option value="Oujda">Oujda</option>
+                <option value="El Jadida">El Jadida</option><option value="Safi">Safi</option><option value="Béni Mellal">Béni Mellal</option>
+                <option value="Laâyoune">Laâyoune</option><option value="Dakhla">Dakhla</option><option value="Autre ville">Autre ville</option>
+              </select>
+            </div>
+            <div class="fg"><label data-i18n="dsim_type_lbl">Type de projet</label>
+              <select id="dsim-type">
+                <option>Villa / Maison individuelle</option>
+                <option>Appartement</option>
+                <option>Immeuble collectif</option>
+                <option>Bureau / Local commercial</option>
+                <option>Rénovation / Extension</option>
+              </select>
+            </div>
+          </div>
+          <div class="fg-row">
+            <div class="fg"><label data-i18n="dsim_surface_lbl">Surface construite (m²)</label><input type="number" id="dsim-surface" placeholder="150" min="20"/></div>
+            <div class="fg"><label data-i18n="dsim_etages_lbl">Nombre d'étages</label>
+              <select id="dsim-etages">
+                <option value="0">RDC uniquement</option>
+                <option value="1">R+1</option><option value="2">R+2</option>
+                <option value="3">R+3</option><option value="4">R+4</option><option value="5">R+5 et plus</option>
+              </select>
+            </div>
+          </div>
+          <div class="fg-row">
+            <div class="fg"><label data-i18n="dsim_finition_lbl">Qualité de finition</label>
+              <select id="dsim-finition">
+                <option>Économique</option><option selected>Standard</option>
+                <option>Haut standing</option><option>Luxe</option>
+              </select>
+            </div>
+            <div class="fg"><label data-i18n="dsim_mat_lbl">Matériaux</label>
+              <select id="dsim-materiaux">
+                <option>Local / Standard</option>
+                <option>Mi-gamme importé</option>
+                <option>Premium importé</option>
+              </select>
+            </div>
+          </div>
+          <div style="display:flex;gap:1.5rem;align-items:center;margin:.4rem 0 .8rem;flex-wrap:wrap">
+            <label style="display:flex;align-items:center;gap:.5rem;font-size:13px;cursor:pointer">
+              <input type="checkbox" id="dsim-soussol" style="width:16px;height:16px;cursor:pointer"/> <span data-i18n="dsim_soussol_lbl">Sous-sol / parking</span>
+            </label>
+            <label style="display:flex;align-items:center;gap:.5rem;font-size:13px;cursor:pointer">
+              <input type="checkbox" id="dsim-piscine" style="width:16px;height:16px;cursor:pointer"/> <span data-i18n="dsim_piscine_lbl">Piscine</span>
+            </label>
+          </div>
+          <button class="submit-btn" onclick="runSimDash()" data-i18n="dsim_calc_btn">🧮 Calculer l'estimation</button>
+        </div>
+        <div id="sim-result-box"></div>
+      </div>
+
+      <!-- DEMANDES DE DEVIS -->
+      <div id="panel-devis" class="dash-panel">
+        <div class="dh">
+          <div><div class="dh-title">Demandes de devis</div><div class="dh-sub" id="devis-sub">Publiez votre projet, recevez des offres</div></div>
+          <div style="display:flex;gap:.6rem;flex-wrap:wrap">
+            <button id="brief-add-btn" class="submit-btn" style="margin:0;font-size:12px;padding:8px 16px" onclick="showAddBriefForm()">+ Nouvelle demande</button>
+          </div>
+        </div>
+        <!-- Tabs: client sees "Mes demandes" / pro sees available briefs -->
+        <div id="briefs-tab-bar" style="display:flex;gap:.5rem;margin-bottom:1rem;flex-wrap:wrap">
+          <button id="tab-my-briefs" onclick="document.getElementById('brief-add-btn').style.display='block';loadMyBriefs()" style="font-size:12px;font-weight:600;padding:7px 16px;border-radius:100px;border:.5px solid var(--clay);background:var(--clay);color:white;cursor:pointer;font-family:Outfit,sans-serif">Mes demandes</button>
+          <button id="tab-all-briefs" onclick="document.getElementById('brief-add-btn').style.display='none';loadBriefsList()" style="font-size:12px;font-weight:600;padding:7px 16px;border-radius:100px;border:.5px solid var(--border);background:white;color:var(--ink);cursor:pointer;font-family:Outfit,sans-serif">Demandes disponibles</button>
+          <!-- Filters for pros -->
+          <select id="brief-filter-ville" onchange="loadBriefsList()" style="font-size:12px;padding:7px 12px;border:.5px solid var(--border);border-radius:100px;font-family:Outfit,sans-serif;background:white;color:var(--ink)">
+            <option value="">Toutes villes</option>
+            <option>Casablanca</option><option>Rabat</option><option>Marrakech</option>
+            <option>Tanger</option><option>Agadir</option><option>Fes</option>
+            <option>Meknes</option><option>Kenitra</option><option>Oujda</option>
+          </select>
+          <select id="brief-filter-cat" onchange="loadBriefsList()" style="font-size:12px;padding:7px 12px;border:.5px solid var(--border);border-radius:100px;font-family:Outfit,sans-serif;background:white;color:var(--ink)">
+            <option value="">Toutes catégories</option>
+            <option value="entrepreneur">Entrepreneur</option>
+            <option value="architecte">Architecte</option>
+            <option value="plombier">Plombier</option>
+            <option value="electricien">Électricien</option>
+            <option value="carreleur">Carreleur</option>
+            <option value="peintre">Peintre</option>
+            <option value="menuisier">Menuisier</option>
+          </select>
+        </div>
+        <!-- Add brief form -->
+        <div id="add-brief-form" style="display:none;background:var(--sand);border-radius:14px;padding:1.2rem;margin-bottom:1rem">
+          <div style="font-size:14px;font-weight:600;margin-bottom:.8rem">📝 Nouvelle demande de devis</div>
+          <div style="display:grid;gap:.7rem">
+            <div class="fg"><label>Titre du projet *</label><input id="bf-titre" type="text" placeholder="Ex: Construction villa R+1, 150m² à Casablanca"/></div>
+            <div class="fg"><label>Description</label><textarea id="bf-desc" style="width:100%;padding:.6rem .8rem;border:.5px solid var(--border);border-radius:10px;font-family:Outfit,sans-serif;font-size:13px;resize:vertical;min-height:80px" placeholder="Décrivez votre projet en détail…"></textarea></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:.7rem;flex-wrap:wrap">
+              <div class="fg"><label>Ville</label><input id="bf-ville" type="text" placeholder="Casablanca"/></div>
+              <div class="fg"><label>Catégorie pro recherchée</label>
+                <select id="bf-cat" style="width:100%;padding:.6rem .8rem;border:.5px solid var(--border);border-radius:10px;font-family:Outfit,sans-serif;font-size:13px">
+                  <option value="entrepreneur">Entrepreneur général</option>
+                  <option value="architecte">Architecte</option>
+                  <option value="plombier">Plombier</option>
+                  <option value="electricien">Électricien</option>
+                  <option value="carreleur">Carreleur</option>
+                  <option value="peintre">Peintre</option>
+                  <option value="menuisier">Menuisier</option>
+                </select>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.7rem">
+              <div class="fg"><label>Budget min (DH)</label><input id="bf-bud-min" type="number" placeholder="0"/></div>
+              <div class="fg"><label>Budget max (DH)</label><input id="bf-bud-max" type="number" placeholder="0"/></div>
+              <div class="fg"><label>Date limite</label><input id="bf-deadline" type="date"/></div>
+            </div>
+            <div style="display:flex;gap:.6rem;justify-content:flex-end">
+              <button onclick="showAddBriefForm()" style="font-size:12px;padding:8px 16px;border:.5px solid var(--border);background:white;border-radius:100px;cursor:pointer;font-family:Outfit,sans-serif">Annuler</button>
+              <button id="brief-submit-btn" onclick="submitBrief()" class="submit-btn" style="margin:0;font-size:12px;padding:8px 18px">Publier</button>
+            </div>
+          </div>
+        </div>
+        <div id="briefs-list-content"></div>
+      </div>
+
+      <!-- PARRAINAGE -->
+      <div id="panel-parrainage" class="dash-panel">
+        <div class="dh"><div><div class="dh-title">Programme Parrainage</div><div class="dh-sub">Invitez vos proches et gagnez des avantages</div></div></div>
+        <!-- Founder badge -->
+        <div id="founder-badge-card" style="display:none;background:linear-gradient(135deg,#E8B84B,#d4a03a);border-radius:16px;padding:1.4rem 1.6rem;margin-bottom:1.2rem;color:white;display:flex;align-items:center;gap:1rem">
+          <div style="font-size:2.5rem">🏅</div>
+          <div>
+            <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;opacity:.85">Membre Fondateur ShantiLink</div>
+            <div style="font-size:1.4rem;font-weight:700" id="founder-badge-num">#1</div>
+            <div style="font-size:12px;opacity:.9;margin-top:.2rem">Vous faites partie des 100 premiers membres de la plateforme</div>
+          </div>
+        </div>
+        <!-- Referral code -->
+        <div class="dcard" style="margin-bottom:1rem">
+          <div style="font-size:13px;font-weight:600;margin-bottom:.8rem">🔗 Votre lien de parrainage</div>
+          <div style="background:var(--sand);border-radius:10px;padding:.8rem 1rem;margin-bottom:.7rem;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.5rem">
+            <a id="referral-link-display" style="font-size:12px;color:var(--clay);word-break:break-all;font-weight:500" target="_blank"></a>
+            <div style="display:flex;gap:.5rem">
+              <button onclick="copyReferralCode()" style="font-size:11px;font-weight:600;padding:6px 14px;background:var(--clay);color:white;border:none;border-radius:100px;cursor:pointer;font-family:Outfit,sans-serif">📋 Copier</button>
+              <button onclick="shareWhatsApp()" style="font-size:11px;font-weight:600;padding:6px 14px;background:#25D366;color:white;border:none;border-radius:100px;cursor:pointer;font-family:Outfit,sans-serif">💬 WhatsApp</button>
+            </div>
+          </div>
+          <div style="font-size:11px;color:var(--muted)">Code : <strong id="referral-code-display" style="color:var(--ink);letter-spacing:.05em"></strong></div>
+        </div>
+        <!-- Stats -->
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.8rem;margin-bottom:1rem">
+          <div class="kpi"><div class="kpi-lbl">FILLEULS</div><div class="kpi-val" id="referral-count">0</div><div class="kpi-note">inscrits</div></div>
+          <div class="kpi ok"><div class="kpi-lbl">RÉCOMPENSE</div><div class="kpi-val">250</div><div class="kpi-note">DH / filleul</div></div>
+          <div class="kpi"><div class="kpi-lbl">TOTAL GAGNÉ</div><div class="kpi-val" id="referral-earned">0 DH</div><div class="kpi-note">à débloquer</div></div>
+        </div>
+        <!-- List -->
+        <div class="dcard">
+          <div style="font-size:13px;font-weight:600;margin-bottom:.6rem">Mes filleuls</div>
+          <div id="referral-list"></div>
+        </div>
+      </div>
+
+      <div id="panel-params" class="dash-panel">
+        <div class="dh"><div><div class="dh-title" data-i18n="dash_sb_params">Paramètres</div><div class="dh-sub" data-i18n="panel_params_sub">Configurez votre expérience ShantiLink</div></div></div>
+        <div class="form-section">
+          <div class="form-title" data-i18n="params_notif_title">Notifications</div>
+          <div style="display:flex;flex-direction:column;gap:.7rem">
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:.8rem;background:var(--clay-pp);border-radius:10px"><div><div style="font-size:13px;font-weight:600" data-i18n="params_notif1_title">Rapports hebdomadaires</div><div style="font-size:11px;color:var(--muted)" data-i18n="params_notif1_desc">Recevoir le rapport PDF chaque semaine</div></div><input type="checkbox" checked style="width:18px;height:18px;cursor:pointer"/></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:.8rem;background:var(--clay-pp);border-radius:10px"><div><div style="font-size:13px;font-weight:600" data-i18n="params_notif2_title">Alertes budget</div><div style="font-size:11px;color:var(--muted)" data-i18n="params_notif2_desc">Notification si dépassement détecté</div></div><input type="checkbox" checked style="width:18px;height:18px;cursor:pointer"/></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:.8rem;background:var(--clay-pp);border-radius:10px"><div><div style="font-size:13px;font-weight:600" data-i18n="params_notif3_title">Nouveaux messages</div><div style="font-size:11px;color:var(--muted)" data-i18n="params_notif3_desc">Notification lors de nouveaux messages</div></div><input type="checkbox" checked style="width:18px;height:18px;cursor:pointer"/></div>
+          </div>
+        </div>
+        <div class="form-section">
+          <div class="form-title" style="color:var(--red)" data-i18n="params_danger_title">Zone dangereuse</div>
+          <button onclick="if(confirm('Supprimer votre compte et toutes vos données ?')){API.clearToken();doLogout();}" style="padding:9px 18px;background:var(--red-b);color:var(--red);border:.5px solid rgba(139,31,31,.2);border-radius:100px;cursor:pointer;font-family:'Outfit',sans-serif;font-size:12px;font-weight:600" data-i18n="params_delete_btn">Supprimer mon compte</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL RESPOND BRIEF -->
+<div id="respond-brief-modal" class="modal" style="display:none" onclick="if(event.target===this)closeRespondBriefModal()">
+  <div class="modal-box" style="max-width:480px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+      <div style="font-size:15px;font-weight:700">Répondre à la demande</div>
+      <button onclick="closeRespondBriefModal()" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--muted)">✕</button>
+    </div>
+    <div style="font-size:12px;color:var(--muted);background:var(--sand);border-radius:8px;padding:.6rem .9rem;margin-bottom:1rem" id="respond-brief-titre"></div>
+    <div style="display:grid;gap:.7rem">
+      <div class="fg"><label>Votre message *</label><textarea id="resp-msg" style="width:100%;padding:.6rem .8rem;border:.5px solid var(--border);border-radius:10px;font-family:Outfit,sans-serif;font-size:13px;resize:vertical;min-height:80px" placeholder="Décrivez votre approche, vos références, pourquoi vous êtes le bon choix…"></textarea></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.7rem">
+        <div class="fg"><label>Prix proposé (DH)</label><input id="resp-prix" type="number" placeholder="0"/></div>
+        <div class="fg"><label>Délai estimé</label><input id="resp-delai" type="text" placeholder="Ex: 3 mois"/></div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:.6rem">
+        <button onclick="closeRespondBriefModal()" style="font-size:12px;padding:8px 16px;border:.5px solid var(--border);background:white;border-radius:100px;cursor:pointer;font-family:Outfit,sans-serif">Annuler</button>
+        <button id="resp-submit-btn" onclick="submitBriefResponse()" class="submit-btn" style="margin:0;font-size:12px;padding:8px 18px">Envoyer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL REVIEW -->
+<div id="review-modal" class="modal" style="display:none" onclick="if(event.target===this)closeReviewModal()">
+  <div class="modal-box" style="max-width:420px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+      <div style="font-size:15px;font-weight:700">Laisser un avis</div>
+      <button onclick="closeReviewModal()" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--muted)">✕</button>
+    </div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:1rem">Évaluez <strong id="review-pro-name"></strong></div>
+    <div style="display:grid;gap:.7rem">
+      <div class="fg"><label>Note</label>
+        <div id="review-rating-stars" style="display:flex;gap:.3rem;margin-top:.3rem"></div>
+        <input id="review-rating" type="hidden" value="5"/>
+      </div>
+      <div class="fg"><label>Commentaire</label><textarea id="review-comment" style="width:100%;padding:.6rem .8rem;border:.5px solid var(--border);border-radius:10px;font-family:Outfit,sans-serif;font-size:13px;resize:vertical;min-height:70px" placeholder="Votre expérience avec ce professionnel…"></textarea></div>
+      <div style="display:flex;justify-content:flex-end;gap:.6rem">
+        <button onclick="closeReviewModal()" style="font-size:12px;padding:8px 16px;border:.5px solid var(--border);background:white;border-radius:100px;cursor:pointer;font-family:Outfit,sans-serif">Annuler</button>
+        <button id="review-submit-btn" onclick="submitReview()" class="submit-btn" style="margin:0;font-size:12px;padding:8px 18px">Publier mon avis</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CONTACT PRO -->
+<div id="modal-pro" class="modal">
+  <div class="modal-box">
+    <button class="modal-close" onclick="document.getElementById('modal-pro').classList.remove('on')">✕</button>
+    <h3 id="modal-pro-name" style="font-family:'Playfair Display',serif;font-size:1.3rem;font-weight:400;margin-bottom:.5rem" data-i18n="modal_contact_pro">Contacter le professionnel</h3>
+    <p id="modal-pro-info" style="font-size:13px;color:var(--muted);margin-bottom:1.5rem"></p>
+    <div class="fg"><label data-i18n="modal_msg_lbl">Message</label><textarea id="modal-pro-msg" placeholder="Décrivez votre projet, votre ville, votre budget..." style="height:100px"></textarea></div>
+    <button style="padding:11px 24px;background:var(--clay);color:white;border:none;border-radius:100px;cursor:pointer;font-family:'Outfit',sans-serif;font-size:13px;font-weight:600" onclick="sendProContact()" data-i18n="modal_send_btn">Envoyer le message</button>
+    <button style="padding:11px 20px;background:transparent;color:var(--muted);border:.5px solid var(--border);border-radius:100px;cursor:pointer;font-family:'Outfit',sans-serif;font-size:13px;margin-left:.5rem" onclick="document.getElementById('modal-pro').classList.remove('on')" data-i18n="modal_cancel">Annuler</button>
+  </div>
+</div>
+
+<!-- À PROPOS -->
+<div id="pg-about" class="pg">
+
+  <!-- ① Hero sombre — texte uniquement, pas de boîte dark-sur-dark -->
+  <div style="background:linear-gradient(150deg,#0F1D36 0%,#162847 100%);padding:8rem 1.5rem 4rem;text-align:center">
+    <span style="font-size:10px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:#1D9E75;display:block;margin-bottom:.9rem">Notre plateforme</span>
+    <h1 style="font-family:'Playfair Display',serif;font-size:clamp(2rem,4vw,2.8rem);font-weight:400;line-height:1.25;color:#FFFFFF;margin-bottom:1.1rem">La construction au Maroc,<br><em style="color:#1D9E75;font-style:italic">enfin organisée</em></h1>
+    <p style="font-size:15px;color:rgba(255,255,255,.7);max-width:560px;margin:0 auto 2.5rem;line-height:1.75">ShantiLink connecte clients, professionnels et entreprises autour d'un écosystème digital — pensé pour la réalité du marché marocain.</p>
+    <div style="display:flex;gap:.8rem;justify-content:center;flex-wrap:wrap">
+      <button onclick="goPage('auth');switchTab('register')" style="font-size:13px;font-weight:600;padding:12px 28px;background:#1D5FA6;color:#fff;border:none;border-radius:100px;cursor:pointer;font-family:'Outfit',sans-serif">Accéder à la plateforme →</button>
+      <button onclick="goPage('landing')" style="font-size:13px;font-weight:500;padding:12px 24px;background:rgba(255,255,255,.1);color:rgba(255,255,255,.8);border:.5px solid rgba(255,255,255,.2);border-radius:100px;cursor:pointer;font-family:'Outfit',sans-serif">← Retour à l'accueil</button>
+    </div>
+  </div>
+
+  <!-- ② Barre de stats — fond légèrement différent pour la séparer du hero -->
+  <div style="background:#162847;padding:2rem 1.5rem;border-bottom:.5px solid rgba(255,255,255,.07)">
+    <div style="max-width:820px;margin:0 auto;display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;text-align:center">
+      <div><div style="font-family:'Playfair Display',serif;font-size:2rem;color:#1D5FA6;font-weight:600;line-height:1">1 200+</div><div style="font-size:10px;color:rgba(255,255,255,.55);text-transform:uppercase;letter-spacing:.07em;margin-top:.4rem">Projets suivis</div></div>
+      <div><div style="font-family:'Playfair Display',serif;font-size:2rem;color:#1D5FA6;font-weight:600;line-height:1">15</div><div style="font-size:10px;color:rgba(255,255,255,.55);text-transform:uppercase;letter-spacing:.07em;margin-top:.4rem">Villes couvertes</div></div>
+      <div><div style="font-family:'Playfair Display',serif;font-size:2rem;color:#1D5FA6;font-weight:600;line-height:1">3 mois</div><div style="font-size:10px;color:rgba(255,255,255,.55);text-transform:uppercase;letter-spacing:.07em;margin-top:.4rem">Essai gratuit</div></div>
+      <div><div style="font-family:'Playfair Display',serif;font-size:2rem;color:#1D5FA6;font-weight:600;line-height:1">2025</div><div style="font-size:10px;color:rgba(255,255,255,.55);text-transform:uppercase;letter-spacing:.07em;margin-top:.4rem">Lancement bêta</div></div>
+    </div>
+  </div>
+
+  <!-- ③ Contenu principal — fond clair, texte sombre -->
+  <div style="background:#FDF9F2;padding:4rem 1.5rem 5rem">
+    <div style="max-width:900px;margin:0 auto">
+
+      <!-- Pilliers Mission / Vision / Approche -->
+      <div style="text-align:center;margin-bottom:2rem">
+        <span style="font-size:10px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:#1D5FA6">Qui sommes-nous</span>
+        <h2 style="font-family:'Playfair Display',serif;font-size:clamp(1.6rem,3vw,2.1rem);font-weight:400;color:#0F1D36;margin-top:.5rem">Notre raison d'être</h2>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1.2rem;margin-bottom:3rem">
+        <div style="background:#FFFFFF;border:.5px solid rgba(15,29,54,.1);border-radius:18px;padding:1.8rem;border-top:3px solid #1D5FA6">
+          <div style="font-size:28px;margin-bottom:.9rem">🎯</div>
+          <div style="font-size:14px;font-weight:700;color:#0F1D36;margin-bottom:.6rem">Notre mission</div>
+          <p style="font-size:13px;color:#64748B;line-height:1.75">Rendre la gestion de projet de construction accessible, transparente et fiable — du particulier qui bâtit sa maison à l'entreprise qui pilote plusieurs chantiers.</p>
+        </div>
+        <div style="background:#FFFFFF;border:.5px solid rgba(15,29,54,.1);border-radius:18px;padding:1.8rem;border-top:3px solid #1D5FA6">
+          <div style="font-size:28px;margin-bottom:.9rem">🌍</div>
+          <div style="font-size:14px;font-weight:700;color:#0F1D36;margin-bottom:.6rem">Notre vision</div>
+          <p style="font-size:13px;color:#64748B;line-height:1.75">Devenir la référence digitale de la construction au Maroc — une plateforme où confiance, données et collaboration remplacent l'opacité et les dépassements.</p>
+        </div>
+        <div style="background:#FFFFFF;border:.5px solid rgba(15,29,54,.1);border-radius:18px;padding:1.8rem;border-top:3px solid #1D5FA6">
+          <div style="font-size:28px;margin-bottom:.9rem">⚡</div>
+          <div style="font-size:14px;font-weight:700;color:#0F1D36;margin-bottom:.6rem">Notre approche</div>
+          <p style="font-size:13px;color:#64748B;line-height:1.75">Des outils pensés pour le terrain : dashboard temps réel, photos GPS vérifiées, rapports IA, simulateur budget et annuaire de professionnels — tout en un.</p>
+        </div>
+      </div>
+
+      <!-- Pourquoi ShantiLink -->
+      <div style="background:#F8F1E3;border-radius:20px;padding:2.5rem;margin-bottom:3rem">
+        <h2 style="font-family:'Playfair Display',serif;font-size:1.5rem;font-weight:400;color:#0F1D36;margin-bottom:1rem">Pourquoi ShantiLink ?</h2>
+        <p style="font-size:14px;line-height:1.9;color:#64748B;margin-bottom:.9rem">Des milliers de familles construisent chaque année au Maroc sans visibilité réelle sur leur chantier. L'argent part, les semaines passent, et l'information manque. Notre plateforme répond à cette réalité en offrant un contrôle total, à distance, en temps réel.</p>
+        <p style="font-size:14px;line-height:1.9;color:#64748B">Pour les professionnels et entreprises, ShantiLink est aussi un canal d'acquisition : un profil vérifié, une visibilité auprès de clients qualifiés, et des outils de gestion multi-chantiers intégrés.</p>
+      </div>
+
+      <!-- Valeurs -->
+      <div style="text-align:center;margin-bottom:1.5rem">
+        <h2 style="font-family:'Playfair Display',serif;font-size:1.5rem;font-weight:400;color:#0F1D36">Nos valeurs</h2>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:3rem">
+        <div style="display:flex;gap:1rem;align-items:flex-start;padding:1.4rem;background:#FFFFFF;border-radius:14px;border:.5px solid rgba(15,29,54,.08)">
+          <span style="font-size:22px;flex-shrink:0">🔒</span>
+          <div><div style="font-size:13px;font-weight:700;color:#0F1D36;margin-bottom:.3rem">Confiance</div><p style="font-size:12px;color:#64748B;line-height:1.65">Données chiffrées, professionnels vérifiés, dépenses tracées avec justificatifs.</p></div>
+        </div>
+        <div style="display:flex;gap:1rem;align-items:flex-start;padding:1.4rem;background:#FFFFFF;border-radius:14px;border:.5px solid rgba(15,29,54,.08)">
+          <span style="font-size:22px;flex-shrink:0">📊</span>
+          <div><div style="font-size:13px;font-weight:700;color:#0F1D36;margin-bottom:.3rem">Transparence</div><p style="font-size:12px;color:#64748B;line-height:1.65">Chaque centime, chaque étape, chaque décision — documentés et accessibles.</p></div>
+        </div>
+        <div style="display:flex;gap:1rem;align-items:flex-start;padding:1.4rem;background:#FFFFFF;border-radius:14px;border:.5px solid rgba(15,29,54,.08)">
+          <span style="font-size:22px;flex-shrink:0">🤝</span>
+          <div><div style="font-size:13px;font-weight:700;color:#0F1D36;margin-bottom:.3rem">Accessibilité</div><p style="font-size:12px;color:#64748B;line-height:1.65">Conçu pour tous : client particulier, architecte indépendant ou grand promoteur.</p></div>
+        </div>
+        <div style="display:flex;gap:1rem;align-items:flex-start;padding:1.4rem;background:#FFFFFF;border-radius:14px;border:.5px solid rgba(15,29,54,.08)">
+          <span style="font-size:22px;flex-shrink:0">🇲🇦</span>
+          <div><div style="font-size:13px;font-weight:700;color:#0F1D36;margin-bottom:.3rem">Ancrage local</div><p style="font-size:12px;color:#64748B;line-height:1.65">Prix du marché marocain, interface en français et en arabe, équipe basée au Maroc.</p></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<!-- COMMUNAUTÉ -->
+<div id="pg-community" class="pg">
+
+  <!-- Hero dark -->
+  <div style="background:linear-gradient(150deg,#0F1D36 0%,#1A3055 100%);padding:8rem 1.5rem 5rem;text-align:center">
+    <span style="font-size:10px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:#1D9E75;display:block;margin-bottom:.8rem">Communauté ShantiLink</span>
+    <h1 style="font-family:'Playfair Display',serif;font-size:clamp(2rem,4vw,2.8rem);font-weight:400;line-height:1.25;color:#FFFFFF;margin-bottom:1rem">Le réseau des professionnels<br><em style="color:#1D9E75;font-style:italic">de la construction au Maroc</em></h1>
+    <p style="font-size:15px;color:rgba(255,255,255,.7);max-width:580px;margin:0 auto 2rem;line-height:1.75">Architectes, promoteurs, bureaux d'études, comptables, électriciens — créez votre profil vérifié, gagnez en visibilité et connectez-vous aux bons clients.</p>
+    <div style="display:flex;gap:.8rem;justify-content:center;flex-wrap:wrap">
+      <button onclick="goPage('auth');switchTab('register')" style="font-size:13px;font-weight:700;padding:13px 30px;background:#1D5FA6;color:#fff;border:none;border-radius:100px;cursor:pointer;font-family:'Outfit',sans-serif">Créer mon profil pro gratuit →</button>
+      <button onclick="document.getElementById('comm-dir-section').scrollIntoView({behavior:'smooth'})" style="font-size:13px;font-weight:500;padding:13px 26px;background:rgba(255,255,255,.1);color:rgba(255,255,255,.85);border:.5px solid rgba(255,255,255,.2);border-radius:100px;cursor:pointer;font-family:'Outfit',sans-serif">Voir l'annuaire ↓</button>
+    </div>
+    <!-- Trust badges -->
+    <div style="display:flex;gap:1.5rem;justify-content:center;flex-wrap:wrap;margin-top:2.5rem">
+      <div style="display:flex;align-items:center;gap:.4rem;font-size:11px;color:rgba(255,255,255,.5)"><span style="color:#1D5FA6">✓</span> Profil vérifié & badge officiel</div>
+      <div style="display:flex;align-items:center;gap:.4rem;font-size:11px;color:rgba(255,255,255,.5)"><span style="color:#1D5FA6">✓</span> 3 mois gratuits</div>
+      <div style="display:flex;align-items:center;gap:.4rem;font-size:11px;color:rgba(255,255,255,.5)"><span style="color:#1D5FA6">✓</span> Clients qualifiés</div>
+      <div style="display:flex;align-items:center;gap:.4rem;font-size:11px;color:rgba(255,255,255,.5)"><span style="color:#1D5FA6">✓</span> Messagerie sécurisée</div>
+    </div>
+  </div>
+
+  <!-- Bénéfices pour les pros -->
+  <div style="background:#F8F1E3;padding:4rem 1.5rem">
+    <div style="max-width:960px;margin:0 auto">
+      <div style="text-align:center;margin-bottom:2.5rem">
+        <span style="font-size:10px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:#1D5FA6">Pourquoi rejoindre ShantiLink</span>
+        <h2 style="font-family:'Playfair Display',serif;font-size:clamp(1.6rem,3vw,2rem);font-weight:400;color:#0F1D36;margin-top:.5rem">Développez votre activité,<br><em style="color:#1D5FA6;font-style:italic">sans effort commercial</em></h2>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1.2rem">
+        <div style="background:#FFFFFF;border-radius:18px;padding:2rem;border-top:3px solid #1D5FA6;text-align:center">
+          <div style="font-size:32px;margin-bottom:.8rem">🎯</div>
+          <div style="font-size:14px;font-weight:700;color:#0F1D36;margin-bottom:.6rem">Clients qualifiés</div>
+          <p style="font-size:13px;color:#64748B;line-height:1.7">Des propriétaires et promoteurs qui cherchent activement des professionnels dans votre domaine et votre ville.</p>
+        </div>
+        <div style="background:#FFFFFF;border-radius:18px;padding:2rem;border-top:3px solid #1D5FA6;text-align:center">
+          <div style="font-size:32px;margin-bottom:.8rem">🏅</div>
+          <div style="font-size:14px;font-weight:700;color:#0F1D36;margin-bottom:.6rem">Profil vérifié</div>
+          <p style="font-size:13px;color:#64748B;line-height:1.7">Un badge officiel ShantiLink après vérification de vos documents. Une crédibilité immédiate face aux clients.</p>
+        </div>
+        <div style="background:#FFFFFF;border-radius:18px;padding:2rem;border-top:3px solid #1D5FA6;text-align:center">
+          <div style="font-size:32px;margin-bottom:.8rem">📊</div>
+          <div style="font-size:14px;font-weight:700;color:#0F1D36;margin-bottom:.6rem">Outils pro intégrés</div>
+          <p style="font-size:13px;color:#64748B;line-height:1.7">Dashboard de gestion multi-chantiers, rapports PDF automatiques, photos GPS et messagerie sécurisée inclus.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Comment ça marche -->
+  <div style="background:#FFFFFF;padding:4rem 1.5rem">
+    <div style="max-width:820px;margin:0 auto;text-align:center">
+      <span style="font-size:10px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:#1D5FA6">Comment ça marche</span>
+      <h2 style="font-family:'Playfair Display',serif;font-size:clamp(1.5rem,3vw,1.9rem);font-weight:400;color:#0F1D36;margin:.5rem 0 2.5rem">En 3 étapes, votre profil est en ligne</h2>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;text-align:left">
+        <div style="position:relative;padding-left:3rem">
+          <div style="position:absolute;left:0;top:0;width:32px;height:32px;border-radius:50%;background:#1D5FA6;color:#fff;font-weight:700;font-size:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0">1</div>
+          <div style="font-size:13px;font-weight:700;color:#0F1D36;margin-bottom:.4rem">Créez votre compte</div>
+          <p style="font-size:12px;color:#64748B;line-height:1.65">Choisissez votre rôle professionnel et remplissez votre profil : spécialités, ville, expérience.</p>
+        </div>
+        <div style="position:relative;padding-left:3rem">
+          <div style="position:absolute;left:0;top:0;width:32px;height:32px;border-radius:50%;background:#1D5FA6;color:#fff;font-weight:700;font-size:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0">2</div>
+          <div style="font-size:13px;font-weight:700;color:#0F1D36;margin-bottom:.4rem">Obtenez votre badge</div>
+          <p style="font-size:12px;color:#64748B;line-height:1.65">Notre équipe vérifie vos documents et vous attribue le badge "Vérifié ShantiLink" visible par tous les clients.</p>
+        </div>
+        <div style="position:relative;padding-left:3rem">
+          <div style="position:absolute;left:0;top:0;width:32px;height:32px;border-radius:50%;background:#1D5FA6;color:#fff;font-weight:700;font-size:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0">3</div>
+          <div style="font-size:13px;font-weight:700;color:#0F1D36;margin-bottom:.4rem">Recevez des missions</div>
+          <p style="font-size:12px;color:#64748B;line-height:1.65">Des clients vous contactent via la messagerie sécurisée. Vous choisissez les projets qui vous correspondent.</p>
+        </div>
+      </div>
+      <div style="margin-top:2.5rem">
+        <button onclick="goPage('auth');switchTab('register')" style="font-size:13px;font-weight:700;padding:13px 30px;background:#1D5FA6;color:#fff;border:none;border-radius:100px;cursor:pointer;font-family:'Outfit',sans-serif">Rejoindre l'annuaire gratuitement →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Annuaire -->
+  <div id="comm-dir-section" style="background:#FDF9F2;padding:4rem 1.5rem 5rem">
+    <div style="max-width:1060px;margin:0 auto">
+      <div style="text-align:center;margin-bottom:2rem">
+        <span style="font-size:10px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:#1D5FA6">Annuaire vérifié</span>
+        <h2 style="font-family:'Playfair Display',serif;font-size:clamp(1.5rem,3vw,1.9rem);font-weight:400;color:#0F1D36;margin-top:.5rem">Trouvez le bon professionnel</h2>
+      </div>
+      <!-- Filtres -->
+      <div style="display:flex;gap:.7rem;flex-wrap:wrap;margin-bottom:1.8rem;align-items:center">
+        <select id="comm-filter-role" onchange="loadCommunity()" style="padding:.6rem 1rem;font-size:12px;font-family:'Outfit',sans-serif;border:.5px solid rgba(15,29,54,.15);border-radius:100px;background:#FFFFFF;color:#0F1D36;outline:none;cursor:pointer">
+          <option value="">Tous les profils</option>
+          <option value="architecte">Architectes</option>
+          <option value="promoteur">Promoteurs</option>
+          <option value="bureau">Bureaux d'études</option>
+          <option value="comptable">Comptables</option>
+          <option value="notaire">Notaires</option>
+          <option value="electricien">Électriciens</option>
+          <option value="plombier">Plombiers</option>
+        </select>
+        <input id="comm-filter-ville" placeholder="📍 Ville..." oninput="loadCommunity()" style="padding:.6rem 1rem;font-size:12px;font-family:'Outfit',sans-serif;border:.5px solid rgba(15,29,54,.15);border-radius:100px;background:#FFFFFF;color:#0F1D36;outline:none;min-width:150px"/>
+        <input id="comm-search" placeholder="🔍 Nom, spécialité..." oninput="loadCommunity()" style="flex:1;min-width:200px;padding:.6rem 1rem;font-size:12px;font-family:'Outfit',sans-serif;border:.5px solid rgba(15,29,54,.15);border-radius:100px;background:#FFFFFF;color:#0F1D36;outline:none"/>
+      </div>
+      <!-- Grille -->
+      <div id="comm-directory" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1.2rem"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- MENTIONS LÉGALES -->
+<div id="pg-legal" class="pg">
+  <div style="max-width:760px;margin:0 auto;padding:8rem 1.5rem 5rem">
+    <h1 style="font-family:'Playfair Display',serif;font-size:2rem;font-weight:400;margin-bottom:2rem" data-i18n="legal_title">Mentions légales</h1>
+    <div style="background:var(--white);border:.5px solid var(--border);border-radius:18px;padding:2rem">
+      <h3 style="font-size:14px;font-weight:600;color:var(--clay);margin-bottom:.5rem" data-i18n="legal_editor_title">Éditeur</h3>
+      <p style="font-size:14px;color:var(--muted);margin-bottom:1.5rem" data-i18n="legal_editor_val">ShantiLink — contact@ShantiLink.ma</p>
+      <h3 style="font-size:14px;font-weight:600;color:var(--clay);margin-bottom:.5rem" data-i18n="legal_host_title">Hébergement</h3>
+      <p style="font-size:14px;color:var(--muted);margin-bottom:1.5rem" data-i18n="legal_host_val">Serveur local Python / Uvicorn. Déploiement cloud prévu.</p>
+      <h3 style="font-size:14px;font-weight:600;color:var(--clay);margin-bottom:.5rem" data-i18n="legal_data_title">Données personnelles</h3>
+      <p style="font-size:14px;color:var(--muted)" data-i18n="legal_data_val">Conformément au RGPD, vous disposez d'un droit d'accès, de rectification et de suppression de vos données en nous contactant par email.</p>
+    </div>
+    <div style="text-align:center;margin-top:2rem"><button onclick="goPage('landing')" style="font-size:14px;font-weight:600;padding:12px 28px;background:var(--clay);color:white;border:none;border-radius:100px;cursor:pointer;font-family:'Outfit',sans-serif" data-i18n="legal_back">← Retour</button></div>
+  </div>
+</div>
+
+<!-- CGU -->
+<div id="pg-cgu" class="pg">
+  <div style="max-width:760px;margin:0 auto;padding:8rem 1.5rem 5rem">
+    <h1 style="font-family:'Playfair Display',serif;font-size:2rem;font-weight:400;margin-bottom:2rem" data-i18n="cgu_title">Conditions Générales d'Utilisation</h1>
+    <div style="background:var(--white);border:.5px solid var(--border);border-radius:18px;padding:2rem">
+      <p style="font-size:13px;color:var(--muted);margin-bottom:1.5rem" data-i18n="cgu_date">Dernière mise à jour : 2025</p>
+      <h3 style="font-size:14px;font-weight:600;color:var(--clay);margin-bottom:.5rem" data-i18n="cgu_h1">1. Objet</h3>
+      <p style="font-size:14px;color:var(--muted);margin-bottom:1.5rem" data-i18n="cgu_p1">Les présentes CGU définissent les conditions d'utilisation de la plateforme ShantiLink.</p>
+      <h3 style="font-size:14px;font-weight:600;color:var(--clay);margin-bottom:.5rem" data-i18n="cgu_h2">2. Service</h3>
+      <p style="font-size:14px;color:var(--muted);margin-bottom:1.5rem" data-i18n="cgu_p2">ShantiLink est en phase bêta permettant le suivi de projets de construction au Maroc et la mise en relation entre acteurs de l'immobilier et de la construction.</p>
+      <h3 style="font-size:14px;font-weight:600;color:var(--clay);margin-bottom:.5rem" data-i18n="cgu_h3">3. Données personnelles</h3>
+      <p style="font-size:14px;color:var(--muted)" data-i18n="cgu_p3">Conformément au RGPD, ShantiLink protège vos données. Elles ne sont jamais revendues. Chiffrement JWT pour l'authentification. Base de données SQLite sécurisée.</p>
+    </div>
+    <div style="text-align:center;margin-top:2rem"><button onclick="goPage('landing')" style="font-size:14px;font-weight:600;padding:12px 28px;background:var(--clay);color:white;border:none;border-radius:100px;cursor:pointer;font-family:'Outfit',sans-serif" data-i18n="cgu_back">← Retour</button></div>
+  </div>
+</div>
+
+<!-- PLANNING MODAL -->
+<div id="planning-modal" class="modal" onclick="if(event.target===this)closePlanning()">
+  <div class="modal-box" style="max-width:640px;max-height:90vh;overflow-y:auto">
+    <div id="planning-box"></div>
+  </div>
+</div>
+
+<script src="/static/js/api.js?v=3"></script>
+<script src="/static/js/app.js?v=7"></script>
+<script src="/static/js/dashboard.js?v=8"></script>
+<script src="/static/js/agent.js?v=1"></script>
+</body>
+</html>
