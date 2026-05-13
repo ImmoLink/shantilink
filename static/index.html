@@ -45,7 +45,7 @@
 <!-- NAV -->
 <nav>
   <div style="display:flex;align-items:center;gap:.6rem">
-    <button class="mob-menu-btn" id="mob-menu-btn" onclick="toggleMobileSidebar()" aria-label="Menu">
+    <button class="mob-menu-btn" id="mob-menu-btn" onclick="toggleMobileNav()" aria-label="Menu">
       <span></span><span></span><span></span>
     </button>
     <button id="back-nav-btn" onclick="goBack()" title="Retour" style="display:none;align-items:center;gap:.3rem;font-size:12px;font-weight:600;padding:5px 12px;border:.5px solid var(--border);border-radius:100px;background:var(--white);color:var(--ink);cursor:pointer;font-family:Outfit,sans-serif;transition:all .2s">&#8592; <span data-i18n="nav_back">Retour</span></button>
@@ -69,6 +69,24 @@
     <button class="nbtn" id="nav-reg-btn" data-i18n="nav_register" onclick="goPage('auth');switchTab('register')">S'inscrire</button>
   </div>
 </nav>
+<!-- Mobile nav dropdown (landing) -->
+<div id="mob-nav-dropdown" style="display:none;position:fixed;top:56px;left:0;right:0;z-index:298;background:var(--ink);border-bottom:1px solid rgba(255,255,255,.1);padding:.8rem 1rem;flex-direction:column;gap:0">
+  <a onclick="goSection('solutions');closeMobileNav()" style="display:block;padding:.75rem .5rem;color:rgba(255,255,255,.85);font-size:15px;font-weight:500;border-bottom:1px solid rgba(255,255,255,.07);cursor:pointer" data-i18n="nav_solutions">Solutions</a>
+  <a onclick="goSection('simulator');closeMobileNav()" style="display:block;padding:.75rem .5rem;color:rgba(255,255,255,.85);font-size:15px;font-weight:500;border-bottom:1px solid rgba(255,255,255,.07);cursor:pointer" data-i18n="nav_simulator">Simulateur</a>
+  <a onclick="goPage('pg-community');closeMobileNav()" style="display:block;padding:.75rem .5rem;color:rgba(255,255,255,.85);font-size:15px;font-weight:500;border-bottom:1px solid rgba(255,255,255,.07);cursor:pointer" data-i18n="nav_community">Communauté</a>
+  <a onclick="goSection('pricing');closeMobileNav()" style="display:block;padding:.75rem .5rem;color:rgba(255,255,255,.85);font-size:15px;font-weight:500;border-bottom:1px solid rgba(255,255,255,.07);cursor:pointer" data-i18n="nav_pricing">Tarifs</a>
+  <a onclick="goPage('pg-about');closeMobileNav()" style="display:block;padding:.75rem .5rem;color:rgba(255,255,255,.85);font-size:15px;font-weight:500;border-bottom:1px solid rgba(255,255,255,.07);cursor:pointer" data-i18n="nav_about">À propos</a>
+  <div style="display:flex;gap:.7rem;margin-top:.8rem;padding-top:.6rem">
+    <button id="mob-login-btn" onclick="goPage('auth');switchTab('login');closeMobileNav()" style="flex:1;padding:10px;background:rgba(255,255,255,.08);color:white;border:1px solid rgba(255,255,255,.2);border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;font-family:'Outfit',sans-serif" data-i18n="nav_login">Connexion</button>
+    <button id="mob-dash-btn" onclick="goPage('dashboard');closeMobileNav()" style="display:none;flex:1;padding:10px;background:var(--gold, #E8B84B);color:var(--ink,#1A1A2E);border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Outfit',sans-serif" data-i18n="nav_dashboard">Mon espace</button>
+    <button id="mob-reg-btn" onclick="goPage('auth');switchTab('register');closeMobileNav()" style="flex:1;padding:10px;background:#E8B84B;color:#1A1A2E;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Outfit',sans-serif" data-i18n="nav_register">S'inscrire</button>
+  </div>
+  <div style="margin-top:.8rem;padding-top:.6rem;border-top:1px solid rgba(255,255,255,.07);display:flex;gap:.5rem">
+    <button onclick="setLang('fr',this);closeMobileNav()" style="flex:1;padding:8px;background:rgba(255,255,255,.12);color:white;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Outfit',sans-serif">FR</button>
+    <button onclick="setLang('en',this);closeMobileNav()" style="flex:1;padding:8px;background:rgba(255,255,255,.06);color:rgba(255,255,255,.6);border:none;border-radius:8px;font-size:13px;cursor:pointer;font-family:'Outfit',sans-serif">EN</button>
+    <button onclick="setLang('ar',this);closeMobileNav()" style="flex:1;padding:8px;background:rgba(255,255,255,.06);color:rgba(255,255,255,.6);border:none;border-radius:8px;font-size:13px;cursor:pointer;font-family:Arial,sans-serif">عربي</button>
+  </div>
+</div>
 
 <!-- ===== LANDING ===== -->
 <div id="pg-landing" class="pg on">

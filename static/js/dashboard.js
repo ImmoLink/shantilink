@@ -34,15 +34,45 @@ window.resetDashboardState = function() {
 };
 
 // ── Panel switching ───────────────────────────────────────────────────────────
-// ── Mobile sidebar drawer ─────────────────────────────────────────────────────
-window.toggleMobileSidebar = function() {
-  const sb = document.querySelector('.sidebar');
-  const ov = document.getElementById('sidebar-overlay');
-  if (!sb) return;
-  const isOpen = sb.classList.contains('mob-open');
-  sb.classList.toggle('mob-open', !isOpen);
-  if (ov) ov.classList.toggle('open', !isOpen);
+// ── Mobile nav (hamburger) ────────────────────────────────────────────────────
+function _isDashboardVisible() {
+  const d = document.getElementById('pg-dashboard');
+  return d && (d.classList.contains('on') || d.style.display !== 'none');
+}
+
+window.toggleMobileNav = function() {
+  if (_isDashboardVisible()) {
+    // Dashboard : ouvre le sidebar drawer
+    const sb = document.querySelector('.sidebar');
+    const ov = document.getElementById('sidebar-overlay');
+    if (!sb) return;
+    const isOpen = sb.classList.contains('mob-open');
+    sb.classList.toggle('mob-open', !isOpen);
+    if (ov) ov.classList.toggle('open', !isOpen);
+    // ferme le dropdown landing si ouvert
+    closeMobileNav();
+  } else {
+    // Landing / autres pages : ouvre le dropdown nav
+    const dd = document.getElementById('mob-nav-dropdown');
+    if (!dd) return;
+    const isOpen = dd.style.display === 'flex';
+    dd.style.display = isOpen ? 'none' : 'flex';
+    // Sync boutons Mon espace / S'inscrire selon état auth
+    const logged = !!localStorage.getItem('bna_token');
+    const mobDash = document.getElementById('mob-dash-btn');
+    const mobReg  = document.getElementById('mob-reg-btn');
+    const mobLog  = document.getElementById('mob-login-btn');
+    if (mobDash) mobDash.style.display = logged ? 'block' : 'none';
+    if (mobReg)  mobReg.style.display  = logged ? 'none'  : 'block';
+    if (mobLog)  mobLog.style.display  = logged ? 'none'  : 'block';
+  }
 };
+
+window.closeMobileNav = function() {
+  const dd = document.getElementById('mob-nav-dropdown');
+  if (dd) dd.style.display = 'none';
+};
+
 window.closeMobileSidebar = function() {
   const sb = document.querySelector('.sidebar');
   const ov = document.getElementById('sidebar-overlay');
