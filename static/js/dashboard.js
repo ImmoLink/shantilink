@@ -477,7 +477,12 @@ window.togglePhaseCustom = function(sel) {
 
 window.toggleForm = function(id) {
   const f = document.getElementById(id);
-  if (f) f.style.display = f.style.display === 'block' ? 'none' : 'block';
+  if (!f) return;
+  const opening = f.style.display !== 'block';
+  f.style.display = opening ? 'block' : 'none';
+  if (opening && id === 'add-dep-form' && typeof window.onDepFormOpen === 'function') {
+    window.onDepFormOpen();
+  }
 };
 
 window.addProjet = async function() {
@@ -1338,6 +1343,10 @@ window.addDepense = async function() {
     toggleForm('add-dep-form');
     document.getElementById('dep-desc').value    = '';
     document.getElementById('dep-montant').value = '';
+    if (typeof window.AutoDraft !== 'undefined') AutoDraft.clear();
+    if (typeof window.recordExpenseHistory === 'function') {
+      recordExpenseHistory({ description: desc, montant, categorie: cat, date });
+    }
     toast('Dépense enregistrée : ' + fmt(montant), 'success');
   } catch (e) { toast(e.message, 'error'); }
 };

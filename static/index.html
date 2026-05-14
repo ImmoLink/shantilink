@@ -13,6 +13,7 @@
 <script src="https://cdn.jsdelivr.net/npm/exifr@7.1.3/dist/lite.umd.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <link rel="stylesheet" href="/static/css/styles.css?v=6">
+<link rel="stylesheet" href="/static/css/ux-smart.css?v=1">
 </head>
 <body>
 
@@ -912,29 +913,59 @@
         </div>
         <div id="add-dep-form" class="form-section" style="display:none">
           <div class="form-title" data-i18n="panel_dep_form_title">Nouvelle dépense</div>
+
+          <!-- Draft banner -->
+          <div id="draft-banner">
+            <span class="draft-msg">📝 Brouillon non enregistré</span>
+            <div class="draft-actions">
+              <button class="btn-resume" onclick="AutoDraft.resume()">Reprendre</button>
+              <button class="btn-discard" onclick="AutoDraft.clear()">Ignorer</button>
+            </div>
+          </div>
+          <div id="draft-saved-indicator">Sauvegardé ✓</div>
+
+          <!-- Photo scan + Voice -->
+          <div class="photo-scan-area">
+            <button id="btn-photo-scan" type="button" onclick="openReceiptScanner()">
+              <span class="scan-spinner"></span>
+              <span>📸</span> Scanner un reçu (IA)
+            </button>
+            <input type="file" id="receipt-file-input" accept="image/*" onchange="handleReceiptFile(this)"/>
+            <button id="btn-voice" type="button" onclick="toggleVoiceInput()">
+              <span class="voice-dot"></span>🎙️ Voix
+            </button>
+          </div>
+
+          <!-- Suggestions -->
+          <div id="dep-suggestions">
+            <div class="sugg-label">Suggestions récentes</div>
+            <div class="sugg-chips" id="dep-sugg-chips"></div>
+          </div>
+
           <div class="fg-row">
-            <div class="fg"><label data-i18n="panel_dep_desc_lbl">Description</label><input type="text" id="dep-desc" data-i18n-ph="panel_dep_desc_lbl" placeholder="Béton B25, Main d'œuvre, Carrelage..."/></div>
-            <div class="fg"><label data-i18n="panel_dep_montant_lbl">Montant (DH)</label><input type="number" id="dep-montant" placeholder="5600"/></div>
+            <div class="fg ai-fillable"><label data-i18n="panel_dep_desc_lbl">Description</label><input type="text" id="dep-desc" data-i18n-ph="panel_dep_desc_lbl" placeholder="Béton B25, Main d'œuvre, Carrelage..." oninput="AutoDraft.update('dep-desc',this.value)"/></div>
+            <div class="fg ai-fillable"><label data-i18n="panel_dep_montant_lbl">Montant (DH)</label><input type="number" id="dep-montant" placeholder="5600" oninput="AutoDraft.update('dep-montant',this.value)"/></div>
+          </div>
+          <div class="fg">
+            <label data-i18n="panel_dep_cat_lbl">Catégorie</label>
+            <!-- Hidden native select for backward compat with addDepense() -->
+            <select id="dep-cat" style="display:none" onchange="AutoDraft.update('dep-cat',this.value)">
+              <option>Gros œuvre</option><option>Matériaux</option><option>Main d'œuvre</option>
+              <option>Fondations</option><option>Électricité</option><option>Plomberie</option>
+              <option>Menuiserie</option><option>Carrelage</option><option>Peinture</option>
+              <option>Finitions</option><option>Honoraires</option><option>Autre</option>
+            </select>
+            <div id="dep-cat-tiles"></div>
           </div>
           <div class="fg-row">
-            <div class="fg"><label data-i18n="panel_dep_cat_lbl">Catégorie</label>
-              <select id="dep-cat">
-                <option>Gros œuvre</option><option>Matériaux</option><option>Main d'œuvre</option>
-                <option>Fondations</option><option>Électricité</option><option>Plomberie</option>
-                <option>Menuiserie</option><option>Carrelage</option><option>Peinture</option>
-                <option>Finitions</option><option>Honoraires</option><option>Autre</option>
-              </select>
-            </div>
             <div class="fg"><label data-i18n="panel_dep_proj_lbl">Projet associé</label>
-              <select id="dep-project">
+              <select id="dep-project" onchange="AutoDraft.update('dep-project',this.value)">
                 <option value="">— Sans projet spécifique —</option>
               </select>
             </div>
+            <div class="fg"><label data-i18n="panel_dep_date_lbl">Date</label><input type="date" id="dep-date" onchange="AutoDraft.update('dep-date',this.value)"/></div>
           </div>
-          <div class="fg-row">
-            <div class="fg"><label data-i18n="panel_dep_date_lbl">Date</label><input type="date" id="dep-date"/></div>
-            <div class="fg"><label data-i18n="panel_dep_note_lbl">Note (optionnel)</label><input type="text" id="dep-note" data-i18n-ph="panel_dep_note_lbl" placeholder="Bon de livraison #123..."/></div>
-          </div>
+          <div class="fg"><label data-i18n="panel_dep_note_lbl">Note (optionnel)</label><input type="text" id="dep-note" data-i18n-ph="panel_dep_note_lbl" placeholder="Bon de livraison #123..." oninput="AutoDraft.update('dep-note',this.value)"/></div>
           <button class="submit-btn" onclick="addDepense()" data-i18n="panel_dep_save_btn">Enregistrer</button>
           <button class="cancel-btn" onclick="toggleForm('add-dep-form')" data-i18n="panel_dep_cancel">Annuler</button>
         </div>
@@ -1678,5 +1709,52 @@
 <script src="/static/js/app.js?v=7"></script>
 <script src="/static/js/dashboard.js?v=8"></script>
 <script src="/static/js/agent.js?v=1"></script>
+<script src="/static/js/ux-smart.js?v=1"></script>
+
+<!-- FAB Quick Log -->
+<button id="quick-log-fab" title="Saisie rapide" onclick="openQuickLog()">+</button>
+
+<!-- Quick Log Modal -->
+<div id="quick-log-modal" role="dialog" aria-modal="true">
+  <div class="modal-backdrop" onclick="closeQuickLog()"></div>
+  <div id="quick-log-sheet">
+    <h3>⚡ Saisie rapide</h3>
+    <div class="ql-row">
+      <input type="text" id="ql-desc" placeholder="Description (béton, khdama…)"/>
+    </div>
+    <div class="ql-row">
+      <input type="number" id="ql-montant" placeholder="Montant DH"/>
+      <select id="ql-cat">
+        <option value="Matériaux">🧱 Matériaux</option>
+        <option value="Main d'œuvre">👷 Main d'œuvre</option>
+        <option value="Transport">🚛 Transport</option>
+        <option value="Équipement">🔧 Équipement</option>
+        <option value="Honoraires">📋 Honoraires</option>
+        <option value="Autre">📦 Autre</option>
+      </select>
+    </div>
+    <div class="ql-row">
+      <input type="date" id="ql-date"/>
+    </div>
+    <div class="ql-actions">
+      <button id="btn-ql-cancel" onclick="closeQuickLog()">Annuler</button>
+      <button id="btn-ql-save" onclick="saveQuickLog()">💾 Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Voice Fallback Modal -->
+<div id="voice-fallback-modal" role="dialog" aria-modal="true">
+  <div class="modal-backdrop" onclick="closeVoiceFallback()"></div>
+  <div id="voice-fallback-sheet">
+    <h4>🎙️ Saisie vocale</h4>
+    <p style="font-size:12px;color:var(--muted);margin:0 0 10px">Votre navigateur ne supporte pas la reconnaissance vocale. Tapez ce que vous souhaitez enregistrer en français ou darija :</p>
+    <textarea id="voice-fallback-text" placeholder="Ex: khdamt 3500 dyal carrelage…"></textarea>
+    <div class="vf-actions">
+      <button id="btn-vf-cancel" onclick="closeVoiceFallback()">Annuler</button>
+      <button id="btn-vf-submit" onclick="submitVoiceFallback()">Analyser avec IA</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
