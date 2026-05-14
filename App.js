@@ -7,6 +7,9 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { AuthProvider, useAuth } from './src/context/AuthContext';
+import { QuickLogProvider } from './src/context/QuickLogContext';
+import QuickLogSheet, { QuickLogFAB } from './src/components/QuickLogSheet';
+
 import AuthScreen      from './src/screens/AuthScreen';
 import HomeScreen      from './src/screens/HomeScreen';
 import ProjectsScreen  from './src/screens/ProjectsScreen';
@@ -18,20 +21,6 @@ import { Colors } from './src/theme';
 
 const Stack = createNativeStackNavigator();
 const Tab   = createBottomTabNavigator();
-
-function TabIcon({ name, focused }) {
-  const icons = {
-    Home:     focused ? '🏠' : '🏠',
-    Projects: focused ? '🏗️' : '🏗️',
-    Market:   focused ? '🔍' : '🔍',
-    Briefs:   focused ? '📝' : '📝',
-    Profile:  focused ? '👤' : '👤',
-  };
-  return <View style={{ alignItems: 'center' }}>
-    {/* Icon placeholder — react-navigation expects a component */}
-    <View />
-  </View>;
-}
 
 function MainTabs() {
   return (
@@ -49,7 +38,7 @@ function MainTabs() {
         tabBarActiveTintColor: Colors.gold,
         tabBarInactiveTintColor: Colors.muted,
         tabBarLabelStyle: { fontSize: 11, fontWeight: '600', marginTop: 2 },
-        tabBarIcon: ({ focused, color, size }) => {
+        tabBarIcon: ({ focused }) => {
           const emojis = {
             Home: '🏠', Projects: '🏗️', Market: '🔍', Briefs: '📝', Profile: '👤',
           };
@@ -71,8 +60,16 @@ function AppWithExpenses() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="MainTabs" component={MainTabs} />
-      <Stack.Screen name="Expenses" component={ExpensesScreen}
-        options={{ headerShown: true, title: '💰 Budget & Dépenses', headerTintColor: Colors.ink, headerStyle: { backgroundColor: Colors.white } }} />
+      <Stack.Screen
+        name="Expenses"
+        component={ExpensesScreen}
+        options={{
+          headerShown: true,
+          title: '💰 Budget & Dépenses',
+          headerTintColor: Colors.ink,
+          headerStyle: { backgroundColor: Colors.white },
+        }}
+      />
     </Stack.Navigator>
   );
 }
@@ -80,11 +77,13 @@ function AppWithExpenses() {
 function RootNavigator() {
   const { user, loading } = useAuth();
 
-  if (loading) return (
-    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.navy }}>
-      <ActivityIndicator color={Colors.gold} size="large" />
-    </View>
-  );
+  if (loading) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.navy }}>
+        <ActivityIndicator color={Colors.gold} size="large" />
+      </View>
+    );
+  }
 
   return (
     <NavigationContainer>
@@ -96,6 +95,14 @@ function RootNavigator() {
           <Stack.Screen name="Auth" component={AuthScreen} />
         )}
       </Stack.Navigator>
+
+      {/* Global QuickLog FAB + Sheet — visibles sur tous les écrans connectés */}
+      {user && (
+        <>
+          <QuickLogFAB />
+          <QuickLogSheet />
+        </>
+      )}
     </NavigationContainer>
   );
 }
@@ -105,7 +112,9 @@ export default function App() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <AuthProvider>
-          <RootNavigator />
+          <QuickLogProvider>
+            <RootNavigator />
+          </QuickLogProvider>
         </AuthProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

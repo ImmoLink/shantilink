@@ -1,8 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { API_URL } from './config';
 
-// Change this to your server IP when testing on a real device
-// e.g. 'http://192.168.1.10:8000/api'
-export const BASE_URL = 'http://192.168.1.66:8000/api';
+export const BASE_URL = API_URL + '/api';
 
 async function req(method, path, body = null) {
   const token = await AsyncStorage.getItem('sl_token');

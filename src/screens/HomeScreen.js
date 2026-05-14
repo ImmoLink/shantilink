@@ -7,7 +7,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import { API } from '../api';
 import Card from '../components/Card';
-import Logo from '../components/Logo';
 import { Colors, Spacing, Radius } from '../theme';
 
 function KPI({ label, value, note, color }) {
