@@ -1751,6 +1751,91 @@ def send_chat(other_id: str, data: ChatMessageIn, user: dict = Depends(get_curre
     finally:
         conn.close()
 
+# ── Analyse IA de reçus / documents BTP ──────────────────────────────────────
+_RECEIPT_SYSTEM = """Tu es un assistant spécialisé dans l'extraction de données de documents BTP marocains.
+Analyse l'image fournie (ticket de caisse, facture, bon de livraison, étiquette de prix)
+et retourne UNIQUEMENT un objet JSON valide avec ces champs :
+{
+  "montant": <nombre ou null>,
+  "devise": "MAD" | "EUR" | null,
+  "fournisseur": <string ou null>,
+  "date": <"YYYY-MM-DD" ou null>,
+  "description": <string court ou null>,
+  "categorie": "materiaux"|"maindoeuvre"|"transport"|"equipement"|"autre"|null,
+  "articles": [{"nom":string,"quantite":number,"prix_unitaire":number}] | null
+}
+Règles : montant en dirhams → devise MAD. Retourne SEULEMENT le JSON, sans texte autour."""
+
+_VOICE_SYSTEM = """Tu es un assistant BTP marocain. L'utilisateur parle en français ou en darija marocaine.
+Extrais les informations financières depuis ce texte et retourne UNIQUEMENT un objet JSON :
+{
+  "montant": <nombre ou null>,
+  "devise": "MAD" | "EUR" | null,
+  "fournisseur": <string ou null>,
+  "date": <"YYYY-MM-DD" ou null>,
+  "description": <string ou null>,
+  "categorie": "materiaux"|"maindoeuvre"|"transport"|"equipement"|"autre"|null
+}
+Exemples darija : "khems miyya d reaux" = 500 MAD. Retourne SEULEMENT le JSON."""
+
+class AnalyzeReceiptIn(BaseModel):
+    image: str        # base64
+    media_type: str = "image/jpeg"
+
+class ExtractVoiceIn(BaseModel):
+    transcription: str
+
+@app.post("/api/analyze-receipt")
+async def analyze_receipt(data: AnalyzeReceiptIn, user: dict = Depends(get_current_user)):
+    if not ANTHROPIC_API_KEY:
+        raise HTTPException(400, "Analyse IA non configurée sur ce serveur.")
+    try:
+        import anthropic as _anthropic
+        client = _anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+        response = client.messages.create(
+            model="claude-sonnet-4-5",
+            max_tokens=800,
+            system=_RECEIPT_SYSTEM,
+            messages=[{
+                "role": "user",
+                "content": [
+                    {"type": "image", "source": {"type": "base64", "media_type": data.media_type, "data": data.image}},
+                    {"type": "text", "text": "Extrais les données de ce document BTP."}
+                ]
+            }]
+        )
+        raw = response.content[0].text if response.content else ""
+        import re as _re
+        m = _re.search(r'\{[\s\S]*\}', raw)
+        if not m:
+            return {"result": None}
+        return {"result": json.loads(m.group(0))}
+    except Exception as e:
+        raise HTTPException(500, f"Analyse échouée : {str(e)}")
+
+@app.post("/api/extract-voice")
+async def extract_voice(data: ExtractVoiceIn, user: dict = Depends(get_current_user)):
+    if not ANTHROPIC_API_KEY:
+        raise HTTPException(400, "Analyse IA non configurée sur ce serveur.")
+    try:
+        import anthropic as _anthropic
+        client = _anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+        today = now_iso()[:10]
+        response = client.messages.create(
+            model="claude-sonnet-4-5",
+            max_tokens=400,
+            system=_VOICE_SYSTEM + f"\nDate du jour : {today}",
+            messages=[{"role": "user", "content": f'Transcription : "{data.transcription}"'}]
+        )
+        raw = response.content[0].text if response.content else ""
+        import re as _re
+        m = _re.search(r'\{[\s\S]*\}', raw)
+        if not m:
+            return {"result": None}
+        return {"result": json.loads(m.group(0))}
+    except Exception as e:
+        raise HTTPException(500, f"Extraction échouée : {str(e)}")
+
 # ── Static files & SPA ────────────────────────────────────────────────────────
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
