@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ShantiLink — La plateforme BTP Maroc | Gérez vos chantiers, trouvez vos pros</title>
+<meta name="description" content="ShantiLink connecte clients, entrepreneurs et professionnels du BTP au Maroc. Gérez vos chantiers, trouvez des pros vérifiés, publiez vos devis. Gratuit pour démarrer.">
+<meta property="og:title" content="ShantiLink — La plateforme BTP Maroc">
+<meta property="og:description" content="Gérez vos chantiers, trouvez vos pros, publiez vos devis. 100% Maroc.">
+<meta property="og:type" content="website">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 42 42'><rect width='42' height='42' rx='10' fill='%23E8B84B'/><path d='M9 24 L21 12 L33 24' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round' fill='none'/><path d='M13 24 L13 32 L29 32 L29 24' stroke='white' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round' fill='none'/><rect x='18' y='25' width='6' height='7' rx='1' fill='%231A1A1A'/></svg>">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --gold:#E8B84B;--ink:#1A1A2E;--dark:#16213E;--mid:#0F3460;
+  --white:#fff;--off:#F8F6F0;--muted:#6B7280;--border:#E5E7EB;
+  --radius:14px;--shadow:0 4px 24px rgba(0,0,0,.08);
+}
+body{font-family:'Outfit',sans-serif;color:var(--ink);background:var(--white);overflow-x:hidden}
+a{text-decoration:none;color:inherit}
+
+/* NAV */
+nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:.9rem 2rem;display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,.92);backdrop-filter:blur(12px);border-bottom:1px solid var(--border)}
+.logo{display:flex;align-items:center;gap:9px;font-size:20px;font-weight:700}
+.logo-icon{width:32px;height:32px;background:var(--ink);border-radius:8px;display:flex;align-items:center;justify-content:center}
+.nav-links{display:flex;align-items:center;gap:1.8rem;font-size:14px;font-weight:500}
+.nav-links a{color:var(--muted);transition:color .2s}
+.nav-links a:hover{color:var(--ink)}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:.55rem 1.3rem;border-radius:9px;font-weight:600;font-size:14px;cursor:pointer;transition:all .2s;border:none}
+.btn-primary{background:var(--ink);color:var(--white)}
+.btn-primary:hover{background:#2d2d4a;transform:translateY(-1px)}
+.btn-gold{background:var(--gold);color:var(--ink)}
+.btn-gold:hover{background:#d4a63a;transform:translateY(-1px)}
+.btn-outline{background:transparent;color:var(--ink);border:1.5px solid var(--border)}
+.btn-outline:hover{border-color:var(--ink)}
+.btn-lg{padding:.8rem 2rem;font-size:16px;border-radius:12px}
+
+/* HERO */
+.hero{padding:8rem 2rem 5rem;max-width:1100px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:4rem;align-items:center}
+.hero-badge{display:inline-flex;align-items:center;gap:6px;background:#FEF3C7;color:#92400E;border-radius:100px;padding:.35rem .9rem;font-size:12px;font-weight:600;margin-bottom:1.2rem}
+.hero h1{font-size:clamp(2rem,4vw,3.2rem);font-weight:800;line-height:1.15;margin-bottom:1.2rem}
+.hero h1 span{color:var(--gold)}
+.hero p{font-size:16px;color:var(--muted);line-height:1.7;margin-bottom:2rem;max-width:460px}
+.hero-cta{display:flex;gap:1rem;flex-wrap:wrap}
+.hero-visual{background:var(--ink);border-radius:24px;padding:2rem;min-height:380px;position:relative;overflow:hidden}
+.hero-visual::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,var(--mid) 0%,var(--ink) 100%)}
+.mock-card{position:relative;z-index:1;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:1.2rem;margin-bottom:.9rem}
+.mock-card h4{color:var(--white);font-size:13px;font-weight:600;margin-bottom:.6rem}
+.mock-progress{height:6px;background:rgba(255,255,255,.1);border-radius:3px;overflow:hidden;margin-top:.5rem}
+.mock-progress-bar{height:100%;background:var(--gold);border-radius:3px}
+.mock-tag{display:inline-block;background:rgba(232,184,75,.15);color:var(--gold);font-size:10px;font-weight:600;padding:.2rem .5rem;border-radius:5px;margin-right:.4rem}
+.mock-stat{display:flex;justify-content:space-between;margin-top:.6rem}
+.mock-stat span{color:rgba(255,255,255,.5);font-size:11px}
+.mock-stat strong{color:var(--white);font-size:13px}
+
+/* STATS BAR */
+.stats-bar{background:var(--ink);padding:2.5rem 2rem}
+.stats-inner{max-width:1100px;margin:0 auto;display:grid;grid-template-columns:repeat(4,1fr);gap:2rem;text-align:center}
+.stat-item strong{display:block;font-size:2.2rem;font-weight:800;color:var(--gold)}
+.stat-item span{font-size:13px;color:rgba(255,255,255,.5);margin-top:.2rem;display:block}
+
+/* SECTION */
+section{padding:5rem 2rem}
+.container{max-width:1100px;margin:0 auto}
+.section-label{display:inline-block;background:#EFF6FF;color:#1D4ED8;font-size:12px;font-weight:600;padding:.3rem .8rem;border-radius:100px;margin-bottom:.8rem}
+.section-title{font-size:clamp(1.6rem,3vw,2.4rem);font-weight:800;margin-bottom:.8rem}
+.section-sub{font-size:16px;color:var(--muted);max-width:560px}
+
+/* FEATURES GRID */
+.features-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.5rem;margin-top:3rem}
+.feat-card{background:var(--white);border:1.5px solid var(--border);border-radius:var(--radius);padding:1.8rem;transition:all .25s}
+.feat-card:hover{border-color:var(--gold);box-shadow:0 8px 32px rgba(232,184,75,.12);transform:translateY(-3px)}
+.feat-icon{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;margin-bottom:1.1rem}
+.feat-card h3{font-size:16px;font-weight:700;margin-bottom:.5rem}
+.feat-card p{font-size:14px;color:var(--muted);line-height:1.6}
+
+/* COMMUNITY SECTION */
+.community-section{background:var(--off)}
+.community-grid{display:grid;grid-template-columns:1fr 1fr;gap:3rem;align-items:center;margin-top:3rem}
+.community-visual{display:flex;flex-direction:column;gap:.8rem}
+.user-card{background:var(--white);border-radius:12px;padding:1rem 1.2rem;display:flex;align-items:center;gap:.9rem;box-shadow:var(--shadow)}
+.user-avatar{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.user-info strong{display:block;font-size:14px;font-weight:600}
+.user-info span{font-size:12px;color:var(--muted)}
+.user-badge{margin-left:auto;background:#DCFCE7;color:#166534;font-size:10px;font-weight:600;padding:.2rem .5rem;border-radius:5px}
+.user-badge.pro{background:#EFF6FF;color:#1D4ED8}
+.chat-preview{background:var(--white);border-radius:12px;padding:1rem 1.2rem;box-shadow:var(--shadow)}
+.chat-bubble{padding:.5rem .9rem;border-radius:10px;font-size:13px;margin-bottom:.5rem;max-width:80%}
+.chat-bubble.sent{background:var(--ink);color:var(--white);margin-left:auto}
+.chat-bubble.recv{background:#F3F4F6;color:var(--ink)}
+
+/* HOW IT WORKS */
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:2rem;margin-top:3rem;position:relative}
+.steps::before{content:'';position:absolute;top:28px;left:calc(16.67% + 24px);right:calc(16.67% + 24px);height:2px;background:linear-gradient(90deg,var(--gold),var(--gold));opacity:.3}
+.step{text-align:center}
+.step-num{width:56px;height:56px;background:var(--ink);color:var(--white);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;margin:0 auto 1rem}
+.step h4{font-weight:700;margin-bottom:.4rem}
+.step p{font-size:14px;color:var(--muted)}
+
+/* PRICING */
+.pricing-section{background:var(--ink)}
+.pricing-section .section-label{background:rgba(232,184,75,.15);color:var(--gold)}
+.pricing-section .section-title,.pricing-section .section-sub{color:var(--white)}
+.pricing-section .section-sub{color:rgba(255,255,255,.5)}
+.plans{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;margin-top:3rem}
+.plan{background:rgba(255,255,255,.05);border:1.5px solid rgba(255,255,255,.08);border-radius:var(--radius);padding:2rem;transition:all .25s}
+.plan.featured{background:var(--gold);border-color:var(--gold);transform:translateY(-6px)}
+.plan-name{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.5);margin-bottom:.6rem}
+.plan.featured .plan-name{color:rgba(26,26,46,.6)}
+.plan-price{font-size:2.5rem;font-weight:800;color:var(--white);margin-bottom:.2rem}
+.plan.featured .plan-price{color:var(--ink)}
+.plan-price sup{font-size:1rem;vertical-align:super}
+.plan-price sub{font-size:.9rem;font-weight:400;opacity:.6}
+.plan-desc{font-size:13px;color:rgba(255,255,255,.4);margin-bottom:1.5rem}
+.plan.featured .plan-desc{color:rgba(26,26,46,.5)}
+.plan-features{list-style:none;margin-bottom:1.8rem}
+.plan-features li{display:flex;align-items:center;gap:.6rem;font-size:14px;color:rgba(255,255,255,.7);padding:.35rem 0;border-bottom:1px solid rgba(255,255,255,.05)}
+.plan.featured .plan-features li{color:var(--ink);border-bottom-color:rgba(26,26,46,.08)}
+.plan-features li::before{content:'✓';color:var(--gold);font-weight:700;flex-shrink:0}
+.plan.featured .plan-features li::before{color:var(--ink)}
+.plan-cta{display:block;text-align:center;padding:.75rem;border-radius:10px;font-weight:600;font-size:15px;transition:all .2s}
+.plan:not(.featured) .plan-cta{background:rgba(255,255,255,.08);color:var(--white)}
+.plan:not(.featured) .plan-cta:hover{background:rgba(255,255,255,.15)}
+.plan.featured .plan-cta{background:var(--ink);color:var(--white)}
+.plan.featured .plan-cta:hover{background:#2d2d4a}
+
+/* TESTIMONIALS */
+.testi-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;margin-top:3rem}
+.testi{background:var(--white);border:1.5px solid var(--border);border-radius:var(--radius);padding:1.6rem}
+.testi-stars{color:var(--gold);font-size:16px;margin-bottom:.8rem}
+.testi-text{font-size:14px;color:var(--muted);line-height:1.7;margin-bottom:1rem}
+.testi-author{display:flex;align-items:center;gap:.7rem}
+.testi-avatar{width:36px;height:36px;border-radius:50%;background:var(--ink);color:var(--white);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px}
+.testi-author strong{display:block;font-size:13px;font-weight:600}
+.testi-author span{font-size:12px;color:var(--muted)}
+
+/* CTA BANNER */
+.cta-banner{background:linear-gradient(135deg,var(--ink) 0%,var(--mid) 100%);border-radius:24px;padding:4rem 3rem;text-align:center;max-width:780px;margin:0 auto}
+.cta-banner h2{font-size:clamp(1.6rem,3vw,2.4rem);font-weight:800;color:var(--white);margin-bottom:.8rem}
+.cta-banner p{color:rgba(255,255,255,.6);font-size:16px;margin-bottom:2rem}
+.cta-banner .btn-group{display:flex;gap:1rem;justify-content:center;flex-wrap:wrap}
+
+/* FOOTER */
+footer{background:var(--ink);padding:3rem 2rem 1.5rem;color:rgba(255,255,255,.5)}
+.footer-grid{max-width:1100px;margin:0 auto;display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:2rem;margin-bottom:2rem}
+.footer-brand .logo{color:var(--white);margin-bottom:.8rem}
+.footer-brand p{font-size:13px;line-height:1.7}
+.footer-col h5{color:var(--white);font-size:14px;font-weight:600;margin-bottom:.9rem}
+.footer-col a{display:block;font-size:13px;color:rgba(255,255,255,.4);margin-bottom:.5rem;transition:color .2s}
+.footer-col a:hover{color:var(--white)}
+.footer-bottom{max-width:1100px;margin:0 auto;border-top:1px solid rgba(255,255,255,.06);padding-top:1.2rem;display:flex;justify-content:space-between;font-size:12px;flex-wrap:wrap;gap:.5rem}
+
+/* Hamburger button (mobile only) */
+.mob-ham{display:none;flex-direction:column;gap:5px;background:none;border:none;cursor:pointer;padding:6px;border-radius:8px}
+.mob-ham span{display:block;width:22px;height:2px;background:var(--ink);border-radius:2px;transition:all .25s}
+/* Mobile dropdown */
+#mob-menu{display:none;position:fixed;top:56px;left:0;right:0;z-index:200;background:var(--white);border-bottom:1px solid var(--border);padding:1rem;box-shadow:0 8px 24px rgba(0,0,0,.1);flex-direction:column;gap:.5rem}
+#mob-menu a{display:block;padding:.75rem .5rem;color:var(--muted);font-size:15px;font-weight:500;border-bottom:1px solid var(--border)}
+#mob-menu a:last-of-type{border-bottom:none}
+#mob-menu .mob-btns{display:flex;gap:.6rem;margin-top:.8rem;padding-top:.6rem;border-top:1px solid var(--border)}
+#mob-menu .mob-btns a{display:flex;flex:1;justify-content:center;border-bottom:none;padding:.7rem;font-weight:700;font-size:14px;border-radius:9px}
+/* RESPONSIVE */
+@media(max-width:768px){
+  nav .nav-links{display:none}
+  nav .nav-btns{display:none}
+  .mob-ham{display:flex}
+  .hero{grid-template-columns:1fr;gap:2rem;padding:6rem 1.2rem 3rem}
+  .hero-visual{min-height:240px}
+  .stats-inner{grid-template-columns:1fr 1fr}
+  .community-grid,.plans,.testi-grid,.steps{grid-template-columns:1fr}
+  .steps::before{display:none}
+  .plan.featured{transform:none}
+  .footer-grid{grid-template-columns:1fr 1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a href="/" class="logo">
+    <div class="logo-icon">
+      <svg width="20" height="20" viewBox="0 0 42 42" fill="none">
+        <path d="M9 24 L21 12 L33 24" stroke="#E8B84B" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M13 24 L13 32 L29 32 L29 24" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+        <rect x="18" y="25" width="6" height="7" rx="1" fill="#E8B84B"/>
+      </svg>
+    </div>
+    Shanti<span style="color:var(--gold)">Link</span>
+  </a>
+  <div class="nav-links">
+    <a href="#features">Fonctionnalités</a>
+    <a href="#community">Communauté</a>
+    <a href="#pricing">Tarifs</a>
+    <a href="#how">Comment ça marche</a>
+  </div>
+  <div class="nav-btns" style="display:flex;gap:.8rem">
+    <a href="/app" class="btn btn-outline">Se connecter</a>
+    <a href="/app" class="btn btn-gold">Commencer gratuitement →</a>
+  </div>
+  <button class="mob-ham" id="mob-ham-btn" onclick="toggleLandingMenu()" aria-label="Menu">
+    <span></span><span></span><span></span>
+  </button>
+</nav>
+
+<!-- Mobile dropdown menu -->
+<div id="mob-menu">
+  <a href="#features" onclick="closeLandingMenu()">Fonctionnalités</a>
+  <a href="#community" onclick="closeLandingMenu()">Communauté</a>
+  <a href="#pricing" onclick="closeLandingMenu()">Tarifs</a>
+  <a href="#how" onclick="closeLandingMenu()">Comment ça marche</a>
+  <div class="mob-btns">
+    <a href="/app" class="btn btn-outline">Se connecter</a>
+    <a href="/app" class="btn btn-gold">Commencer gratuitement →</a>
+  </div>
+</div>
+<script>
+function toggleLandingMenu(){
+  var m=document.getElementById('mob-menu');
+  var open=m.style.display==='flex';
+  m.style.display=open?'none':'flex';
+}
+function closeLandingMenu(){
+  document.getElementById('mob-menu').style.display='none';
+}
+</script>
+
+<!-- HERO -->
+<section style="padding-top:0">
+  <div class="hero">
+    <div>
+      <div class="hero-badge">🇲🇦 100% Maroc · Gratuit pour démarrer</div>
+      <h1>La plateforme BTP <span>qui connecte</span> tout le Maroc</h1>
+      <p>Gérez vos chantiers, trouvez des entrepreneurs vérifiés, publiez vos demandes de devis et échangez directement avec les pros. La communauté BTP marocaine en un seul endroit.</p>
+      <div class="hero-cta">
+        <a href="/app" class="btn btn-primary btn-lg">Créer un compte gratuit →</a>
+        <a href="#pricing" class="btn btn-outline btn-lg">Voir les offres</a>
+      </div>
+    </div>
+    <div class="hero-visual">
+      <div class="mock-card">
+        <h4>🏗️ Villa Ain Diab — R+2</h4>
+        <div class="mock-tag">En cours</div><div class="mock-tag">Casablanca</div>
+        <div class="mock-progress"><div class="mock-progress-bar" style="width:67%"></div></div>
+        <div class="mock-stat"><span>Avancement</span><strong>67%</strong></div>
+      </div>
+      <div class="mock-card">
+        <h4>👥 Demandes de devis ouvertes</h4>
+        <div style="color:rgba(255,255,255,.6);font-size:12px;margin-bottom:.4rem">Électricien · Casablanca · Budget 15 000 DH</div>
+        <div style="color:rgba(255,255,255,.6);font-size:12px">Architecte · Rabat · 200m² · Urgence</div>
+      </div>
+      <div class="mock-card">
+        <h4>💬 Messages directs</h4>
+        <div style="color:rgba(255,255,255,.6);font-size:12px">Mansouri BTP : "Je suis disponible pour votre projet..."</div>
+        <div style="display:flex;gap:.4rem;margin-top:.6rem">
+          <div style="background:rgba(232,184,75,.2);color:var(--gold);border-radius:5px;padding:.2rem .6rem;font-size:10px;font-weight:600">3 non lus</div>
+          <div style="background:rgba(255,255,255,.08);color:rgba(255,255,255,.5);border-radius:5px;padding:.2rem .6rem;font-size:10px">Plan Pro · 199 MAD/mois</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- STATS -->
+<div class="stats-bar">
+  <div class="stats-inner">
+    <div class="stat-item">
+      <strong id="stat-users">—</strong>
+      <span>Comptes inscrits</span>
+    </div>
+    <div class="stat-item">
+      <strong id="stat-projects">—</strong>
+      <span>Chantiers gérés</span>
+    </div>
+    <div class="stat-item">
+      <strong id="stat-pros">80+</strong>
+      <span>Professionnels référencés</span>
+    </div>
+    <div class="stat-item">
+      <strong id="stat-cities">12</strong>
+      <span>Villes couvertes</span>
+    </div>
+  </div>
+</div>
+
+<!-- FEATURES -->
+<section id="features">
+  <div class="container">
+    <div class="section-label">Fonctionnalités</div>
+    <h2 class="section-title">Tout ce dont vous avez besoin<br>pour construire sereinement</h2>
+    <p class="section-sub">De la gestion de chantier à la mise en relation avec les pros, ShantiLink couvre tout le cycle de votre projet BTP.</p>
+    <div class="features-grid">
+      <div class="feat-card">
+        <div class="feat-icon" style="background:#FEF3C7">🏗️</div>
+        <h3>Gestion de chantiers</h3>
+        <p>Suivez l'avancement, les phases, le budget et les dépenses de chaque projet en temps réel.</p>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon" style="background:#DCFCE7">🔍</div>
+        <h3>Annuaire des pros BTP</h3>
+        <p>Trouvez des entrepreneurs, architectes, électriciens et plombiers vérifiés près de chez vous.</p>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon" style="background:#EFF6FF">📋</div>
+        <h3>Appels d'offres</h3>
+        <p>Publiez votre demande de devis et recevez les offres des meilleurs professionnels de votre ville.</p>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon" style="background:#FDF4FF">💬</div>
+        <h3>Messagerie directe</h3>
+        <p>Échangez directement avec n'importe quel compte inscrit — client ou pro — en toute sécurité.</p>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon" style="background:#FFF7ED">🤖</div>
+        <h3>Agent IA (Pro)</h3>
+        <p>Créez des projets, ajoutez des dépenses et obtenez des conseils personnalisés par simple commande.</p>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon" style="background:#F0FDF4">📄</div>
+        <h3>Rapports PDF</h3>
+        <p>Générez des rapports d'avancement professionnels à partager avec votre famille ou votre banque.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- COMMUNITY -->
+<section id="community" class="community-section">
+  <div class="container">
+    <div class="section-label">Communauté</div>
+    <h2 class="section-title">Le Google des pros BTP Maroc</h2>
+    <p class="section-sub">ShantiLink est le lieu de rencontre naturel entre les clients qui cherchent des pros et les pros qui cherchent des clients.</p>
+    <div class="community-grid">
+      <div>
+        <h3 style="font-size:20px;font-weight:700;margin-bottom:1rem">Un espace vivant entre clients et professionnels</h3>
+        <p style="color:var(--muted);font-size:15px;line-height:1.7;margin-bottom:1.5rem">Publiez vos avancées, posez vos questions, et découvrez les experts de votre région. Chaque compte — client ou pro — peut partager, noter et recommander.</p>
+        <ul style="list-style:none;display:flex;flex-direction:column;gap:.7rem">
+          <li style="display:flex;gap:.7rem;font-size:14px"><span style="color:var(--gold);font-weight:700">✓</span> <span>Annuaire de professionnels vérifiés avec avis réels</span></li>
+          <li style="display:flex;gap:.7rem;font-size:14px"><span style="color:var(--gold);font-weight:700">✓</span> <span>Fil d'actualité des chantiers et projets en cours</span></li>
+          <li style="display:flex;gap:.7rem;font-size:14px"><span style="color:var(--gold);font-weight:700">✓</span> <span>Messages directs entre comptes inscrits</span></li>
+          <li style="display:flex;gap:.7rem;font-size:14px"><span style="color:var(--gold);font-weight:700">✓</span> <span>Demandes de devis publiques avec réponses des pros</span></li>
+        </ul>
+        <a href="/app" class="btn btn-primary" style="margin-top:1.8rem">Rejoindre la communauté →</a>
+      </div>
+      <div class="community-visual">
+        <div class="user-card">
+          <div class="user-avatar" style="background:#FEF3C7;font-size:20px">👷</div>
+          <div class="user-info">
+            <strong>Alaoui Construction</strong>
+            <span>Entrepreneur · Casablanca</span>
+          </div>
+          <span class="user-badge">Vérifié</span>
+        </div>
+        <div class="user-card">
+          <div class="user-avatar" style="background:#DCFCE7;font-size:20px">🏠</div>
+          <div class="user-info">
+            <strong>Sara B.</strong>
+            <span>Cliente · Cherche architecte Rabat</span>
+          </div>
+          <span class="user-badge pro">Client</span>
+        </div>
+        <div class="chat-preview">
+          <div style="font-size:12px;color:var(--muted);margin-bottom:.7rem;font-weight:600">💬 Conversation directe</div>
+          <div class="chat-bubble recv">Bonjour, j'ai vu votre profil sur ShantiLink. Vous êtes disponible pour un projet R+2 à Casablanca ?</div>
+          <div class="chat-bubble sent">Bonjour ! Oui, je suis disponible. Envoyez-moi les détails, je vous prépare un devis sous 48h.</div>
+        </div>
+        <div class="user-card">
+          <div class="user-avatar" style="background:#EFF6FF;font-size:20px">⚡</div>
+          <div class="user-info">
+            <strong>ElectroPro Maroc</strong>
+            <span>Électricien · Marrakech · ⭐ 4.9</span>
+          </div>
+          <span class="user-badge">Vérifié</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section id="how">
+  <div class="container" style="text-align:center">
+    <div class="section-label">Comment ça marche</div>
+    <h2 class="section-title">Démarrez en 3 minutes</h2>
+    <p class="section-sub" style="margin:0 auto">Aucune installation. Aucune carte bancaire pour commencer.</p>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <h4>Créez votre compte</h4>
+        <p>Inscrivez-vous en tant que client ou professionnel. C'est gratuit et immédiat.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <h4>Publiez ou cherchez</h4>
+        <p>Créez votre premier chantier ou publiez votre demande de devis pour recevoir des offres.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <h4>Connectez & construisez</h4>
+        <p>Échangez directement avec les pros, suivez l'avancement et générez vos rapports.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PRICING -->
+<section id="pricing" class="pricing-section">
+  <div class="container">
+    <div class="section-label">Tarifs</div>
+    <h2 class="section-title">Simple, transparent, sans surprise</h2>
+    <p class="section-sub">Commencez gratuitement, passez au Pro quand vous êtes prêt.</p>
+    <div class="plans">
+      <div class="plan">
+        <div class="plan-name">Starter</div>
+        <div class="plan-price"><sup>0</sup> MAD<sub>/mois</sub></div>
+        <div class="plan-desc">Pour démarrer et tester la plateforme</div>
+        <ul class="plan-features">
+          <li>3 chantiers maximum</li>
+          <li>3 rapports PDF / mois</li>
+          <li>Annuaire des pros</li>
+          <li>Messagerie directe</li>
+          <li>Communauté ShantiLink</li>
+        </ul>
+        <a href="/app" class="plan-cta">Commencer gratuitement</a>
+      </div>
+      <div class="plan featured">
+        <div class="plan-name">Pro ⭐</div>
+        <div class="plan-price"><sup></sup>199 <sub>MAD/mois</sub></div>
+        <div class="plan-desc">Pour les particuliers actifs et les pros</div>
+        <ul class="plan-features">
+          <li>Chantiers illimités</li>
+          <li>Rapports PDF illimités</li>
+          <li>Agent IA inclus</li>
+          <li>Jusqu'à 5 collaborateurs</li>
+          <li>Support prioritaire</li>
+          <li>Badge Pro visible</li>
+        </ul>
+        <a href="/app" class="plan-cta">Essai 30 jours gratuit →</a>
+      </div>
+      <div class="plan">
+        <div class="plan-name">Business</div>
+        <div class="plan-price"><sup></sup>499 <sub>MAD/mois</sub></div>
+        <div class="plan-desc">Pour les entreprises et promoteurs</div>
+        <ul class="plan-features">
+          <li>Tout Pro inclus</li>
+          <li>Équipe illimitée</li>
+          <li>Multi-projets avancé</li>
+          <li>Accès API</li>
+          <li>Onboarding dédié</li>
+          <li>Facturation entreprise</li>
+        </ul>
+        <a href="/app" class="plan-cta">Contacter l'équipe</a>
+      </div>
+    </div>
+    <p style="text-align:center;color:rgba(255,255,255,.3);font-size:13px;margin-top:2rem">Pas de carte bancaire requise pour démarrer · Annulation à tout moment</p>
+  </div>
+</section>
+
+<!-- TESTIMONIALS -->
+<section>
+  <div class="container">
+    <div class="section-label">Témoignages</div>
+    <h2 class="section-title">Ce que disent nos utilisateurs</h2>
+    <div class="testi-grid">
+      <div class="testi">
+        <div class="testi-stars">★★★★★</div>
+        <p class="testi-text">"Enfin une appli BTP faite pour le Maroc. J'ai trouvé mon entrepreneur à Casablanca en 2 jours. Les devis sont arrivés directement sur ma messagerie."</p>
+        <div class="testi-author">
+          <div class="testi-avatar">KA</div>
+          <div><strong>Karim A.</strong><span>Client · Casablanca</span></div>
+        </div>
+      </div>
+      <div class="testi">
+        <div class="testi-stars">★★★★★</div>
+        <p class="testi-text">"Je génère mes rapports d'avancement en 2 clics pour envoyer à ma banque. Plus besoin de tableaux Excel compliqués. Vraiment pratique."</p>
+        <div class="testi-author">
+          <div class="testi-avatar">SB</div>
+          <div><strong>Sara B.</strong><span>Cliente · Rabat</span></div>
+        </div>
+      </div>
+      <div class="testi">
+        <div class="testi-stars">★★★★☆</div>
+        <p class="testi-text">"Comme entrepreneur, j'ai reçu 3 demandes de devis qualifiées la première semaine. La messagerie directe change vraiment la façon de travailler."</p>
+        <div class="testi-author">
+          <div class="testi-avatar">MB</div>
+          <div><strong>Mohamed B.</strong><span>Entrepreneur · Marrakech</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA FINAL -->
+<section>
+  <div class="container">
+    <div class="cta-banner">
+      <h2>Rejoignez la communauté BTP Maroc</h2>
+      <p>Plus de <strong id="cta-users" style="color:var(--gold)">—</strong> professionnels et clients déjà inscrits. Créez votre compte gratuit aujourd'hui.</p>
+      <div class="btn-group">
+        <a href="/app" class="btn btn-gold btn-lg">Créer mon compte gratuit →</a>
+        <a href="/app" class="btn btn-outline btn-lg" style="color:var(--white);border-color:rgba(255,255,255,.2)">Me connecter</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-grid">
+    <div class="footer-brand">
+      <div class="logo" style="color:white;margin-bottom:.8rem;font-size:18px">
+        <div class="logo-icon">
+          <svg width="18" height="18" viewBox="0 0 42 42" fill="none">
+            <path d="M9 24 L21 12 L33 24" stroke="#E8B84B" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M13 24 L13 32 L29 32 L29 24" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+            <rect x="18" y="25" width="6" height="7" rx="1" fill="#E8B84B"/>
+          </svg>
+        </div>
+        ShantiLink
+      </div>
+      <p>La plateforme qui connecte clients et professionnels du BTP au Maroc. Construisez en toute confiance.</p>
+    </div>
+    <div class="footer-col">
+      <h5>Plateforme</h5>
+      <a href="/app">Mon espace</a>
+      <a href="#features">Fonctionnalités</a>
+      <a href="#community">Communauté</a>
+      <a href="#pricing">Tarifs</a>
+    </div>
+    <div class="footer-col">
+      <h5>Pour qui</h5>
+      <a href="/app">Particuliers</a>
+      <a href="/app">Entrepreneurs BTP</a>
+      <a href="/app">Architectes</a>
+      <a href="/app">Promoteurs</a>
+    </div>
+    <div class="footer-col">
+      <h5>Contact</h5>
+      <a href="mailto:contact@bnalink.ma">contact@bnalink.ma</a>
+      <a href="/app">Support</a>
+      <a href="/app">Mentions légales</a>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <span>© 2025 ShantiLink · Tous droits réservés · Maroc</span>
+    <span>Fait avec ❤️ pour le BTP marocain</span>
+  </div>
+</footer>
+
+<script>
+// Load live stats from API
+async function loadStats() {
+  try {
+    const r = await fetch('/api/stats/platform');
+    const d = await r.json();
+    document.getElementById('stat-users').textContent = d.users > 0 ? d.users + '+' : '0';
+    document.getElementById('stat-projects').textContent = d.projects > 0 ? d.projects + '+' : '0';
+    if (d.pros) document.getElementById('stat-pros').textContent = d.pros + '+';
+    if (d.cities) document.getElementById('stat-cities').textContent = d.cities;
+    const ctaEl = document.getElementById('cta-users');
+    if (ctaEl) ctaEl.textContent = (d.users || 0) + '+';
+  } catch(e) {}
+}
+loadStats();
+
+// Smooth scroll for anchor links
+document.querySelectorAll('a[href^="#"]').forEach(a => {
+  a.addEventListener('click', e => {
+    e.preventDefault();
+    const el = document.querySelector(a.getAttribute('href'));
+    if (el) el.scrollIntoView({behavior:'smooth', block:'start'});
+  });
+});
+
+// Nav shadow on scroll
+window.addEventListener('scroll', () => {
+  document.querySelector('nav').style.boxShadow = window.scrollY > 10 ? '0 2px 20px rgba(0,0,0,.08)' : 'none';
+});
+</script>
+</body>
+</html>
