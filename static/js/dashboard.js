@@ -6,6 +6,27 @@ let currentConv = null;
 let convCache = {};
 let _planPid = null;
 let _planPhases = [];
+let _planUnsaved = false;
+
+const EXPENSE_CATEGORIES = {
+  'Matériaux':    { color:'#3b82f6', bg:'#dbeafe', icon:'🧱' },
+  "Main d'œuvre": { color:'#10b981', bg:'#d1fae5', icon:'👷' },
+  'Transport':    { color:'#f59e0b', bg:'#fef3c7', icon:'🚛' },
+  'Équipement':   { color:'#8b5cf6', bg:'#ede9fe', icon:'🔧' },
+  'Honoraires':   { color:'#ec4899', bg:'#fce7f3', icon:'📋' },
+  'Gros œuvre':   { color:'#0e7490', bg:'#cffafe', icon:'🏗️' },
+  'Électricité':  { color:'#d97706', bg:'#fef3c7', icon:'⚡' },
+  'Plomberie':    { color:'#2563eb', bg:'#eff6ff', icon:'🔧' },
+  'Peinture':     { color:'#7c3aed', bg:'#f5f3ff', icon:'🎨' },
+  'Menuiserie':   { color:'#92400e', bg:'#fef3c7', icon:'🪵' },
+  'Carrelage':    { color:'#065f46', bg:'#ecfdf5', icon:'🟦' },
+  'Fondations':   { color:'#1f2937', bg:'#f3f4f6', icon:'🏚️' },
+  'Autre':        { color:'#6b7280', bg:'#f3f4f6', icon:'📦' },
+};
+function catBadge(cat) {
+  const c = EXPENSE_CATEGORIES[cat] || EXPENSE_CATEGORIES['Autre'];
+  return `<span style="display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:600;padding:2px 8px;border-radius:100px;background:${c.bg};color:${c.color};border:1px solid ${c.color}20">${c.icon} ${cat||'Autre'}</span>`;
+}
 let _ovCharts = {};
 let _detailPid = null;
 window._detailPid = null;
@@ -103,6 +124,7 @@ window.showDashPanel = function(name, btn) {
   if (name === 'projet-detail' && _detailPid) renderProjectDetail(_detailPid);
   if (name === 'devis') loadBriefsPanel();
   if (name === 'parrainage') loadReferralPanel();
+  if (name === 'admin') renderAdminPanel();
 };
 
 // ── Load dashboard ────────────────────────────────────────────────────────────
@@ -801,6 +823,7 @@ window.openPlanningPanel = function(pid) {
   try { saved = p.phases ? JSON.parse(p.phases) : []; } catch(e) {}
   _planPid    = pid;
   _planPhases = mergePhasesWithDefaults(saved, getProjectPhases(p.type, p.etages || 0));
+  _planUnsaved = false;
   const planBtn = document.querySelector('.sblink [id="sb-planning"]')?.closest('.sblink');
   // Switch panel without re-triggering renderPlanningPanel (we render directly)
   document.querySelectorAll('.dash-panel').forEach(x => x.classList.remove('on'));
@@ -926,7 +949,11 @@ function renderPlanningBox(pid, p, phases) {
     + '</div>';
 
   box.innerHTML =
-    '<div style="margin-bottom:.8rem">'
+    `<div id="plan-save-bar" style="display:${_planUnsaved?'flex':'none'};align-items:center;gap:.8rem;background:var(--amber-b);border:1px solid var(--gold);border-radius:10px;padding:10px 14px;margin-bottom:12px">
+      <span style="flex:1;font-size:13px;color:var(--amber);font-weight:600">⚠️ Modifications non sauvegardées</span>
+      <button onclick="savePlanningPhases()" style="padding:6px 18px;background:var(--gold);color:var(--ink);border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">💾 Sauvegarder</button>
+    </div>`
+    + '<div style="margin-bottom:.8rem">'
     + '<div style="font-family:\'Playfair Display\',serif;font-size:1.2rem;font-weight:600;color:var(--ink)">' + p.nom + '</div>'
     + '<div style="font-size:11px;color:var(--muted);margin-top:.2rem">' + (p.type||'') + (p.etages ? ' — R+'+p.etages : ' — RDC') + ' • ' + (p.ville||'') + '</div>'
     + '</div>'
@@ -946,6 +973,20 @@ function planMiniKpi(label, value, color) {
 window.addQuickPhase = function(pid, label) {
   _planPhases.push({ label, key: null, status: 'attente', startDate: '', endDate: '', notes: '', custom: true });
   const p = DB.projects.find(x => x.id === pid);
+  _planUnsaved = true;
+  renderPlanningBox(pid, p, _planPhases);
+  savePhases(pid, _planPhases, calcPlanningPct(_planPhases));
+  toast('Étape ajoutée.', 'success');
+};
+
+window.addCustomPhase = function(pid) {
+  const label = (document.getElementById('plan-new-label') || {}).value || '';
+  const start = (document.getElementById('plan-new-start') || {}).value || '';
+  const end   = (document.getElementById('plan-new-end')   || {}).value || '';
+  if (!label.trim()) { toast('Entrez un nom pour l\'étape.', 'error'); return; }
+  _planPhases.push({ label: label.trim(), key: null, status: 'attente', startDate: start, endDate: end, notes: '', custom: true });
+  const p = DB.projects.find(x => x.id === pid);
+  _planUnsaved = true;
   renderPlanningBox(pid, p, _planPhases);
   savePhases(pid, _planPhases, calcPlanningPct(_planPhases));
   toast('Étape ajoutée.', 'success');
@@ -1059,6 +1100,7 @@ window.deletePhase = function(pid, idx) {
   if (!confirm('Supprimer "' + label + '" ?')) return;
   _planPhases.splice(idx, 1);
   const p = DB.projects.find(x => x.id === pid);
+  _planUnsaved = true;
   renderPlanningBox(pid, p, _planPhases);
   savePhases(pid, _planPhases, calcPlanningPct(_planPhases));
   toast('Étape supprimée.', 'success');
@@ -1103,8 +1145,29 @@ window.movePhase = function(pid, idx, dir) {
   if (newIdx < 0 || newIdx >= _planPhases.length) return;
   [_planPhases[idx], _planPhases[newIdx]] = [_planPhases[newIdx], _planPhases[idx]];
   const p = DB.projects.find(x => x.id === pid);
+  _planUnsaved = true;
   renderPlanningBox(pid, p, _planPhases);
   savePhases(pid, _planPhases, calcPlanningPct(_planPhases));
+};
+
+window.savePlanningPhases = async function() {
+  if (!_planPid) return;
+  const p = DB.projects.find(x => x.id === _planPid);
+  if (!p) return;
+  const btn = document.querySelector('#plan-save-bar button');
+  if (btn) { btn.textContent = '⏳…'; btn.disabled = true; }
+  try {
+    await API.updatePhases(_planPid, _planPhases);
+    p.phases = JSON.stringify(_planPhases);
+    _planUnsaved = false;
+    toast('Planning sauvegardé ✓', 'success');
+    const bar = document.getElementById('plan-save-bar');
+    if (bar) bar.style.display = 'none';
+  } catch(e) {
+    toast('Erreur sauvegarde planning', 'error');
+  } finally {
+    if (btn) { btn.textContent = '💾 Sauvegarder'; btn.disabled = false; }
+  }
 };
 
 // ── Inline Gantt (always visible below the phase list) ──────────────────────
@@ -1314,7 +1377,7 @@ function renderDepenses(showAll) {
       return '<tr style="' + rowStyle + '">'
         + '<td>' + d.description + (isDeleted ? ' <span style="font-size:9px;color:var(--red)">(supprimé)</span>' : '') + '</td>'
         + '<td>' + projLabel + '</td>'
-        + '<td><span class="bdg bdg-warn">' + d.categorie + '</span></td>'
+        + '<td>' + catBadge(d.categorie) + '</td>'
         + '<td style="font-weight:600">' + fmt(d.montant) + '</td>'
         + '<td>' + (d.date || '') + '</td>'
         + '<td>' + (!isDeleted ? '<button onclick="delDepense(\'' + d.id + '\')" style="font-size:11px;padding:3px 10px;background:var(--red-b);color:var(--red);border:none;border-radius:100px;cursor:pointer;font-family:Outfit,sans-serif">✕</button>' : '') + '</td>'
@@ -1755,9 +1818,129 @@ window.switchRapTab = function(tab) {
   if (btnProjets) { btnProjets.classList.toggle('on', tab === 'projets'); }
 };
 
-window.generatePDFForProject = function(pid) {
+window.generatePDFForProject = async function(pid) {
   const p = DB.projects.find(x => x.id === pid);
-  if (p) { window._rapProjFilter = pid; generatePDF(); }
+  if (!p) return;
+  toast('Génération du rapport PDF…', 'success');
+  try {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
+    const W = doc.internal.pageSize.getWidth();
+    const H = doc.internal.pageSize.getHeight();
+    const M = 18;
+    let y = M;
+
+    // ── Header band ───────────────────────────────────────────────────────
+    doc.setFillColor(29, 95, 166);
+    doc.rect(0, 0, W, 28, 'F');
+    doc.setTextColor(255,255,255);
+    doc.setFontSize(16); doc.setFont('helvetica','bold');
+    doc.text('ShantiLink', M, 16);
+    doc.setFontSize(9); doc.setFont('helvetica','normal');
+    doc.text('Rapport projet — ' + new Date().toLocaleDateString('fr-FR'), W-M, 16, {align:'right'});
+    y = 38;
+
+    // ── Project title ─────────────────────────────────────────────────────
+    doc.setTextColor(15,29,54);
+    doc.setFontSize(15); doc.setFont('helvetica','bold');
+    doc.text(p.nom, M, y); y += 7;
+    doc.setFontSize(9); doc.setFont('helvetica','normal'); doc.setTextColor(100,116,139);
+    const meta = [p.type, p.ville ? '📍 '+p.ville : '', p.etages ? 'R+'+p.etages : 'RDC'].filter(Boolean).join('  ·  ');
+    doc.text(meta, M, y); y += 9;
+
+    // ── KPI boxes ─────────────────────────────────────────────────────────
+    const projExpenses = DB.expenses.filter(e => e.project_id === pid && !e.deleted);
+    const totalDep = projExpenses.reduce((s,e) => s+(e.montant||0), 0);
+    const budget   = p.budget || 0;
+    const restant  = Math.max(0, budget - totalDep);
+    const pct      = p.pct || 0;
+    const kpis = [
+      {l:'Avancement',  v: pct+'%'},
+      {l:'Budget',      v: budget > 0 ? Math.round(budget).toLocaleString('fr-FR')+' DH' : '—'},
+      {l:'Dépenses',    v: Math.round(totalDep).toLocaleString('fr-FR')+' DH'},
+      {l:'Restant',     v: budget > 0 ? Math.round(restant).toLocaleString('fr-FR')+' DH' : '—'},
+    ];
+    const kW = (W-2*M-9)/4;
+    kpis.forEach((k,i) => {
+      const x = M + i*(kW+3);
+      doc.setFillColor(232,240,251);
+      doc.roundedRect(x, y, kW, 16, 2, 2, 'F');
+      doc.setTextColor(29,95,166); doc.setFontSize(11); doc.setFont('helvetica','bold');
+      doc.text(k.v, x+kW/2, y+7, {align:'center'});
+      doc.setTextColor(100,116,139); doc.setFontSize(7); doc.setFont('helvetica','normal');
+      doc.text(k.l, x+kW/2, y+13, {align:'center'});
+    });
+    y += 22;
+
+    // ── Phases ────────────────────────────────────────────────────────────
+    let phases = [];
+    try { phases = p.phases ? JSON.parse(p.phases) : []; } catch(e) {}
+    if (phases.length) {
+      doc.setFontSize(11); doc.setFont('helvetica','bold'); doc.setTextColor(15,29,54);
+      doc.text('Planning des phases', M, y); y += 4;
+      doc.autoTable({
+        startY: y,
+        head: [['Phase','Statut','Début','Fin']],
+        body: phases.map(ph => [
+          ph.label||'—',
+          ph.status==='finalise'?'✅ Finalisé':ph.status==='encours'?'🔄 En cours':ph.status==='bloque'?'🚫 Bloqué':'⏳ Attente',
+          ph.startDate||'—', ph.endDate||'—'
+        ]),
+        theme:'striped',
+        headStyles:{fillColor:[29,95,166],textColor:255,fontStyle:'bold',fontSize:8},
+        bodyStyles:{fontSize:8},
+        margin:{left:M,right:M},
+        tableWidth: W-2*M,
+      });
+      y = doc.lastAutoTable.finalY + 8;
+    }
+
+    // ── Expenses ──────────────────────────────────────────────────────────
+    if (y > H-60) { doc.addPage(); y = M; }
+    doc.setFontSize(11); doc.setFont('helvetica','bold'); doc.setTextColor(15,29,54);
+    doc.text('Détail des dépenses', M, y); y += 4;
+    if (projExpenses.length === 0) {
+      doc.setFontSize(9); doc.setFont('helvetica','normal'); doc.setTextColor(100,116,139);
+      doc.text('Aucune dépense enregistrée pour ce projet.', M, y+6); y += 14;
+    } else {
+      doc.autoTable({
+        startY: y,
+        head: [['Date','Catégorie','Description','Montant (DH)']],
+        body: [
+          ...projExpenses.map(e => [
+            e.date||'—', e.categorie||'Autre', e.description||'—',
+            {content: Math.round(e.montant||0).toLocaleString('fr-FR'), styles:{halign:'right',fontStyle:'bold'}}
+          ]),
+          [{content:'TOTAL', colSpan:3, styles:{fontStyle:'bold',halign:'right',fillColor:[232,240,251]}},
+           {content:Math.round(totalDep).toLocaleString('fr-FR')+' DH', styles:{fontStyle:'bold',halign:'right',fillColor:[232,240,251],textColor:[29,95,166]}}]
+        ],
+        theme:'striped',
+        headStyles:{fillColor:[29,95,166],textColor:255,fontStyle:'bold',fontSize:8},
+        bodyStyles:{fontSize:8},
+        alternateRowStyles:{fillColor:[248,250,252]},
+        margin:{left:M,right:M}, tableWidth: W-2*M,
+      });
+      y = doc.lastAutoTable.finalY + 8;
+    }
+
+    // ── Footer ────────────────────────────────────────────────────────────
+    const np = doc.internal.getNumberOfPages();
+    for (let pg=1; pg<=np; pg++) {
+      doc.setPage(pg);
+      doc.setDrawColor(226,232,240);
+      doc.line(M, H-10, W-M, H-10);
+      doc.setFontSize(7); doc.setTextColor(148,163,184);
+      doc.text('ShantiLink — Plateforme BTP Maroc', M, H-6);
+      doc.text('Page '+pg+'/'+np, W-M, H-6, {align:'right'});
+    }
+
+    const filename = 'ShantiLink_' + p.nom.replace(/\s+/g,'_') + '_' + new Date().toISOString().slice(0,10) + '.pdf';
+    doc.save(filename);
+    toast('Rapport "'+p.nom+'" téléchargé ✓', 'success');
+  } catch(err) {
+    console.error('PDF error', err);
+    toast('Erreur génération PDF', 'error');
+  }
 };
 
 window.exportRapportExcel = function() {
@@ -2612,4 +2795,69 @@ function escHtml(s) {
   if (!s) return '';
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
+};
+
+// ── ADMIN PANEL ───────────────────────────────────────────────────────────────
+window.renderAdminPanel = async function() {
+  const panel = document.getElementById('panel-admin');
+  if (!panel) return;
+  if (!currentUser || currentUser.role !== 'admin') {
+    panel.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--red)">Accès refusé</div>';
+    return;
+  }
+  panel.innerHTML = '<div style="padding:1rem;color:var(--muted);font-size:13px">⏳ Chargement…</div>';
+  try {
+    const [stats, users] = await Promise.all([
+      API.get('/api/admin/stats'),
+      API.get('/api/admin/users?limit=30'),
+    ]);
+    panel.innerHTML =
+      '<div class="dh"><div><div class="dh-title">⚙️ Administration</div><div class="dh-sub">Gestion de la plateforme</div></div></div>'
+      // KPI grid
+      + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.8rem;margin-bottom:1.5rem">'
+      + adminKpi('👤 Utilisateurs', stats.total_users, '+'+stats.new_users_today+' aujourd\'hui')
+      + adminKpi('🏗️ Projets', stats.total_projects, 'actifs')
+      + adminKpi('💸 Dépenses totales', Math.round(stats.total_expenses).toLocaleString('fr-FR')+' DH', 'toutes catégories')
+      + adminKpi('💬 Posts communauté', stats.total_posts, 'publications')
+      + '</div>'
+      // Users table
+      + '<div class="dcard"><div class="dcard-tit">Utilisateurs inscrits</div>'
+      + '<div style="overflow-x:auto"><table class="dep-table"><thead><tr>'
+      + '<th>Prénom / Nom</th><th>Email</th><th>Rôle</th><th>Ville</th><th>Projets</th><th>Inscrit le</th><th></th>'
+      + '</tr></thead><tbody>'
+      + users.map(u => '<tr>'
+        + '<td style="font-weight:600">'+u.prenom+' '+(u.nom||'')+'</td>'
+        + '<td style="font-size:11px;color:var(--muted)">'+u.email+'</td>'
+        + '<td><select onchange="adminSetRole(\''+u.id+'\',this.value)" style="font-size:11px;padding:3px 6px;border:.5px solid var(--border);border-radius:6px">'
+        + ['client','promoteur','architecte','admin'].map(r=>'<option value="'+r+'"'+(u.role===r?' selected':'')+'>'+r+'</option>').join('')
+        + '</select></td>'
+        + '<td style="font-size:11px">'+( u.ville||'—')+'</td>'
+        + '<td style="text-align:center">'+( u.nb_projects||0)+'</td>'
+        + '<td style="font-size:10px;color:var(--muted)">'+(u.created_at?u.created_at.slice(0,10):'')+'</td>'
+        + '<td><button onclick="adminDeleteUser(\''+u.id+'\')" style="font-size:10px;padding:2px 8px;background:var(--red-b);color:var(--red);border:none;border-radius:100px;cursor:pointer">✕</button></td>'
+        + '</tr>').join('')
+      + '</tbody></table></div></div>';
+  } catch(e) {
+    panel.innerHTML = '<div style="padding:2rem;color:var(--red)">Erreur : '+e.message+'</div>';
+  }
+};
+
+function adminKpi(label, value, note) {
+  return '<div class="kpi"><div class="kpi-lbl">'+label+'</div><div class="kpi-val" style="font-size:1.1rem">'+value+'</div>'+(note?'<div class="kpi-note">'+note+'</div>':'')+'</div>';
+}
+
+window.adminSetRole = async function(uid, role) {
+  try {
+    await API.put('/api/admin/users/'+uid+'/role', {role});
+    toast('Rôle mis à jour', 'success');
+  } catch(e) { toast(e.message,'error'); }
+};
+
+window.adminDeleteUser = async function(uid) {
+  if (!confirm('Supprimer cet utilisateur définitivement ?')) return;
+  try {
+    await API.del('/api/admin/users/'+uid);
+    toast('Utilisateur supprimé','success');
+    renderAdminPanel();
+  } catch(e) { toast(e.message,'error'); }
 };

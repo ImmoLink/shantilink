@@ -42,6 +42,8 @@ _is_sqlite = DATABASE_URL.startswith("sqlite")
 engine = create_engine(
     DATABASE_URL,
     connect_args={"check_same_thread": False} if _is_sqlite else {},
+    pool_pre_ping=True,
+    pool_recycle=280,
 )
 
 def get_db():
@@ -166,6 +168,10 @@ def init_db():
         "ALTER TABLE expenses ADD COLUMN deleted INTEGER DEFAULT 0",
         "ALTER TABLE users ADD COLUMN plan TEXT DEFAULT 'starter'",
         "ALTER TABLE users ADD COLUMN plan_expires TEXT DEFAULT ''",
+        "ALTER TABLE community_posts ADD COLUMN titre TEXT DEFAULT ''",
+        "ALTER TABLE community_posts ADD COLUMN tags TEXT DEFAULT '[]'",
+        "ALTER TABLE community_posts ADD COLUMN est_epingle INTEGER DEFAULT 0",
+        "ALTER TABLE community_posts ADD COLUMN media_url TEXT DEFAULT ''",
     ]:
         _run_migration(migration)
 
@@ -272,6 +278,35 @@ def init_db():
             _ins = text("INSERT INTO professionals (id,nom,role,ville,lat,lng,note,avis,verified,description,emoji,tel) VALUES (:id,:nom,:role,:ville,:lat,:lng,:note,:avis,:verified,:description,:emoji,:tel)")
             for p in pros:
                 conn.execute(_ins, dict(zip(_fields, p)))
+
+        # ── Seed community posts if table is empty ────────────────────────────────
+        post_count = conn.execute(text("SELECT COUNT(*) FROM community_posts")).fetchone()[0]
+        if post_count == 0:
+            seed_user_id = "system-seed"
+            # Créer un user système si absent
+            sys_user = conn.execute(*sql_params("SELECT id FROM users WHERE id=?", [seed_user_id])).fetchone()
+            if not sys_user:
+                conn.execute(*sql_params(
+                    "INSERT INTO users (id,prenom,nom,email,password_hash,role,created_at) VALUES (?,?,?,?,?,?,?)",
+                    [seed_user_id,"ShantiLink","Équipe","team@shantilink.ma",hash_password(uid()),"admin",now_iso()]
+                ))
+            SEED_POSTS = [
+                ("Bienvenue sur la communauté ShantiLink 🏗️", "Ce fil est le vôtre — professionnels BTP et clients partagent conseils, actualités et bonnes pratiques. Rejoignez la conversation.", "annonce", '["annonce"]', 1),
+                ("Guide : Choisir un bon entrepreneur BTP au Maroc", "5 critères essentiels : 1) Vérifier le registre du commerce 2) Demander des références 3) Exiger un devis détaillé par lot 4) Vérifier les assurances 5) Visiter un chantier en cours.", "conseil", '["conseil","client"]', 1),
+                ("Prix matériaux Mai 2026 — Ciment, Fer, Sable", "Le sac de ciment CPJ45 tourne autour de 68-75 MAD chez les grossistes. Le fer à béton ∅12 est à environ 8,5 MAD/kg. Le sable de rivière à 180-220 MAD/tonne.", "materiaux", '["matériaux","prix"]', 0),
+                ("Nouvelles normes parasismiques RPS 2011 — Ce qui change", "Depuis la révision 2024, les zones de sismicité ont été reclassifiées. Casablanca passe en zone 2, ce qui impacte directement le ferraillage des fondations.", "reglementation", '["réglementation","pro"]', 0),
+                ("Comment éviter les malfaçons : checklist réception de chantier", "Avant de signer la réception : planéité des sols (règle de 2m), joints de carrelage, étanchéité terrasse, essais plomberie, conformité électrique.", "conseil", '["conseil","qualité"]', 0),
+                ("Devis vs Contrat : quelle différence et pourquoi c'est important ?", "Un devis est une offre commerciale — il n'est pas contraignant tant qu'il n'est pas signé. Un contrat signé des deux parties est juridiquement opposable.", "reglementation", '["réglementation","client"]', 0),
+                ("Astuce : photographier son chantier pour éviter les litiges", "Photos géolocalisées à chaque étape clé : avant coulage béton, après ferraillage, après enduisage. ShantiLink conserve ces photos horodatées.", "conseil", '["conseil","documentation"]', 0),
+                ("Salaires du BTP au Maroc en 2026 — Grille officielle", "Le SMIG BTP est de 87,47 MAD/jour. Un maçon qualifié (OS3) : 130-180 MAD/jour. Un chef de chantier : 4 000 à 8 000 MAD/mois selon la région.", "rh", '["ressources humaines","pro"]', 0),
+                ("Isolation thermique obligatoire : réglementation thermique marocaine", "Le RTBM impose depuis 2014 des coefficients U maximaux. Les murs extérieurs doivent avoir U ≤ 0,6 W/m²K. Non-conformité = refus de réception.", "reglementation", '["réglementation","énergie"]', 0),
+                ("Comment lire un plan d'architecte : guide pour les clients", "Échelle 1:50 = 1cm sur le plan = 50cm réel. Trait épais = murs porteurs, trait fin = cloisons. La légende est toujours en bas à droite.", "conseil", '["conseil","client","plans"]', 0),
+            ]
+            for titre, content, category, tags, epingle in SEED_POSTS:
+                conn.execute(*sql_params(
+                    "INSERT INTO community_posts (id,user_id,content,titre,category,tags,est_epingle,likes,created_at) VALUES (?,?,?,?,?,?,?,?,?)",
+                    ["cp"+uid(), seed_user_id, content, titre, category, tags, epingle, random.randint(3,28), now_iso()]
+                ))
         conn.commit()
     finally:
         conn.close()
@@ -416,6 +451,27 @@ app.add_middleware(
 @app.on_event("startup")
 def startup():
     init_db()
+
+@app.get("/health")
+def health():
+    try:
+        conn = get_db()
+        conn.execute(text("SELECT 1"))
+        conn.close()
+        db_type = "postgresql" if not _is_sqlite else "sqlite"
+        return {"status": "ok", "db": db_type}
+    except Exception as e:
+        return {"status": "error", "detail": str(e)}
+
+@app.get("/api/me")
+def get_me(user: dict = Depends(get_current_user)):
+    conn = get_db()
+    try:
+        row = conn.execute(*sql_params("SELECT id,prenom,nom,email,role,ville,plan FROM users WHERE id=?", [user["sub"]])).fetchone()
+        if not row: raise HTTPException(404, "Utilisateur non trouvé")
+        return dict(row._mapping)
+    finally:
+        conn.close()
 
 # ── Auth ──────────────────────────────────────────────────────────────────────
 @app.post("/api/auth/register", status_code=201)
@@ -858,6 +914,9 @@ def get_stats():
 class PostIn(BaseModel):
     content: str
     category: Optional[str] = "update"
+    titre: Optional[str] = ""
+    tags: Optional[str] = "[]"
+    media_url: Optional[str] = ""
 
 class CommunityProfileIn(BaseModel):
     bio: Optional[str] = None
@@ -911,11 +970,11 @@ def get_community_posts(limit: int = 20):
     conn = get_db()
     try:
         rows = conn.execute(*sql_params("""
-            SELECT cp.id, cp.content, cp.category, cp.likes, cp.created_at,
-                   u.id as user_id, u.prenom, u.nom, u.role, u.ville, u.bio, u.photo_url
+            SELECT cp.id, cp.content, cp.titre, cp.category, cp.tags, cp.est_epingle, cp.media_url, cp.likes, cp.created_at,
+                   u.id as user_id, u.prenom, u.nom, u.role, u.ville
             FROM community_posts cp
             JOIN users u ON u.id = cp.user_id
-            ORDER BY cp.created_at DESC
+            ORDER BY cp.est_epingle DESC, cp.created_at DESC
             LIMIT ?
         """, [limit])).fetchall()
         return [dict(r._mapping) for r in rows]
@@ -931,8 +990,8 @@ def create_community_post(data: PostIn, user: dict = Depends(get_current_user)):
     try:
         post_id = "cp" + uid()
         conn.execute(*sql_params(
-            "INSERT INTO community_posts (id,user_id,content,category,created_at) VALUES (?,?,?,?,?)",
-            [post_id, user["sub"], data.content.strip()[:1000], data.category, now_iso()]
+            "INSERT INTO community_posts (id,user_id,content,category,titre,tags,media_url,created_at) VALUES (?,?,?,?,?,?,?,?)",
+            [post_id, user["sub"], data.content.strip()[:2000], data.category, (data.titre or '')[:200], (data.tags or '[]'), (data.media_url or '')[:500], now_iso()]
         ))
         conn.commit()
         return {"id": post_id, "ok": True}
@@ -1835,6 +1894,121 @@ async def extract_voice(data: ExtractVoiceIn, user: dict = Depends(get_current_u
         return {"result": json.loads(m.group(0))}
     except Exception as e:
         raise HTTPException(500, f"Extraction échouée : {str(e)}")
+
+# ── Admin routes ───────────────────────────────────────────────────────────────
+def require_admin(user: dict = Depends(get_current_user)):
+    conn = get_db()
+    try:
+        row = conn.execute(*sql_params("SELECT role FROM users WHERE id=?", [user["sub"]])).fetchone()
+        if not row or row[0] != "admin":
+            raise HTTPException(403, "Accès réservé aux administrateurs")
+        return user
+    finally:
+        conn.close()
+
+@app.get("/api/admin/stats")
+def admin_stats(admin=Depends(require_admin)):
+    conn = get_db()
+    try:
+        today = now_iso()[:10]
+        total_users    = conn.execute(text("SELECT COUNT(*) FROM users")).fetchone()[0]
+        new_today      = conn.execute(*sql_params("SELECT COUNT(*) FROM users WHERE created_at >= ?", [today])).fetchone()[0]
+        total_projects = conn.execute(text("SELECT COUNT(*) FROM projects")).fetchone()[0]
+        total_expenses = conn.execute(text("SELECT COALESCE(SUM(montant),0) FROM expenses WHERE deleted=0")).fetchone()[0]
+        total_posts    = conn.execute(text("SELECT COUNT(*) FROM community_posts")).fetchone()[0]
+        return {
+            "total_users": total_users,
+            "new_users_today": new_today,
+            "total_projects": total_projects,
+            "total_expenses": float(total_expenses),
+            "total_posts": total_posts,
+        }
+    finally:
+        conn.close()
+
+@app.get("/api/admin/users")
+def admin_list_users(skip: int = 0, limit: int = 50, admin=Depends(require_admin)):
+    conn = get_db()
+    try:
+        rows = conn.execute(*sql_params("""
+            SELECT u.id, u.prenom, u.nom, u.email, u.role, u.ville, u.plan, u.created_at,
+                   COUNT(p.id) as nb_projects
+            FROM users u
+            LEFT JOIN projects p ON p.user_id = u.id
+            GROUP BY u.id
+            ORDER BY u.created_at DESC
+            LIMIT ? OFFSET ?
+        """, [limit, skip])).fetchall()
+        return [dict(r._mapping) for r in rows]
+    finally:
+        conn.close()
+
+@app.put("/api/admin/users/{user_id}/role")
+def admin_update_role(user_id: str, body: dict, admin=Depends(require_admin)):
+    conn = get_db()
+    try:
+        new_role = body.get("role", "client")
+        if new_role not in ["client","pro","admin","promoteur","architecte","comptable","bureau","notaire","electricien","plombier","autre"]:
+            raise HTTPException(400, "Rôle invalide")
+        conn.execute(*sql_params("UPDATE users SET role=? WHERE id=?", [new_role, user_id]))
+        conn.commit()
+        return {"ok": True}
+    finally:
+        conn.close()
+
+@app.delete("/api/admin/users/{user_id}")
+def admin_delete_user(user_id: str, admin=Depends(require_admin)):
+    conn = get_db()
+    try:
+        conn.execute(*sql_params("DELETE FROM users WHERE id=?", [user_id]))
+        conn.commit()
+        return {"ok": True}
+    finally:
+        conn.close()
+
+@app.put("/api/admin/posts/{post_id}/pin")
+def admin_pin_post(post_id: str, body: dict, admin=Depends(require_admin)):
+    conn = get_db()
+    try:
+        val = 1 if body.get("pin") else 0
+        conn.execute(*sql_params("UPDATE community_posts SET est_epingle=? WHERE id=?", [val, post_id]))
+        conn.commit()
+        return {"ok": True}
+    finally:
+        conn.close()
+
+@app.delete("/api/admin/posts/{post_id}")
+def admin_delete_post(post_id: str, admin=Depends(require_admin)):
+    conn = get_db()
+    try:
+        conn.execute(*sql_params("DELETE FROM community_posts WHERE id=?", [post_id]))
+        conn.commit()
+        return {"ok": True}
+    finally:
+        conn.close()
+
+@app.post("/bootstrap/admin")
+def bootstrap_admin(body: dict):
+    secret = os.environ.get("BOOTSTRAP_SECRET", "")
+    if not secret or body.get("secret") != secret:
+        raise HTTPException(403, "Clé invalide")
+    conn = get_db()
+    try:
+        existing = conn.execute(text("SELECT id FROM users WHERE role='admin' LIMIT 1")).fetchone()
+        if existing:
+            raise HTTPException(400, "Admin déjà existant")
+        pwd = body.get("password", "Admin2024!")
+        uid_val = "admin-" + uid()
+        hashed = hash_password(pwd)
+        code = "SLADMIN"
+        conn.execute(*sql_params(
+            "INSERT INTO users (id,prenom,nom,email,password_hash,role,ville,referral_code,created_at) VALUES (?,?,?,?,?,?,?,?,?)",
+            [uid_val, "Admin", "ShantiLink", "admin@shantilink.ma", hashed, "admin", "Casablanca", code, now_iso()]
+        ))
+        conn.commit()
+        return {"ok": True, "email": "admin@shantilink.ma", "id": uid_val}
+    finally:
+        conn.close()
 
 # ── Static files & SPA ────────────────────────────────────────────────────────
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")

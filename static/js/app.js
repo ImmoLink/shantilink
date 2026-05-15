@@ -93,6 +93,8 @@ function updateNav() {
   document.getElementById('nav-login-btn').style.display   = isLoggedIn ? 'none'  : 'inline-flex';
   document.getElementById('nav-reg-btn').style.display     = isLoggedIn ? 'none'  : 'inline-flex';
   document.getElementById('nav-dash-btn').style.display    = isLoggedIn ? 'block' : 'none';
+  const fab = document.getElementById('quick-log-fab');
+  if (fab) fab.classList.toggle('visible', isLoggedIn);
 }
 
 // ── Welcome modal ─────────────────────────────────────────────────────────────
@@ -267,6 +269,9 @@ window.initWorkspace = function(role) {
       ${PRO_ROLES.includes(role) ? `<button onclick="showDashPanel('profil',null)" style="margin-left:auto;font-size:11px;font-weight:600;padding:7px 14px;background:${cfg.color};color:white;border:none;border-radius:100px;cursor:pointer;font-family:'Outfit',sans-serif;flex-shrink:0">Mon profil pro →</button>` : ''}
     </div>`;
   }
+
+  const adminBtn = document.getElementById('sb-admin-btn');
+  if (adminBtn) adminBtn.style.display = role === 'admin' ? 'flex' : 'none';
 };
 
 // ── Budget simulator ──────────────────────────────────────────────────────────
@@ -1469,6 +1474,13 @@ window.addEventListener('load', () => {
     initWorkspace(currentUser.role);
     _syncFounderBadge(currentUser);
   }
+
+    // Vérification silencieuse du token côté serveur
+    if (currentUser && API.getToken()) {
+      fetch('/api/me', { headers: { 'Authorization': 'Bearer ' + API.getToken() } })
+        .then(r => { if (!r.ok) { API.clearToken(); currentUser = null; updateNav(); goPage('landing'); } })
+        .catch(() => {}); // pas de connexion → on garde l'état local
+    }
 
   // Handle referral code from URL (?ref=SLXXXXXX)
   const urlParams = new URLSearchParams(window.location.search);
