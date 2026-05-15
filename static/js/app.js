@@ -1192,6 +1192,43 @@ window.loadCommunity = async function() {
   }
 };
 
+function _renderPostMediaGrid(urls) {
+  if (!urls || !urls.length) return '';
+  const count = urls.length;
+  const cols = count === 1 ? '1fr' : 'repeat(2,1fr)';
+  const items = urls.slice(0, 4).map((url, i) => {
+    const isVideo = /\.(mp4|webm|mov)/i.test(url);
+    const h = count === 1 ? '260px' : '150px';
+    const showMore = count > 4 && i === 3;
+    const inner = isVideo
+      ? '<video src="' + url + '" style="width:100%;height:100%;object-fit:cover" muted preload="metadata"></video>'
+        + '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center"><div style="width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,.9);display:flex;align-items:center;justify-content:center;font-size:18px;padding-left:4px;cursor:pointer" onclick="openMediaModal(\'' + url + '\',\'video\')">▶</div></div>'
+      : '<img src="' + url + '" style="width:100%;height:100%;object-fit:cover;cursor:pointer" loading="lazy" onclick="openMediaModal(\'' + url + '\',\'image\')" onerror="this.style.display=\'none\'"/>';
+    const moreOverlay = showMore
+      ? '<div style="position:absolute;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;color:white;font-size:22px;font-weight:700">+' + (count - 3) + '</div>'
+      : '';
+    return '<div style="position:relative;height:' + h + ';overflow:hidden;background:var(--sand);border-radius:' + (count === 1 ? '10px' : '6px') + '">'
+      + inner + moreOverlay + '</div>';
+  }).join('');
+  return '<div style="display:grid;grid-template-columns:' + cols + ';gap:3px;margin-top:.7rem;border-radius:10px;overflow:hidden">' + items + '</div>';
+}
+
+window.openMediaModal = function(url, type) {
+  const existing = document.getElementById('media-modal-overlay');
+  if (existing) existing.remove();
+  const modal = document.createElement('div');
+  modal.id = 'media-modal-overlay';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;cursor:zoom-out';
+  modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
+  const inner = type === 'video'
+    ? '<video src="' + url + '" controls autoplay style="max-width:90vw;max-height:85vh;border-radius:8px"></video>'
+    : '<img src="' + url + '" style="max-width:90vw;max-height:85vh;object-fit:contain;border-radius:8px" alt=""/>';
+  modal.innerHTML = '<div style="position:relative;max-width:90vw;max-height:90vh">'
+    + '<button onclick="document.getElementById(\'media-modal-overlay\').remove()" style="position:absolute;top:-36px;right:0;background:none;border:none;color:white;font-size:28px;cursor:pointer;line-height:1">×</button>'
+    + inner + '</div>';
+  document.body.appendChild(modal);
+};
+
 function _renderCommPost(p) {
   const esc = typeof escHtml === 'function' ? escHtml : (s) => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   const ago = typeof timeAgo === 'function' ? timeAgo(p.created_at) : (p.created_at||'').slice(0,10);
@@ -1201,9 +1238,13 @@ function _renderCommPost(p) {
   const titreHTML = p.titre
     ? '<div style="font-size:14px;font-weight:700;color:var(--ink);margin-bottom:.3rem">' + esc(p.titre) + '</div>'
     : '';
-  const mediaHTML = (p.media_url && (/\.(jpg|jpeg|png|gif|webp)/i.test(p.media_url) || p.media_url.startsWith('data:image/')))
-    ? '<img src="' + esc(p.media_url) + '" style="width:100%;max-height:280px;object-fit:cover;border-radius:10px;margin-top:.6rem" loading="lazy"/>'
-    : '';
+  // Normalise media_urls : utilise media_urls si dispo, sinon fall back sur media_url singulier
+  const mediaArr = (Array.isArray(p.media_urls) && p.media_urls.length > 0)
+    ? p.media_urls
+    : (p.media_url && (p.media_url.startsWith('http') || p.media_url.startsWith('data:') || p.media_url.startsWith('/static/')))
+      ? [p.media_url]
+      : [];
+  const mediaHTML = mediaArr.length > 0 ? _renderPostMediaGrid(mediaArr) : '';
   const tagsHTML = p.tags
     ? '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:.4rem">'
         + p.tags.split(',').map(tag => tag.trim()).filter(Boolean).map(tag =>
@@ -1267,98 +1308,141 @@ window.loadDashComm = async function() {
   }
 };
 
-let _commImageDataUrl = '';
+// ── Community post composer state ─────────────────────────────────────────────
+let _commImageDataUrl = ''; // legacy compat
+let _commMediaItems = []; // [{ tempId, url, localPreview, type, thumbnail, public_id, uploading }]
 
 window.openCommComposer = function() {
   const c = document.getElementById('comm-composer-dash');
   if (!c) return;
   const isOpen = c.style.display !== 'none' && c.style.display !== '';
-  if (isOpen) { c.style.display = 'none'; _commImageDataUrl = ''; return; }
-  // (Re)build composer HTML each open to reset state
-  _commImageDataUrl = '';
+  if (isOpen) { c.style.display = 'none'; _commMediaItems = []; return; }
+  _commMediaItems = [];
   c.innerHTML = '<div style="background:var(--sand);border-radius:14px;padding:1rem 1.1rem;margin-bottom:1rem">'
-    // Titre
     + '<input type="text" id="comm-post-titre" placeholder="Titre (optionnel)" maxlength="80" style="width:100%;margin-bottom:.6rem;padding:9px 11px;border-radius:8px;border:1.5px solid var(--border);font-size:13px;box-sizing:border-box;font-family:Outfit,sans-serif;outline:none"/>'
-    // Contenu
     + '<textarea id="comm-post-text" placeholder="Partagez une actualité, un conseil, une question..." style="width:100%;height:100px;border-radius:8px;border:1.5px solid var(--border);padding:9px 11px;font-size:13px;resize:vertical;box-sizing:border-box;font-family:Outfit,sans-serif;outline:none;line-height:1.6"></textarea>'
-    // Tags
     + '<input type="text" id="comm-post-tags" placeholder="Tags : chantier, conseil, btp..." style="width:100%;margin-top:.5rem;padding:8px 11px;border-radius:8px;border:1.5px solid var(--border);font-size:12px;box-sizing:border-box;font-family:Outfit,sans-serif;outline:none"/>'
-    // Image picker
-    + '<div style="margin-top:.7rem">'
-    + '<label id="comm-img-label" style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:8px;border:1.5px dashed var(--clay);background:var(--clay-pp);color:var(--clay);font-size:12px;font-weight:600;cursor:pointer;font-family:Outfit,sans-serif">'
-    + '🖼️ Ajouter une image'
-    + '<input type="file" id="comm-img-input" accept="image/*" style="display:none" onchange="previewCommImage(this)"/>'
-    + '</label>'
-    + '<span id="comm-img-name" style="font-size:11px;color:var(--muted);margin-left:.5rem"></span>'
-    + '</div>'
-    // Prévisualisation image
-    + '<div id="comm-img-preview-wrap" style="display:none;margin-top:.6rem;position:relative">'
-    + '<img id="comm-img-preview" style="width:100%;max-height:200px;object-fit:cover;border-radius:8px;border:1px solid var(--border)"/>'
-    + '<button onclick="removeCommImage()" style="position:absolute;top:6px;right:6px;background:rgba(15,29,54,.65);color:white;border:none;border-radius:50%;width:24px;height:24px;font-size:14px;cursor:pointer;line-height:1;display:flex;align-items:center;justify-content:center">✕</button>'
-    + '</div>'
+    // Grille de prévisualisation médias
+    + '<div id="comm-media-grid" style="display:none;gap:4px;margin-top:.7rem;border-radius:10px;overflow:hidden"></div>'
+    // Barre de progression
+    + '<div id="comm-upload-bar" style="display:none;height:3px;background:var(--border);border-radius:2px;margin-top:.5rem;overflow:hidden"><div style="height:100%;background:var(--clay);border-radius:2px;animation:progressIndeterminate 1.2s ease-in-out infinite;width:40%"></div></div>'
     // Actions
-    + '<div style="display:flex;justify-content:flex-end;gap:.5rem;margin-top:.8rem">'
-    + '<button onclick="openCommComposer()" style="padding:8px 16px;border-radius:8px;border:1px solid var(--border);background:transparent;font-size:12px;font-weight:600;cursor:pointer;font-family:Outfit,sans-serif;color:var(--muted)">Annuler</button>'
+    + '<div style="display:flex;align-items:center;justify-content:space-between;margin-top:.8rem;flex-wrap:wrap;gap:.4rem">'
+    + '<label style="display:inline-flex;align-items:center;gap:5px;padding:7px 13px;border-radius:8px;border:1.5px dashed var(--clay);background:var(--clay-pp);color:var(--clay);font-size:12px;font-weight:600;cursor:pointer;font-family:Outfit,sans-serif" title="Max 4 médias · JPG/PNG/GIF/MP4 · 10Mo images / 50Mo vidéos">'
+    + '📷 Image / Vidéo'
+    + '<input type="file" id="comm-file-input" accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm" multiple style="display:none" onchange="handleCommFiles(this.files)"/>'
+    + '</label>'
+    + '<div style="display:flex;gap:.5rem">'
+    + '<button onclick="openCommComposer()" style="padding:8px 14px;border-radius:8px;border:1px solid var(--border);background:transparent;font-size:12px;font-weight:600;cursor:pointer;font-family:Outfit,sans-serif;color:var(--muted)">Annuler</button>'
     + '<button onclick="submitCommPost()" id="comm-submit-btn" style="padding:8px 18px;border-radius:8px;border:none;background:var(--clay);color:white;font-size:13px;font-weight:600;cursor:pointer;font-family:Outfit,sans-serif">Publier</button>'
+    + '</div>'
     + '</div>'
     + '</div>';
   c.style.display = 'block';
-  // Focus textarea
   setTimeout(() => { const t = document.getElementById('comm-post-text'); if (t) t.focus(); }, 50);
 };
 
-window.previewCommImage = function(input) {
-  const file = input.files[0];
-  if (!file) return;
-  if (file.size > 3 * 1024 * 1024) { toast('Image trop lourde (max 3 Mo)', 'error'); input.value = ''; return; }
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    _commImageDataUrl = e.target.result;
-    const preview = document.getElementById('comm-img-preview');
-    const wrap    = document.getElementById('comm-img-preview-wrap');
-    const name    = document.getElementById('comm-img-name');
-    const label   = document.getElementById('comm-img-label');
-    if (preview) preview.src = _commImageDataUrl;
-    if (wrap)    wrap.style.display = 'block';
-    if (name)    name.textContent = file.name;
-    if (label)   label.style.borderStyle = 'solid';
-  };
-  reader.readAsDataURL(file);
+window.handleCommFiles = async function(files) {
+  if (!files || !files.length) return;
+  const remaining = 4 - _commMediaItems.length;
+  const toProcess = Array.from(files).slice(0, remaining);
+  if (files.length > remaining) toast('Maximum 4 médias par post.', 'error');
+  for (const file of toProcess) await _uploadCommFile(file);
 };
 
-window.removeCommImage = function() {
-  _commImageDataUrl = '';
-  const wrap  = document.getElementById('comm-img-preview-wrap');
-  const input = document.getElementById('comm-img-input');
-  const name  = document.getElementById('comm-img-name');
-  const label = document.getElementById('comm-img-label');
-  if (wrap)  wrap.style.display = 'none';
-  if (input) input.value = '';
-  if (name)  name.textContent = '';
-  if (label) label.style.borderStyle = 'dashed';
+async function _uploadCommFile(file) {
+  const isVideo = file.type.startsWith('video/');
+  const maxSize = isVideo ? 50 * 1024 * 1024 : 10 * 1024 * 1024;
+  if (file.size > maxSize) { toast('Fichier trop lourd (' + (isVideo ? '50Mo max vidéo' : '10Mo max image') + ')', 'error'); return; }
+
+  const tempId = 'tmp_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+  const localPreview = URL.createObjectURL(file);
+  _commMediaItems.push({ tempId, url: null, localPreview, type: isVideo ? 'video' : 'image', thumbnail: localPreview, public_id: null, uploading: true });
+  _renderCommMediaGrid();
+  const bar = document.getElementById('comm-upload-bar');
+  if (bar) bar.style.display = 'block';
+
+  try {
+    const fd = new FormData();
+    fd.append('file', file);
+    const res = await fetch('/api/posts/upload-media', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + (API.getToken() || '') },
+      body: fd,
+    });
+    if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.detail || 'Erreur upload'); }
+    const data = await res.json();
+    const item = _commMediaItems.find(m => m.tempId === tempId);
+    if (item) { item.url = data.url; item.thumbnail = data.thumbnail || data.url; item.public_id = data.public_id; item.uploading = false; URL.revokeObjectURL(localPreview); }
+    _renderCommMediaGrid();
+    toast('Média ajouté ✓', 'success');
+  } catch(err) {
+    _commMediaItems = _commMediaItems.filter(m => m.tempId !== tempId);
+    URL.revokeObjectURL(localPreview);
+    _renderCommMediaGrid();
+    toast('Upload échoué : ' + err.message, 'error');
+  } finally {
+    const bar = document.getElementById('comm-upload-bar');
+    if (bar && !_commMediaItems.some(m => m.uploading)) bar.style.display = 'none';
+  }
+}
+
+function _renderCommMediaGrid() {
+  const grid = document.getElementById('comm-media-grid');
+  if (!grid) return;
+  if (!_commMediaItems.length) { grid.style.display = 'none'; grid.innerHTML = ''; return; }
+  const count = _commMediaItems.length;
+  grid.style.display = 'grid';
+  grid.style.gridTemplateColumns = count === 1 ? '1fr' : 'repeat(2,1fr)';
+  grid.innerHTML = _commMediaItems.map(item => {
+    const src = item.thumbnail || item.localPreview || '';
+    const inner = item.type === 'video'
+      ? '<video src="' + (item.localPreview || item.url || '') + '" style="width:100%;height:100%;object-fit:cover" muted></video><div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center"><div style="width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.85);display:flex;align-items:center;justify-content:center;font-size:16px;padding-left:3px">▶</div></div>'
+      : '<img src="' + src + '" style="width:100%;height:100%;object-fit:cover" loading="lazy"/>';
+    const overlay = item.uploading
+      ? '<div style="position:absolute;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center"><div style="width:22px;height:22px;border:2px solid white;border-top-color:transparent;border-radius:50%;animation:spin .7s linear infinite"></div></div>'
+      : '<button onclick="removeCommMedia(\'' + item.tempId + '\')" style="position:absolute;top:5px;right:5px;width:22px;height:22px;border-radius:50%;background:rgba(0,0,0,.6);color:white;border:none;cursor:pointer;font-size:14px;line-height:1;display:flex;align-items:center;justify-content:center;font-family:Outfit,sans-serif">×</button>';
+    const h = count === 1 ? '220px' : '140px';
+    return '<div style="position:relative;height:' + h + ';overflow:hidden;background:var(--border)">' + inner + overlay + '</div>';
+  }).join('');
+}
+
+window.removeCommMedia = function(tempId) {
+  const item = _commMediaItems.find(m => m.tempId === tempId);
+  if (item?.public_id) {
+    fetch('/api/posts/media/' + encodeURIComponent(item.public_id), {
+      method: 'DELETE', headers: { 'Authorization': 'Bearer ' + (API.getToken() || '') }
+    }).catch(() => {});
+  }
+  if (item?.localPreview && item.localPreview.startsWith('blob:')) URL.revokeObjectURL(item.localPreview);
+  _commMediaItems = _commMediaItems.filter(m => m.tempId !== tempId);
+  _renderCommMediaGrid();
 };
 
 window.submitCommPost = async function() {
-  const txt   = (document.getElementById('comm-post-text') || {}).value.trim();
-  const titre = (document.getElementById('comm-post-titre') || {}).value.trim();
-  const tags  = (document.getElementById('comm-post-tags') || {}).value.trim();
+  const txt   = (document.getElementById('comm-post-text')  || {}).value?.trim();
+  const titre = (document.getElementById('comm-post-titre') || {}).value?.trim();
+  const tags  = (document.getElementById('comm-post-tags')  || {}).value?.trim();
   if (!txt) { toast('Rédigez votre publication avant de publier.', 'error'); return; }
+  if (_commMediaItems.some(m => m.uploading)) { toast('Patientez, upload en cours…', 'error'); return; }
   const btn = document.getElementById('comm-submit-btn');
   if (btn) { btn.disabled = true; btn.textContent = 'Publication…'; }
   try {
-    const payload = { content: txt, titre, tags, category: 'update' };
-    if (_commImageDataUrl) payload.media_url = _commImageDataUrl;
-    await fetch('/api/community/posts', {
+    const media_urls = _commMediaItems.map(m => m.url).filter(Boolean);
+    const payload = { content: txt, titre: titre || '', tags: tags || '', category: 'update', media_urls };
+    const res = await fetch('/api/community/posts', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (API.getToken() || '') },
-      body: JSON.stringify(payload)
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (API.getToken() || '') },
+      body: JSON.stringify(payload),
     });
+    if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.detail || 'Erreur serveur'); }
+    _commMediaItems = [];
     _commImageDataUrl = '';
     document.getElementById('comm-composer-dash').style.display = 'none';
     toast('Publication envoyée !', 'success');
     loadDashComm();
   } catch(e) {
-    toast('Erreur lors de la publication.', 'error');
+    toast('Erreur : ' + e.message, 'error');
     if (btn) { btn.disabled = false; btn.textContent = 'Publier'; }
   }
 };

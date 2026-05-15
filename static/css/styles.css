@@ -704,3 +704,9 @@ nav.scrolled{box-shadow:0 2px 20px rgba(0,0,0,.25)}
   #ag-panel{width:calc(100vw - 32px);right:-12px;border-radius:16px 16px 0 0;bottom:64px}
   #ag-widget{right:16px;bottom:16px}
 }
+
+/* ── Community media (post-grid + modal) ──── */
+@keyframes progressIndeterminate {
+  0%   { transform: translateX(-150%); }
+  100% { transform: translateX(400%); }
+}

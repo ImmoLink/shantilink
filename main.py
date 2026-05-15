@@ -8,6 +8,25 @@ from datetime import datetime
 from typing import Optional, List, Dict, Any
 from sqlalchemy import create_engine, text
 
+# ── Cloudinary (optionnel — uniquement si env vars définies) ──────────────────
+try:
+    import cloudinary
+    import cloudinary.uploader
+    _CLOUDINARY_OK = bool(
+        os.environ.get("CLOUDINARY_CLOUD_NAME") and
+        os.environ.get("CLOUDINARY_API_KEY") and
+        os.environ.get("CLOUDINARY_API_SECRET")
+    )
+    if _CLOUDINARY_OK:
+        cloudinary.config(
+            cloud_name = os.environ.get("CLOUDINARY_CLOUD_NAME"),
+            api_key    = os.environ.get("CLOUDINARY_API_KEY"),
+            api_secret = os.environ.get("CLOUDINARY_API_SECRET"),
+            secure     = True
+        )
+except ImportError:
+    _CLOUDINARY_OK = False
+
 # ── Anthropic agent config ────────────────────────────────────────────────────
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
 AGENT_MODEL = "claude-sonnet-4-6"
@@ -172,6 +191,7 @@ def init_db():
         "ALTER TABLE community_posts ADD COLUMN tags TEXT DEFAULT '[]'",
         "ALTER TABLE community_posts ADD COLUMN est_epingle INTEGER DEFAULT 0",
         "ALTER TABLE community_posts ADD COLUMN media_url TEXT DEFAULT ''",
+        "ALTER TABLE community_posts ADD COLUMN media_urls TEXT DEFAULT '[]'",
     ]:
         _run_migration(migration)
 
@@ -956,7 +976,8 @@ class PostIn(BaseModel):
     category: Optional[str] = "update"
     titre: Optional[str] = ""
     tags: Optional[str] = "[]"
-    media_url: Optional[str] = ""
+    media_url: Optional[str] = ""   # rétrocompat singulier
+    media_urls: Optional[List[str]] = []  # multi-médias (URLs Cloudinary)
 
 class CommunityProfileIn(BaseModel):
     bio: Optional[str] = None
@@ -1010,14 +1031,27 @@ def get_community_posts(limit: int = 20):
     conn = get_db()
     try:
         rows = conn.execute(*sql_params("""
-            SELECT cp.id, cp.content, cp.titre, cp.category, cp.tags, cp.est_epingle, cp.media_url, cp.likes, cp.created_at,
+            SELECT cp.id, cp.content, cp.titre, cp.category, cp.tags, cp.est_epingle,
+                   cp.media_url, cp.media_urls, cp.likes, cp.created_at,
                    u.id as user_id, u.prenom, u.nom, u.role, u.ville
             FROM community_posts cp
             JOIN users u ON u.id = cp.user_id
             ORDER BY cp.est_epingle DESC, cp.created_at DESC
             LIMIT ?
         """, [limit])).fetchall()
-        return [dict(r._mapping) for r in rows]
+        result = []
+        for r in rows:
+            d = dict(r._mapping)
+            # Normalise media_urls en liste Python
+            try:
+                d["media_urls"] = json.loads(d.get("media_urls") or "[]")
+            except Exception:
+                d["media_urls"] = []
+            # Rétrocompat : si media_url singulier et pas de media_urls, l'inclure
+            if d.get("media_url") and not d["media_urls"]:
+                d["media_urls"] = [d["media_url"]]
+            result.append(d)
+        return result
     finally:
         conn.close()
 
@@ -1029,9 +1063,10 @@ def create_community_post(data: PostIn, user: dict = Depends(get_current_user)):
     conn = get_db()
     try:
         post_id = "cp" + uid()
+        media_urls_json = json.dumps(data.media_urls or [])
         conn.execute(*sql_params(
-            "INSERT INTO community_posts (id,user_id,content,category,titre,tags,media_url,created_at) VALUES (?,?,?,?,?,?,?,?)",
-            [post_id, user["sub"], data.content.strip()[:2000], data.category, (data.titre or '')[:200], (data.tags or '[]'), (data.media_url or ''), now_iso()]
+            "INSERT INTO community_posts (id,user_id,content,category,titre,tags,media_url,media_urls,created_at) VALUES (?,?,?,?,?,?,?,?,?)",
+            [post_id, user["sub"], data.content.strip()[:2000], data.category, (data.titre or '')[:200], (data.tags or '[]'), (data.media_url or ''), media_urls_json, now_iso()]
         ))
         conn.commit()
         return {"id": post_id, "ok": True}
@@ -2023,7 +2058,7 @@ def admin_update_post(post_id: str, body: dict, admin=Depends(require_admin)):
     conn = get_db()
     try:
         fields, vals = [], []
-        for col in ("titre", "content", "tags", "media_url", "est_epingle"):
+        for col in ("titre", "content", "tags", "media_url", "media_urls", "est_epingle"):
             if col in body:
                 fields.append(col + "=?")
                 vals.append(body[col])
@@ -2047,6 +2082,85 @@ def admin_delete_post(post_id: str, admin=Depends(require_admin)):
         return {"ok": True}
     finally:
         conn.close()
+
+@app.post("/api/posts/upload-media")
+async def upload_post_media(
+    file: UploadFile = File(...),
+    user: dict = Depends(get_current_user),
+):
+    """Upload un média pour un post communauté (Cloudinary si configuré, sinon local)."""
+    ALLOWED_IMAGES = {"image/jpeg", "image/png", "image/gif", "image/webp"}
+    ALLOWED_VIDEOS = {"video/mp4", "video/webm", "video/quicktime"}
+    ALLOWED = ALLOWED_IMAGES | ALLOWED_VIDEOS
+
+    ct = file.content_type or ""
+    if ct not in ALLOWED:
+        raise HTTPException(400, "Format non supporté. Acceptés : JPG, PNG, GIF, WEBP, MP4, WEBM")
+
+    is_video = ct.startswith("video/")
+    MAX_SIZE = 50 * 1024 * 1024 if is_video else 10 * 1024 * 1024
+    contents = await file.read()
+    if len(contents) > MAX_SIZE:
+        limit_label = "50MB" if is_video else "10MB"
+        raise HTTPException(400, f"Fichier trop volumineux. Limite : {limit_label}")
+
+    media_type = "video" if is_video else "image"
+
+    # ── Cloudinary path ───────────────────────────────────────────────────────
+    if _CLOUDINARY_OK:
+        try:
+            result = cloudinary.uploader.upload(
+                contents,
+                folder        = f"shantilink/posts/{user['sub']}",
+                resource_type = media_type,
+                transformation = [
+                    {"width": 1200, "height": 900, "crop": "limit", "quality": "auto:good"}
+                ] if media_type == "image" else [],
+                eager = [
+                    {"width": 600, "height": 450, "crop": "fill", "format": "jpg"}
+                ] if media_type == "video" else [],
+            )
+            thumbnail = (result.get("eager") or [{}])[0].get("secure_url", result["secure_url"]) if is_video else result["secure_url"]
+            return {
+                "url":       result["secure_url"],
+                "type":      media_type,
+                "thumbnail": thumbnail,
+                "public_id": result["public_id"],
+                "width":     result.get("width"),
+                "height":    result.get("height"),
+            }
+        except Exception as e:
+            raise HTTPException(500, f"Erreur Cloudinary : {str(e)}")
+
+    # ── Fallback : stockage local ─────────────────────────────────────────────
+    ext = os.path.splitext(file.filename or "file")[-1].lower() or (".mp4" if is_video else ".jpg")
+    fname = "cm_" + uid() + ext
+    dest  = os.path.join(UPLOADS_DIR, fname)
+    with open(dest, "wb") as f:
+        f.write(contents)
+    url = "/static/uploads/" + fname
+    return {"url": url, "type": media_type, "thumbnail": url, "public_id": fname, "width": None, "height": None}
+
+
+@app.delete("/api/posts/media/{public_id:path}")
+async def delete_post_media(public_id: str, user: dict = Depends(get_current_user)):
+    """Supprime un média uploadé (si l'utilisateur annule sa publication)."""
+    if _CLOUDINARY_OK:
+        # Sécurité : vérifie que le public_id appartient à cet utilisateur
+        if f"posts/{user['sub']}" not in public_id and "admin" not in public_id:
+            raise HTTPException(403, "Non autorisé")
+        try:
+            cloudinary.uploader.destroy(public_id, resource_type="image")
+        except Exception:
+            pass  # silencieux si déjà supprimé
+    else:
+        # Local : supprime le fichier
+        fname = os.path.basename(public_id)
+        path  = os.path.join(UPLOADS_DIR, fname)
+        if os.path.exists(path):
+            os.remove(path)
+    return {"ok": True}
+
 
 @app.post("/bootstrap/admin")
 def bootstrap_admin(body: dict):
