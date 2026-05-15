@@ -1,0 +1,160 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1350" width="1080" height="1350">
+  <defs>
+    <linearGradient id="hdr" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1B3A5C"/>
+      <stop offset="100%" style="stop-color:#0D2137"/>
+    </linearGradient>
+    <linearGradient id="og" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#E67E22"/>
+      <stop offset="100%" style="stop-color:#F39C12"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1080" height="1350" fill="#F4F6F8"/>
+  <rect width="1080" height="230" fill="url(#hdr)"/>
+  <rect width="1080" height="6" fill="url(#og)"/>
+
+  <text x="540" y="80" font-family="Arial, sans-serif" font-size="28" fill="#A8C8E8" text-anchor="middle">RÉFÉRENCE OFFICIELLE 2026</text>
+  <text x="540" y="148" font-family="Arial, sans-serif" font-size="54" font-weight="900" fill="#FFFFFF" text-anchor="middle">SALAIRES BTP MAROC</text>
+  <text x="540" y="206" font-family="Arial, sans-serif" font-size="26" fill="#E67E22" text-anchor="middle" font-weight="700">Grille par métier et niveau de qualification</text>
+
+  <!-- Band -->
+  <rect x="0" y="230" width="1080" height="50" fill="#E67E22"/>
+  <text x="540" y="263" font-family="Arial, sans-serif" font-size="21" font-weight="700" fill="#fff" text-anchor="middle">SMIG BTP 2026 : 3 111 DH/mois · Décret n° 2-24-XXX</text>
+
+  <!-- Table header -->
+  <rect x="40" y="300" width="1000" height="50" rx="8" fill="#1B3A5C"/>
+  <text x="200" y="331" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#E67E22" text-anchor="middle">Métier</text>
+  <text x="460" y="331" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#E67E22" text-anchor="middle">Niveau</text>
+  <text x="680" y="331" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#E67E22" text-anchor="middle">Salaire/mois</text>
+  <text x="920" y="331" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#E67E22" text-anchor="middle">Journalier</text>
+
+  <!-- Row data -->
+  <g font-family="Arial, sans-serif" font-size="18" fill="#2C3E50">
+
+    <!-- Maçon -->
+    <rect x="40" y="350" width="1000" height="48" fill="#fff"/>
+    <text x="80" y="380" font-size="20">🧱</text>
+    <text x="110" y="380">Maçon</text>
+    <text x="460" y="380" text-anchor="middle" fill="#5D6D7E">Qualifié</text>
+    <text x="680" y="380" text-anchor="middle" font-weight="700" fill="#1B3A5C">4 200 – 5 500 DH</text>
+    <text x="920" y="380" text-anchor="middle" fill="#27AE60">175 – 230 DH</text>
+
+    <rect x="40" y="398" width="1000" height="48" fill="#F8F9FA"/>
+    <text x="80" y="428" font-size="20">🧱</text>
+    <text x="110" y="428">Maçon</text>
+    <text x="460" y="428" text-anchor="middle" fill="#5D6D7E">Chef d'équipe</text>
+    <text x="680" y="428" text-anchor="middle" font-weight="700" fill="#1B3A5C">5 500 – 7 000 DH</text>
+    <text x="920" y="428" text-anchor="middle" fill="#27AE60">230 – 290 DH</text>
+
+    <!-- Ferrailleur -->
+    <rect x="40" y="446" width="1000" height="48" fill="#fff"/>
+    <text x="80" y="476" font-size="20">🔩</text>
+    <text x="110" y="476">Ferrailleur</text>
+    <text x="460" y="476" text-anchor="middle" fill="#5D6D7E">Qualifié</text>
+    <text x="680" y="476" text-anchor="middle" font-weight="700" fill="#1B3A5C">4 500 – 6 000 DH</text>
+    <text x="920" y="476" text-anchor="middle" fill="#27AE60">190 – 250 DH</text>
+
+    <!-- Coffreur -->
+    <rect x="40" y="494" width="1000" height="48" fill="#F8F9FA"/>
+    <text x="80" y="524" font-size="20">🪵</text>
+    <text x="110" y="524">Coffreur-boiseur</text>
+    <text x="460" y="524" text-anchor="middle" fill="#5D6D7E">Qualifié</text>
+    <text x="680" y="524" text-anchor="middle" font-weight="700" fill="#1B3A5C">4 800 – 6 500 DH</text>
+    <text x="920" y="524" text-anchor="middle" fill="#27AE60">200 – 270 DH</text>
+
+    <!-- Électricien -->
+    <rect x="40" y="542" width="1000" height="48" fill="#fff"/>
+    <text x="80" y="572" font-size="20">⚡</text>
+    <text x="110" y="572">Électricien</text>
+    <text x="460" y="572" text-anchor="middle" fill="#5D6D7E">Qualifié</text>
+    <text x="680" y="572" text-anchor="middle" font-weight="700" fill="#1B3A5C">5 000 – 7 500 DH</text>
+    <text x="920" y="572" text-anchor="middle" fill="#27AE60">210 – 310 DH</text>
+
+    <rect x="40" y="590" width="1000" height="48" fill="#F8F9FA"/>
+    <text x="80" y="620" font-size="20">⚡</text>
+    <text x="110" y="620">Électricien</text>
+    <text x="460" y="620" text-anchor="middle" fill="#5D6D7E">Chef chantier</text>
+    <text x="680" y="620" text-anchor="middle" font-weight="700" fill="#1B3A5C">7 500 – 11 000 DH</text>
+    <text x="920" y="620" text-anchor="middle" fill="#E67E22">310 – 460 DH</text>
+
+    <!-- Plombier -->
+    <rect x="40" y="638" width="1000" height="48" fill="#fff"/>
+    <text x="80" y="668" font-size="20">🔧</text>
+    <text x="110" y="668">Plombier</text>
+    <text x="460" y="668" text-anchor="middle" fill="#5D6D7E">Qualifié</text>
+    <text x="680" y="668" text-anchor="middle" font-weight="700" fill="#1B3A5C">4 800 – 6 800 DH</text>
+    <text x="920" y="668" text-anchor="middle" fill="#27AE60">200 – 280 DH</text>
+
+    <!-- Carreleur -->
+    <rect x="40" y="686" width="1000" height="48" fill="#F8F9FA"/>
+    <text x="80" y="716" font-size="20">🏠</text>
+    <text x="110" y="716">Carreleur</text>
+    <text x="460" y="716" text-anchor="middle" fill="#5D6D7E">Qualifié</text>
+    <text x="680" y="716" text-anchor="middle" font-weight="700" fill="#1B3A5C">4 200 – 5 800 DH</text>
+    <text x="920" y="716" text-anchor="middle" fill="#27AE60">175 – 240 DH</text>
+
+    <!-- Peintre -->
+    <rect x="40" y="734" width="1000" height="48" fill="#fff"/>
+    <text x="80" y="764" font-size="20">🎨</text>
+    <text x="110" y="764">Peintre</text>
+    <text x="460" y="764" text-anchor="middle" fill="#5D6D7E">Qualifié</text>
+    <text x="680" y="764" text-anchor="middle" font-weight="700" fill="#1B3A5C">3 800 – 5 200 DH</text>
+    <text x="920" y="764" text-anchor="middle" fill="#27AE60">160 – 215 DH</text>
+
+    <!-- Conducteur travaux -->
+    <rect x="40" y="782" width="1000" height="48" fill="#EBF5FB"/>
+    <text x="80" y="812" font-size="20">📋</text>
+    <text x="110" y="812" font-weight="700" fill="#1B3A5C">Conducteur de travaux</text>
+    <text x="460" y="812" text-anchor="middle" fill="#2980B9">Cadre</text>
+    <text x="680" y="812" text-anchor="middle" font-weight="700" fill="#1B3A5C">9 000 – 15 000 DH</text>
+    <text x="920" y="812" text-anchor="middle" fill="#E74C3C">375 – 625 DH</text>
+
+    <!-- Chef de chantier -->
+    <rect x="40" y="830" width="1000" height="48" fill="#EBF5FB"/>
+    <text x="80" y="860" font-size="20">🦺</text>
+    <text x="110" y="860" font-weight="700" fill="#1B3A5C">Chef de chantier</text>
+    <text x="460" y="860" text-anchor="middle" fill="#2980B9">Cadre</text>
+    <text x="680" y="860" text-anchor="middle" font-weight="700" fill="#1B3A5C">7 500 – 12 000 DH</text>
+    <text x="920" y="860" text-anchor="middle" fill="#E74C3C">310 – 500 DH</text>
+
+    <!-- Architecte -->
+    <rect x="40" y="878" width="1000" height="48" fill="#EBF5FB"/>
+    <text x="80" y="908" font-size="20">📐</text>
+    <text x="110" y="908" font-weight="700" fill="#1B3A5C">Architecte</text>
+    <text x="460" y="908" text-anchor="middle" fill="#2980B9">Cadre senior</text>
+    <text x="680" y="908" text-anchor="middle" font-weight="700" fill="#1B3A5C">12 000 – 25 000 DH</text>
+    <text x="920" y="908" text-anchor="middle" fill="#E74C3C">500 – 1 040 DH</text>
+  </g>
+
+  <!-- Separator -->
+  <rect x="40" y="940" width="1000" height="3" fill="#BDC3C7"/>
+
+  <!-- Legend -->
+  <text x="540" y="978" font-family="Arial, sans-serif" font-size="18" fill="#5D6D7E" text-anchor="middle">Fourchettes brutes — varient selon ville, expérience et taille de l'entreprise</text>
+
+  <!-- Info boxes -->
+  <rect x="40" y="1005" width="310" height="100" rx="10" fill="#EAFAF1"/>
+  <text x="195" y="1033" font-family="Arial, sans-serif" font-size="15" font-weight="700" fill="#1E8449" text-anchor="middle">✅ SMIG 2026</text>
+  <text x="195" y="1058" font-family="Arial, sans-serif" font-size="22" font-weight="900" fill="#27AE60" text-anchor="middle">3 111 DH/mois</text>
+  <text x="195" y="1082" font-family="Arial, sans-serif" font-size="14" fill="#5D6D7E" text-anchor="middle">Plancher légal tous secteurs</text>
+
+  <rect x="385" y="1005" width="310" height="100" rx="10" fill="#FEF0E3"/>
+  <text x="540" y="1033" font-family="Arial, sans-serif" font-size="15" font-weight="700" fill="#CF6D17" text-anchor="middle">⚠️ Charges patronales</text>
+  <text x="540" y="1058" font-family="Arial, sans-serif" font-size="22" font-weight="900" fill="#E67E22" text-anchor="middle">+26% du brut</text>
+  <text x="540" y="1082" font-family="Arial, sans-serif" font-size="14" fill="#5D6D7E" text-anchor="middle">CNSS + AMO + accidents</text>
+
+  <rect x="730" y="1005" width="310" height="100" rx="10" fill="#EBF5FB"/>
+  <text x="885" y="1033" font-family="Arial, sans-serif" font-size="15" font-weight="700" fill="#1F618D" text-anchor="middle">📈 Heures sup.</text>
+  <text x="885" y="1058" font-family="Arial, sans-serif" font-size="22" font-weight="900" fill="#2980B9" text-anchor="middle">+25% à +100%</text>
+  <text x="885" y="1082" font-family="Arial, sans-serif" font-size="14" fill="#5D6D7E" text-anchor="middle">Selon Code du Travail</text>
+
+  <!-- Note -->
+  <rect x="40" y="1125" width="1000" height="60" rx="10" fill="#1B3A5C"/>
+  <text x="540" y="1155" font-family="Arial, sans-serif" font-size="17" fill="#A8C8E8" text-anchor="middle">💡 Utilisez ShantiLink pour trouver des professionnels qualifiés aux tarifs du marché</text>
+  <text x="540" y="1175" font-family="Arial, sans-serif" font-size="16" fill="#5D8BA8" text-anchor="middle">Profils vérifiés · Avis clients · Devis gratuits</text>
+
+  <!-- Footer -->
+  <rect x="0" y="1290" width="1080" height="60" fill="#1B3A5C"/>
+  <text x="540" y="1328" font-family="Arial, sans-serif" font-size="20" font-weight="700" fill="#E67E22" text-anchor="middle">ShantiLink — Grille salariale BTP Maroc 2026</text>
+</svg>

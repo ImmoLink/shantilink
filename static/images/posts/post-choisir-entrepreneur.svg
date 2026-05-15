@@ -1,0 +1,82 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1350" width="1080" height="1350">
+  <defs>
+    <linearGradient id="hdr" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1B3A5C"/>
+      <stop offset="100%" style="stop-color:#0D2137"/>
+    </linearGradient>
+    <linearGradient id="og" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#E67E22"/>
+      <stop offset="100%" style="stop-color:#F39C12"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1080" height="1350" fill="#F4F6F8"/>
+
+  <!-- Header -->
+  <rect width="1080" height="280" fill="url(#hdr)"/>
+  <rect width="1080" height="6" fill="url(#og)"/>
+
+  <!-- Header icon - badge/star -->
+  <g transform="translate(490, 55)">
+    <polygon points="50,0 61,35 97,35 68,57 79,91 50,70 21,91 32,57 3,35 39,35" fill="#E67E22"/>
+    <text x="50" y="62" font-family="Arial" font-size="32" font-weight="900" fill="#fff" text-anchor="middle">✓</text>
+  </g>
+
+  <text x="540" y="185" font-family="Arial, sans-serif" font-size="44" font-weight="900" fill="#FFFFFF" text-anchor="middle">CHOISIR UN BON</text>
+  <text x="540" y="240" font-family="Arial, sans-serif" font-size="44" font-weight="900" fill="#E67E22" text-anchor="middle">ENTREPRENEUR BTP</text>
+
+  <!-- Subtitle bar -->
+  <rect x="0" y="280" width="1080" height="56" fill="#E67E22"/>
+  <text x="540" y="317" font-family="Arial, sans-serif" font-size="24" font-weight="700" fill="#fff" text-anchor="middle">5 critères essentiels au Maroc</text>
+
+  <!-- Cards -->
+  <!-- Card 1 -->
+  <rect x="60" y="370" width="960" height="150" rx="16" fill="#FFFFFF" filter="url(#sh)"/>
+  <rect x="60" y="370" width="8" height="150" rx="4" fill="#E67E22"/>
+  <circle cx="130" cy="445" r="38" fill="#FEF0E3"/>
+  <text x="130" y="456" font-family="Arial" font-size="34" text-anchor="middle">📋</text>
+  <text x="200" y="425" font-family="Arial, sans-serif" font-size="28" font-weight="800" fill="#1B3A5C">1. Registre du commerce (RC)</text>
+  <text x="200" y="460" font-family="Arial, sans-serif" font-size="20" fill="#5D6D7E">Vérifiez que l'entrepreneur est légalement enregistré</text>
+  <text x="200" y="490" font-family="Arial, sans-serif" font-size="20" fill="#5D6D7E">au Registre du Commerce — OBLIGATOIRE</text>
+
+  <!-- Card 2 -->
+  <rect x="60" y="545" width="960" height="150" rx="16" fill="#FFFFFF"/>
+  <rect x="60" y="545" width="8" height="150" rx="4" fill="#2980B9"/>
+  <circle cx="130" cy="620" r="38" fill="#EBF5FB"/>
+  <text x="130" y="631" font-family="Arial" font-size="34" text-anchor="middle">🏗️</text>
+  <text x="200" y="600" font-family="Arial, sans-serif" font-size="28" font-weight="800" fill="#1B3A5C">2. Références de chantiers récents</text>
+  <text x="200" y="635" font-family="Arial, sans-serif" font-size="20" fill="#5D6D7E">Demandez 3 références avec contacts vérifiables.</text>
+  <text x="200" y="665" font-family="Arial, sans-serif" font-size="20" fill="#5D6D7E">Visitez au moins un chantier terminé.</text>
+
+  <!-- Card 3 -->
+  <rect x="60" y="720" width="960" height="150" rx="16" fill="#FFFFFF"/>
+  <rect x="60" y="720" width="8" height="150" rx="4" fill="#27AE60"/>
+  <circle cx="130" cy="795" r="38" fill="#EAFAF1"/>
+  <text x="130" y="806" font-family="Arial" font-size="34" text-anchor="middle">📄</text>
+  <text x="200" y="775" font-family="Arial, sans-serif" font-size="28" font-weight="800" fill="#1B3A5C">3. Devis détaillé et signé</text>
+  <text x="200" y="810" font-family="Arial, sans-serif" font-size="20" fill="#5D6D7E">Exigez un devis ligne par ligne : main-d'œuvre,</text>
+  <text x="200" y="840" font-family="Arial, sans-serif" font-size="20" fill="#5D6D7E">matériaux, délais, conditions de paiement.</text>
+
+  <!-- Card 4 -->
+  <rect x="60" y="895" width="960" height="150" rx="16" fill="#FFFFFF"/>
+  <rect x="60" y="895" width="8" height="150" rx="4" fill="#8E44AD"/>
+  <circle cx="130" cy="970" r="38" fill="#F5EEF8"/>
+  <text x="130" y="981" font-family="Arial" font-size="34" text-anchor="middle">🛡️</text>
+  <text x="200" y="950" font-family="Arial, sans-serif" font-size="28" font-weight="800" fill="#1B3A5C">4. Assurance responsabilité civile</text>
+  <text x="200" y="985" font-family="Arial, sans-serif" font-size="20" fill="#5D6D7E">L'entrepreneur doit avoir une assurance RC pro</text>
+  <text x="200" y="1015" font-family="Arial, sans-serif" font-size="20" fill="#5D6D7E">valide. Demandez l'attestation avant de signer.</text>
+
+  <!-- Card 5 -->
+  <rect x="60" y="1070" width="960" height="150" rx="16" fill="#FFFFFF"/>
+  <rect x="60" y="1070" width="8" height="150" rx="4" fill="#E74C3C"/>
+  <circle cx="130" cy="1145" r="38" fill="#FDEDEC"/>
+  <text x="130" y="1156" font-family="Arial" font-size="34" text-anchor="middle">⭐</text>
+  <text x="200" y="1125" font-family="Arial, sans-serif" font-size="28" font-weight="800" fill="#1B3A5C">5. Avis clients vérifiés</text>
+  <text x="200" y="1160" font-family="Arial, sans-serif" font-size="20" fill="#5D6D7E">Consultez les avis sur ShantiLink et les réseaux.</text>
+  <text x="200" y="1190" font-family="Arial, sans-serif" font-size="20" fill="#5D6D7E">Méfiez-vous des profils sans aucun avis.</text>
+
+  <!-- Footer -->
+  <rect x="0" y="1290" width="1080" height="60" fill="#1B3A5C"/>
+  <text x="540" y="1328" font-family="Arial, sans-serif" font-size="22" font-weight="700" fill="#E67E22" text-anchor="middle">ShantiLink — Communauté BTP Maroc</text>
+</svg>

@@ -1,0 +1,199 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" width="1200" height="900">
+  <defs>
+    <linearGradient id="hdr" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1B3A5C"/>
+      <stop offset="100%" style="stop-color:#0D2137"/>
+    </linearGradient>
+    <linearGradient id="og" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#E67E22"/>
+      <stop offset="100%" style="stop-color:#F39C12"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="900" fill="#F4F6F8"/>
+  <rect width="1200" height="170" fill="url(#hdr)"/>
+  <rect width="1200" height="6" fill="url(#og)"/>
+
+  <text x="600" y="68" font-family="Arial, sans-serif" font-size="26" fill="#A8C8E8" text-anchor="middle">GUIDE CLIENT</text>
+  <text x="600" y="128" font-family="Arial, sans-serif" font-size="50" font-weight="900" fill="#FFFFFF" text-anchor="middle">COMMENT LIRE UN PLAN D'ARCHITECTE</text>
+  <text x="600" y="162" font-family="Arial, sans-serif" font-size="22" fill="#E67E22" text-anchor="middle" font-weight="700">Les 8 éléments clés à identifier sur tout plan</text>
+
+  <!-- Band -->
+  <rect x="0" y="170" width="1200" height="44" fill="#E67E22"/>
+  <text x="600" y="199" font-family="Arial, sans-serif" font-size="20" font-weight="700" fill="#fff" text-anchor="middle">Vue de dessus à 1 m du sol — représente la disposition des pièces et ouvertures</text>
+
+  <!-- FLOOR PLAN (left side) -->
+  <g transform="translate(40, 228)">
+    <text x="240" y="20" font-family="Arial, sans-serif" font-size="18" font-weight="800" fill="#1B3A5C" text-anchor="middle">PLAN RDC — EXEMPLE ANNOTÉ</text>
+
+    <!-- Outer wall -->
+    <rect x="20" y="35" width="440" height="590" rx="4" fill="none" stroke="#1B3A5C" stroke-width="8"/>
+    <!-- Inner floor fill -->
+    <rect x="24" y="39" width="432" height="582" fill="#EBF5FB"/>
+
+    <!-- Room dividers -->
+    <!-- Horizontal divider (split floor in half vertically) -->
+    <line x1="20" y1="290" x2="280" y2="290" stroke="#1B3A5C" stroke-width="5"/>
+    <line x1="320" y1="290" x2="460" y2="290" stroke="#1B3A5C" stroke-width="5"/>
+    <!-- Vertical divider left zone -->
+    <line x1="220" y1="35" x2="220" y2="290" stroke="#1B3A5C" stroke-width="5"/>
+    <!-- Vertical divider right zone top -->
+    <line x1="220" y1="290" x2="220" y2="625" stroke="#1B3A5C" stroke-width="5"/>
+    <!-- Short divider bottom right -->
+    <line x1="220" y1="480" x2="460" y2="480" stroke="#1B3A5C" stroke-width="5"/>
+
+    <!-- Room labels -->
+    <text x="120" y="165" font-family="Arial, sans-serif" font-size="16" font-weight="700" fill="#1B3A5C" text-anchor="middle">SALON</text>
+    <text x="120" y="185" font-family="Arial, sans-serif" font-size="13" fill="#5D6D7E" text-anchor="middle">25 m²</text>
+
+    <text x="340" y="165" font-family="Arial, sans-serif" font-size="16" font-weight="700" fill="#1B3A5C" text-anchor="middle">CUISINE</text>
+    <text x="340" y="185" font-family="Arial, sans-serif" font-size="13" fill="#5D6D7E" text-anchor="middle">14 m²</text>
+
+    <text x="120" y="440" font-family="Arial, sans-serif" font-size="16" font-weight="700" fill="#1B3A5C" text-anchor="middle">CH. 1</text>
+    <text x="120" y="460" font-family="Arial, sans-serif" font-size="13" fill="#5D6D7E" text-anchor="middle">16 m²</text>
+
+    <text x="340" y="375" font-family="Arial, sans-serif" font-size="15" font-weight="700" fill="#1B3A5C" text-anchor="middle">CH. 2</text>
+    <text x="340" y="393" font-family="Arial, sans-serif" font-size="13" fill="#5D6D7E" text-anchor="middle">14 m²</text>
+
+    <text x="340" y="535" font-family="Arial, sans-serif" font-size="15" font-weight="700" fill="#1B3A5C" text-anchor="middle">SDB</text>
+    <text x="340" y="553" font-family="Arial, sans-serif" font-size="13" fill="#5D6D7E" text-anchor="middle">8 m²</text>
+
+    <!-- Couloir -->
+    <text x="175" y="310" font-family="Arial, sans-serif" font-size="13" font-weight="600" fill="#7F8C8D" text-anchor="middle">COULOIR</text>
+
+    <!-- Door symbols (quarter circle arcs) -->
+    <!-- Salon door -->
+    <path d="M 20 250 Q 60 210 60 250" stroke="#E67E22" stroke-width="2.5" fill="none"/>
+    <line x1="20" y1="250" x2="60" y2="250" stroke="#E67E22" stroke-width="2.5"/>
+
+    <!-- Kitchen door -->
+    <path d="M 280 290 Q 280 250 320 250" stroke="#E67E22" stroke-width="2.5" fill="none"/>
+    <line x1="280" y1="250" x2="280" y2="290" stroke="#E67E22" stroke-width="2.5"/>
+
+    <!-- CH1 door -->
+    <path d="M 220 400 Q 260 400 260 440" stroke="#E67E22" stroke-width="2.5" fill="none"/>
+    <line x1="220" y1="400" x2="260" y2="400" stroke="#E67E22" stroke-width="2.5"/>
+
+    <!-- CH2 door -->
+    <path d="M 220 350 Q 260 350 260 310" stroke="#E67E22" stroke-width="2.5" fill="none"/>
+    <line x1="220" y1="310" x2="260" y2="310" stroke="#E67E22" stroke-width="2.5"/>
+
+    <!-- SDB door -->
+    <path d="M 220 510 Q 260 510 260 480" stroke="#E67E22" stroke-width="2.5" fill="none"/>
+    <line x1="220" y1="480" x2="260" y2="480" stroke="#E67E22" stroke-width="2.5"/>
+
+    <!-- Window symbols (thin double lines on wall) -->
+    <!-- Salon window -->
+    <rect x="60" y="35" width="100" height="10" fill="#AED6F1" stroke="#2980B9" stroke-width="1"/>
+    <line x1="60" y1="40" x2="160" y2="40" stroke="#2980B9" stroke-width="1.5"/>
+
+    <!-- Kitchen window -->
+    <rect x="260" y="35" width="80" height="10" fill="#AED6F1" stroke="#2980B9" stroke-width="1"/>
+    <line x1="260" y1="40" x2="340" y2="40" stroke="#2980B9" stroke-width="1.5"/>
+
+    <!-- CH1 window -->
+    <rect x="24" y="420" width="10" height="70" fill="#AED6F1" stroke="#2980B9" stroke-width="1"/>
+    <line x1="29" y1="420" x2="29" y2="490" stroke="#2980B9" stroke-width="1.5"/>
+
+    <!-- CH2 window -->
+    <rect x="450" y="320" width="10" height="60" fill="#AED6F1" stroke="#2980B9" stroke-width="1"/>
+    <line x1="455" y1="320" x2="455" y2="380" stroke="#2980B9" stroke-width="1.5"/>
+
+    <!-- Main entrance -->
+    <rect x="160" y="621" width="80" height="8" fill="#27AE60"/>
+    <text x="200" y="655" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#27AE60" text-anchor="middle">ENTRÉE</text>
+
+    <!-- Staircase symbol -->
+    <g transform="translate(50,560)">
+      <rect x="0" y="0" width="100" height="60" fill="none" stroke="#8E44AD" stroke-width="1.5"/>
+      <line x1="0" y1="10" x2="100" y2="10" stroke="#8E44AD" stroke-width="1.5"/>
+      <line x1="0" y1="20" x2="100" y2="20" stroke="#8E44AD" stroke-width="1.5"/>
+      <line x1="0" y1="30" x2="100" y2="30" stroke="#8E44AD" stroke-width="1.5"/>
+      <line x1="0" y1="40" x2="100" y2="40" stroke="#8E44AD" stroke-width="1.5"/>
+      <line x1="0" y1="50" x2="100" y2="50" stroke="#8E44AD" stroke-width="1.5"/>
+      <text x="50" y="-6" font-family="Arial, sans-serif" font-size="11" fill="#8E44AD" text-anchor="middle">ESCALIER</text>
+    </g>
+
+    <!-- Scale bar -->
+    <line x1="60" y1="645" x2="160" y2="645" stroke="#1B3A5C" stroke-width="3"/>
+    <line x1="60" y1="638" x2="60" y2="652" stroke="#1B3A5C" stroke-width="2"/>
+    <line x1="160" y1="638" x2="160" y2="652" stroke="#1B3A5C" stroke-width="2"/>
+    <text x="110" y="665" font-family="Arial, sans-serif" font-size="13" fill="#1B3A5C" text-anchor="middle">5 m</text>
+    <text x="110" y="676" font-family="Arial, sans-serif" font-size="11" fill="#5D6D7E" text-anchor="middle">Échelle 1:100</text>
+
+    <!-- North arrow -->
+    <g transform="translate(410, 600)">
+      <polygon points="15,0 8,30 15,24 22,30" fill="#1B3A5C"/>
+      <text x="15" y="48" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#1B3A5C" text-anchor="middle">N</text>
+    </g>
+  </g>
+
+  <!-- Right side: Legend + explanations -->
+  <g transform="translate(550, 228)">
+    <text x="0" y="20" font-family="Arial, sans-serif" font-size="19" font-weight="800" fill="#1B3A5C">Légende — Symboles universels</text>
+
+    <!-- Legend items -->
+    <!-- 1. Walls -->
+    <rect x="0" y="40" width="590" height="60" rx="8" fill="#fff"/>
+    <rect x="0" y="40" width="6" height="60" rx="3" fill="#1B3A5C"/>
+    <rect x="20" y="55" width="50" height="30" fill="#1B3A5C"/>
+    <text x="90" y="65" font-family="Arial, sans-serif" font-size="16" font-weight="700" fill="#1B3A5C">Mur porteur (épais, noir)</text>
+    <text x="90" y="87" font-family="Arial, sans-serif" font-size="14" fill="#5D6D7E">Ne jamais abattre sans avis structure</text>
+
+    <!-- 2. Partition walls -->
+    <rect x="0" y="112" width="590" height="60" rx="8" fill="#fff"/>
+    <rect x="0" y="112" width="6" height="60" rx="3" fill="#7F8C8D"/>
+    <rect x="20" y="127" width="50" height="15" fill="#7F8C8D"/>
+    <text x="90" y="137" font-family="Arial, sans-serif" font-size="16" font-weight="700" fill="#1B3A5C">Cloison (mince, gris clair)</text>
+    <text x="90" y="159" font-family="Arial, sans-serif" font-size="14" fill="#5D6D7E">Séparation des pièces — peut être modifiée</text>
+
+    <!-- 3. Door -->
+    <rect x="0" y="184" width="590" height="60" rx="8" fill="#fff"/>
+    <rect x="0" y="184" width="6" height="60" rx="3" fill="#E67E22"/>
+    <path d="M 25 225 Q 65 185 65 225" stroke="#E67E22" stroke-width="2.5" fill="none"/>
+    <line x1="25" y1="225" x2="65" y2="225" stroke="#E67E22" stroke-width="2.5"/>
+    <text x="90" y="209" font-family="Arial, sans-serif" font-size="16" font-weight="700" fill="#1B3A5C">Porte (arc de cercle)</text>
+    <text x="90" y="231" font-family="Arial, sans-serif" font-size="14" fill="#5D6D7E">Le rayon = sens d'ouverture de la porte</text>
+
+    <!-- 4. Window -->
+    <rect x="0" y="256" width="590" height="60" rx="8" fill="#fff"/>
+    <rect x="0" y="256" width="6" height="60" rx="3" fill="#2980B9"/>
+    <rect x="20" y="271" width="50" height="20" fill="#AED6F1" stroke="#2980B9" stroke-width="1.5"/>
+    <line x1="20" y1="281" x2="70" y2="281" stroke="#2980B9" stroke-width="2"/>
+    <text x="90" y="281" font-family="Arial, sans-serif" font-size="16" font-weight="700" fill="#1B3A5C">Fenêtre (double trait bleu)</text>
+    <text x="90" y="303" font-family="Arial, sans-serif" font-size="14" fill="#5D6D7E">Indique l'emplacement et la largeur de l'ouverture</text>
+
+    <!-- 5. Staircase -->
+    <rect x="0" y="328" width="590" height="60" rx="8" fill="#fff"/>
+    <rect x="0" y="328" width="6" height="60" rx="3" fill="#8E44AD"/>
+    <g stroke="#8E44AD" stroke-width="1.5" fill="none">
+      <rect x="20" y="340" width="50" height="36"/>
+      <line x1="20" y1="347" x2="70" y2="347"/><line x1="20" y1="354" x2="70" y2="354"/>
+      <line x1="20" y1="361" x2="70" y2="361"/><line x1="20" y1="368" x2="70" y2="368"/>
+    </g>
+    <text x="90" y="353" font-family="Arial, sans-serif" font-size="16" font-weight="700" fill="#1B3A5C">Escalier (lignes parallèles)</text>
+    <text x="90" y="375" font-family="Arial, sans-serif" font-size="14" fill="#5D6D7E">Flèche indique le sens de montée (⬆ ou ⬇)</text>
+
+    <!-- 6. Scale -->
+    <rect x="0" y="400" width="590" height="60" rx="8" fill="#fff"/>
+    <rect x="0" y="400" width="6" height="60" rx="3" fill="#27AE60"/>
+    <line x1="20" y1="432" x2="70" y2="432" stroke="#1B3A5C" stroke-width="3"/>
+    <line x1="20" y1="425" x2="20" y2="439" stroke="#1B3A5C" stroke-width="2"/>
+    <line x1="70" y1="425" x2="70" y2="439" stroke="#1B3A5C" stroke-width="2"/>
+    <text x="45" y="450" font-family="Arial, sans-serif" font-size="11" fill="#1B3A5C" text-anchor="middle">5 m</text>
+    <text x="90" y="425" font-family="Arial, sans-serif" font-size="16" font-weight="700" fill="#1B3A5C">Échelle (barre de référence)</text>
+    <text x="90" y="447" font-family="Arial, sans-serif" font-size="14" fill="#5D6D7E">1:50 = 1 cm sur plan = 50 cm réel</text>
+
+    <!-- Tips section -->
+    <rect x="0" y="480" width="590" height="130" rx="10" fill="#1B3A5C"/>
+    <text x="295" y="508" font-family="Arial, sans-serif" font-size="17" font-weight="700" fill="#E67E22" text-anchor="middle">💡 3 réflexes avant d'approuver un plan</text>
+    <text x="20" y="535" font-family="Arial, sans-serif" font-size="15" fill="#A8C8E8">✔  Vérifiez les surfaces (m²) de chaque pièce</text>
+    <text x="20" y="558" font-family="Arial, sans-serif" font-size="15" fill="#A8C8E8">✔  Comptez les fenêtres — lumière naturelle suffisante ?</text>
+    <text x="20" y="581" font-family="Arial, sans-serif" font-size="15" fill="#A8C8E8">✔  Repérez les murs porteurs — coûteux à modifier</text>
+    <text x="295" y="604" font-family="Arial, sans-serif" font-size="13" fill="#5D8BA8" text-anchor="middle">Demandez à votre architecte d'expliquer chaque choix</text>
+  </g>
+
+  <!-- Footer -->
+  <rect x="0" y="840" width="1200" height="60" fill="#1B3A5C"/>
+  <text x="600" y="878" font-family="Arial, sans-serif" font-size="20" font-weight="700" fill="#E67E22" text-anchor="middle">ShantiLink — Guide client BTP Maroc · shantilink.ma</text>
+</svg>

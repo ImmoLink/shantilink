@@ -1,0 +1,118 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1350" width="1080" height="1350">
+  <defs>
+    <linearGradient id="hdr" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1B3A5C"/>
+      <stop offset="100%" style="stop-color:#0D2137"/>
+    </linearGradient>
+    <linearGradient id="og" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#E67E22"/>
+      <stop offset="100%" style="stop-color:#F39C12"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1080" height="1350" fill="#F4F6F8"/>
+  <rect width="1080" height="240" fill="url(#hdr)"/>
+  <rect width="1080" height="6" fill="url(#og)"/>
+
+  <text x="540" y="90" font-family="Arial, sans-serif" font-size="30" fill="#A8C8E8" text-anchor="middle">RÉCEPTION DE CHANTIER</text>
+  <text x="540" y="155" font-family="Arial, sans-serif" font-size="56" font-weight="900" fill="#FFFFFF" text-anchor="middle">CHECKLIST</text>
+  <text x="540" y="210" font-family="Arial, sans-serif" font-size="26" fill="#E67E22" text-anchor="middle" font-weight="700">Évitez les malfaçons — 20 points à vérifier</text>
+
+  <rect x="0" y="240" width="1080" height="48" fill="#27AE60"/>
+  <text x="540" y="272" font-family="Arial, sans-serif" font-size="22" font-weight="700" fill="#fff" text-anchor="middle">À faire AVANT de signer le procès-verbal de réception</text>
+
+  <!-- Checklist items -->
+  <!-- Section A: Gros oeuvre -->
+  <rect x="60" y="310" width="960" height="38" rx="6" fill="#1B3A5C"/>
+  <text x="85" y="334" font-family="Arial, sans-serif" font-size="19" font-weight="800" fill="#E67E22">A — GROS ŒUVRE &amp; STRUCTURE</text>
+
+  <g font-family="Arial, sans-serif" font-size="19" fill="#2C3E50">
+    <rect x="60" y="352" width="960" height="46" fill="#fff"/>
+    <rect x="76" y="363" width="24" height="24" rx="4" fill="none" stroke="#27AE60" stroke-width="2.5"/>
+    <text x="116" y="380">Fissures structurelles sur murs porteurs et dalles</text>
+
+    <rect x="60" y="398" width="960" height="46" fill="#F8F9FA"/>
+    <rect x="76" y="409" width="24" height="24" rx="4" fill="none" stroke="#27AE60" stroke-width="2.5"/>
+    <text x="116" y="426">Planéité des dalles (tolérance 5 mm / 2 m)</text>
+
+    <rect x="60" y="444" width="960" height="46" fill="#fff"/>
+    <rect x="76" y="455" width="24" height="24" rx="4" fill="none" stroke="#27AE60" stroke-width="2.5"/>
+    <text x="116" y="472">Verticalité des poteaux et murs (fil à plomb)</text>
+  </g>
+
+  <!-- Section B: Plomberie -->
+  <rect x="60" y="502" width="960" height="38" rx="6" fill="#1B3A5C"/>
+  <text x="85" y="526" font-family="Arial, sans-serif" font-size="19" font-weight="800" fill="#E67E22">B — PLOMBERIE &amp; SANITAIRES</text>
+
+  <g font-family="Arial, sans-serif" font-size="19" fill="#2C3E50">
+    <rect x="60" y="544" width="960" height="46" fill="#fff"/>
+    <rect x="76" y="555" width="24" height="24" rx="4" fill="none" stroke="#27AE60" stroke-width="2.5"/>
+    <text x="116" y="572">Test d'étanchéité — ouvrir tous les robinets simultanément</text>
+
+    <rect x="60" y="590" width="960" height="46" fill="#F8F9FA"/>
+    <rect x="76" y="601" width="24" height="24" rx="4" fill="none" stroke="#27AE60" stroke-width="2.5"/>
+    <text x="116" y="618">Évacuations : pas de reflux ni d'odeurs</text>
+
+    <rect x="60" y="636" width="960" height="46" fill="#fff"/>
+    <rect x="76" y="647" width="24" height="24" rx="4" fill="none" stroke="#27AE60" stroke-width="2.5"/>
+    <text x="116" y="664">Chauffe-eau et ballon — pression et température OK</text>
+  </g>
+
+  <!-- Section C: Électricité -->
+  <rect x="60" y="694" width="960" height="38" rx="6" fill="#1B3A5C"/>
+  <text x="85" y="718" font-family="Arial, sans-serif" font-size="19" font-weight="800" fill="#E67E22">C — ÉLECTRICITÉ</text>
+
+  <g font-family="Arial, sans-serif" font-size="19" fill="#2C3E50">
+    <rect x="60" y="736" width="960" height="46" fill="#fff"/>
+    <rect x="76" y="747" width="24" height="24" rx="4" fill="none" stroke="#27AE60" stroke-width="2.5"/>
+    <text x="116" y="764">Tester chaque prise avec un testeur de prise</text>
+
+    <rect x="60" y="782" width="960" height="46" fill="#F8F9FA"/>
+    <rect x="76" y="793" width="24" height="24" rx="4" fill="none" stroke="#27AE60" stroke-width="2.5"/>
+    <text x="116" y="810">Disjoncteur différentiel présent et fonctionnel</text>
+
+    <rect x="60" y="828" width="960" height="46" fill="#fff"/>
+    <rect x="76" y="839" width="24" height="24" rx="4" fill="none" stroke="#27AE60" stroke-width="2.5"/>
+    <text x="116" y="856">Éclairage : toutes les pièces et commandes</text>
+  </g>
+
+  <!-- Section D: Finitions -->
+  <rect x="60" y="886" width="960" height="38" rx="6" fill="#1B3A5C"/>
+  <text x="85" y="910" font-family="Arial, sans-serif" font-size="19" font-weight="800" fill="#E67E22">D — FINITIONS &amp; MENUISERIES</text>
+
+  <g font-family="Arial, sans-serif" font-size="19" fill="#2C3E50">
+    <rect x="60" y="928" width="960" height="46" fill="#fff"/>
+    <rect x="76" y="939" width="24" height="24" rx="4" fill="none" stroke="#27AE60" stroke-width="2.5"/>
+    <text x="116" y="956">Carrelage : pas de cases creuses (taper avec pièce de monnaie)</text>
+
+    <rect x="60" y="974" width="960" height="46" fill="#F8F9FA"/>
+    <rect x="76" y="985" width="24" height="24" rx="4" fill="none" stroke="#27AE60" stroke-width="2.5"/>
+    <text x="116" y="1002">Fenêtres et portes : fermeture, joint, pas de jeu</text>
+
+    <rect x="60" y="1020" width="960" height="46" fill="#fff"/>
+    <rect x="76" y="1031" width="24" height="24" rx="4" fill="none" stroke="#27AE60" stroke-width="2.5"/>
+    <text x="116" y="1048">Peinture : uniformité, pas de coulures ni taches</text>
+
+    <rect x="60" y="1066" width="960" height="46" fill="#F8F9FA"/>
+    <rect x="76" y="1077" width="24" height="24" rx="4" fill="none" stroke="#27AE60" stroke-width="2.5"/>
+    <text x="116" y="1094">Joints de carrelage : continus, sans lacunes</text>
+  </g>
+
+  <!-- Section E: Documents -->
+  <rect x="60" y="1124" width="960" height="38" rx="6" fill="#1B3A5C"/>
+  <text x="85" y="1148" font-family="Arial, sans-serif" font-size="19" font-weight="800" fill="#E67E22">E — DOCUMENTS À EXIGER</text>
+
+  <g font-family="Arial, sans-serif" font-size="19" fill="#2C3E50">
+    <rect x="60" y="1166" width="960" height="46" fill="#fff"/>
+    <rect x="76" y="1177" width="24" height="24" rx="4" fill="none" stroke="#27AE60" stroke-width="2.5"/>
+    <text x="116" y="1194">Procès-verbal de réception signé des deux parties</text>
+
+    <rect x="60" y="1212" width="960" height="46" fill="#F8F9FA"/>
+    <rect x="76" y="1223" width="24" height="24" rx="4" fill="none" stroke="#27AE60" stroke-width="2.5"/>
+    <text x="116" y="1240">Plans de récolement + factures matériaux</text>
+  </g>
+
+  <!-- Footer -->
+  <rect x="0" y="1290" width="1080" height="60" fill="#1B3A5C"/>
+  <text x="540" y="1328" font-family="Arial, sans-serif" font-size="20" font-weight="700" fill="#E67E22" text-anchor="middle">ShantiLink — Protégez votre investissement</text>
+</svg>

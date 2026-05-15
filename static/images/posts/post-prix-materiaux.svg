@@ -1,0 +1,117 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1350" width="1080" height="1350">
+  <defs>
+    <linearGradient id="hdr" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1B3A5C"/>
+      <stop offset="100%" style="stop-color:#0D2137"/>
+    </linearGradient>
+    <linearGradient id="og" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#E67E22"/>
+      <stop offset="100%" style="stop-color:#F39C12"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1080" height="1350" fill="#F4F6F8"/>
+
+  <!-- Header -->
+  <rect width="1080" height="260" fill="url(#hdr)"/>
+  <rect width="1080" height="6" fill="url(#og)"/>
+
+  <text x="540" y="100" font-family="Arial, sans-serif" font-size="30" fill="#A8C8E8" text-anchor="middle" font-weight="600">BAROMÈTRE</text>
+  <text x="540" y="160" font-family="Arial, sans-serif" font-size="50" font-weight="900" fill="#FFFFFF" text-anchor="middle">PRIX MATÉRIAUX BTP</text>
+  <text x="540" y="220" font-family="Arial, sans-serif" font-size="32" font-weight="700" fill="#E67E22" text-anchor="middle">Mai 2026 — Maroc</text>
+
+  <!-- Date badge -->
+  <rect x="0" y="260" width="1080" height="52" fill="#E67E22"/>
+  <text x="540" y="294" font-family="Arial, sans-serif" font-size="22" font-weight="700" fill="#fff" text-anchor="middle">Ciment · Fer · Sable · Gravier · Brique</text>
+
+  <!-- Section: CIMENT -->
+  <rect x="60" y="345" width="960" height="44" rx="8" fill="#1B3A5C"/>
+  <text x="90" y="373" font-family="Arial, sans-serif" font-size="22" font-weight="800" fill="#E67E22">🏭  CIMENT</text>
+
+  <!-- Table header -->
+  <rect x="60" y="389" width="960" height="40" fill="#D6E8F5"/>
+  <text x="200" y="414" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#1B3A5C" text-anchor="middle">Marque</text>
+  <text x="500" y="414" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#1B3A5C" text-anchor="middle">Prix / sac 50 kg</text>
+  <text x="830" y="414" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#1B3A5C" text-anchor="middle">Tendance</text>
+
+  <rect x="60" y="429" width="960" height="50" fill="#fff"/>
+  <text x="200" y="459" font-family="Arial, sans-serif" font-size="20" fill="#2C3E50" text-anchor="middle">CPJ 35 — Standard</text>
+  <text x="500" y="459" font-family="Arial, sans-serif" font-size="24" font-weight="700" fill="#1B3A5C" text-anchor="middle">90 – 100 DH</text>
+  <text x="830" y="459" font-family="Arial, sans-serif" font-size="22" fill="#27AE60" text-anchor="middle">→ Stable</text>
+
+  <rect x="60" y="479" width="960" height="50" fill="#F8F9FA"/>
+  <text x="200" y="509" font-family="Arial, sans-serif" font-size="20" fill="#2C3E50" text-anchor="middle">CPJ 45 — Résistant</text>
+  <text x="500" y="509" font-family="Arial, sans-serif" font-size="24" font-weight="700" fill="#1B3A5C" text-anchor="middle">100 – 115 DH</text>
+  <text x="830" y="509" font-family="Arial, sans-serif" font-size="22" fill="#E74C3C" text-anchor="middle">↑ +5%</text>
+
+  <rect x="60" y="529" width="960" height="50" fill="#fff"/>
+  <text x="200" y="559" font-family="Arial, sans-serif" font-size="20" fill="#2C3E50" text-anchor="middle">CPA 55 — Spécial</text>
+  <text x="500" y="559" font-family="Arial, sans-serif" font-size="24" font-weight="700" fill="#1B3A5C" text-anchor="middle">120 – 140 DH</text>
+  <text x="830" y="559" font-family="Arial, sans-serif" font-size="22" fill="#E74C3C" text-anchor="middle">↑ +8%</text>
+
+  <!-- Section: FER -->
+  <rect x="60" y="605" width="960" height="44" rx="8" fill="#1B3A5C"/>
+  <text x="90" y="633" font-family="Arial, sans-serif" font-size="22" font-weight="800" fill="#E67E22">🔩  FER À BÉTON</text>
+
+  <rect x="60" y="649" width="960" height="40" fill="#D6E8F5"/>
+  <text x="200" y="674" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#1B3A5C" text-anchor="middle">Diamètre</text>
+  <text x="500" y="674" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#1B3A5C" text-anchor="middle">Prix / tonne</text>
+  <text x="830" y="674" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#1B3A5C" text-anchor="middle">Tendance</text>
+
+  <rect x="60" y="689" width="960" height="50" fill="#fff"/>
+  <text x="200" y="719" font-family="Arial, sans-serif" font-size="20" fill="#2C3E50" text-anchor="middle">Ø 8 – 10 mm</text>
+  <text x="500" y="719" font-family="Arial, sans-serif" font-size="24" font-weight="700" fill="#1B3A5C" text-anchor="middle">8 500 – 9 000 DH</text>
+  <text x="830" y="719" font-family="Arial, sans-serif" font-size="22" fill="#27AE60" text-anchor="middle">→ Stable</text>
+
+  <rect x="60" y="739" width="960" height="50" fill="#F8F9FA"/>
+  <text x="200" y="769" font-family="Arial, sans-serif" font-size="20" fill="#2C3E50" text-anchor="middle">Ø 12 – 16 mm</text>
+  <text x="500" y="769" font-family="Arial, sans-serif" font-size="24" font-weight="700" fill="#1B3A5C" text-anchor="middle">9 000 – 9 500 DH</text>
+  <text x="830" y="769" font-family="Arial, sans-serif" font-size="22" fill="#E74C3C" text-anchor="middle">↑ +3%</text>
+
+  <rect x="60" y="789" width="960" height="50" fill="#fff"/>
+  <text x="200" y="819" font-family="Arial, sans-serif" font-size="20" fill="#2C3E50" text-anchor="middle">Ø 20 – 25 mm</text>
+  <text x="500" y="819" font-family="Arial, sans-serif" font-size="24" font-weight="700" fill="#1B3A5C" text-anchor="middle">9 200 – 9 800 DH</text>
+  <text x="830" y="819" font-family="Arial, sans-serif" font-size="22" fill="#E74C3C" text-anchor="middle">↑ +4%</text>
+
+  <!-- Section: SABLE & GRAVIER -->
+  <rect x="60" y="865" width="960" height="44" rx="8" fill="#1B3A5C"/>
+  <text x="90" y="893" font-family="Arial, sans-serif" font-size="22" font-weight="800" fill="#E67E22">🪨  SABLE &amp; GRAVIER</text>
+
+  <rect x="60" y="909" width="960" height="40" fill="#D6E8F5"/>
+  <text x="200" y="934" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#1B3A5C" text-anchor="middle">Type</text>
+  <text x="500" y="934" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#1B3A5C" text-anchor="middle">Prix / m³</text>
+  <text x="830" y="934" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#1B3A5C" text-anchor="middle">Tendance</text>
+
+  <rect x="60" y="949" width="960" height="50" fill="#fff"/>
+  <text x="200" y="979" font-family="Arial, sans-serif" font-size="20" fill="#2C3E50" text-anchor="middle">Sable fin</text>
+  <text x="500" y="979" font-family="Arial, sans-serif" font-size="24" font-weight="700" fill="#1B3A5C" text-anchor="middle">120 – 160 DH</text>
+  <text x="830" y="979" font-family="Arial, sans-serif" font-size="22" fill="#27AE60" text-anchor="middle">→ Stable</text>
+
+  <rect x="60" y="999" width="960" height="50" fill="#F8F9FA"/>
+  <text x="200" y="1029" font-family="Arial, sans-serif" font-size="20" fill="#2C3E50" text-anchor="middle">Sable grossier</text>
+  <text x="500" y="1029" font-family="Arial, sans-serif" font-size="24" font-weight="700" fill="#1B3A5C" text-anchor="middle">100 – 140 DH</text>
+  <text x="830" y="1029" font-family="Arial, sans-serif" font-size="22" fill="#27AE60" text-anchor="middle">→ Stable</text>
+
+  <rect x="60" y="1049" width="960" height="50" fill="#fff"/>
+  <text x="200" y="1079" font-family="Arial, sans-serif" font-size="20" fill="#2C3E50" text-anchor="middle">Gravier 15/25</text>
+  <text x="500" y="1079" font-family="Arial, sans-serif" font-size="24" font-weight="700" fill="#1B3A5C" text-anchor="middle">130 – 170 DH</text>
+  <text x="830" y="1079" font-family="Arial, sans-serif" font-size="22" fill="#E74C3C" text-anchor="middle">↑ +2%</text>
+
+  <!-- Section: BRIQUE -->
+  <rect x="60" y="1125" width="960" height="44" rx="8" fill="#1B3A5C"/>
+  <text x="90" y="1153" font-family="Arial, sans-serif" font-size="22" font-weight="800" fill="#E67E22">🧱  BRIQUE &amp; PARPAING</text>
+
+  <rect x="60" y="1169" width="960" height="50" fill="#fff"/>
+  <text x="200" y="1199" font-family="Arial, sans-serif" font-size="20" fill="#2C3E50" text-anchor="middle">Brique 6 trous</text>
+  <text x="500" y="1199" font-family="Arial, sans-serif" font-size="24" font-weight="700" fill="#1B3A5C" text-anchor="middle">1 500 – 1 800 DH/m³</text>
+  <text x="830" y="1199" font-family="Arial, sans-serif" font-size="22" fill="#27AE60" text-anchor="middle">→ Stable</text>
+
+  <rect x="60" y="1219" width="960" height="50" fill="#F8F9FA"/>
+  <text x="200" y="1249" font-family="Arial, sans-serif" font-size="20" fill="#2C3E50" text-anchor="middle">Parpaing 15 cm</text>
+  <text x="500" y="1249" font-family="Arial, sans-serif" font-size="24" font-weight="700" fill="#1B3A5C" text-anchor="middle">8 – 12 DH/unité</text>
+  <text x="830" y="1249" font-family="Arial, sans-serif" font-size="22" fill="#E74C3C" text-anchor="middle">↑ +5%</text>
+
+  <!-- Footer -->
+  <rect x="0" y="1290" width="1080" height="60" fill="#1B3A5C"/>
+  <text x="540" y="1328" font-family="Arial, sans-serif" font-size="20" fill="#A8C8E8" text-anchor="middle">Prix indicatifs — Varient selon région et fournisseur · ShantiLink Mai 2026</text>
+</svg>

@@ -1,0 +1,100 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <defs>
+    <linearGradient id="hdr" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1B3A5C"/>
+      <stop offset="100%" style="stop-color:#0D2137"/>
+    </linearGradient>
+    <linearGradient id="og" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#E67E22"/>
+      <stop offset="100%" style="stop-color:#F39C12"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="630" fill="#F4F6F8"/>
+  <rect width="1200" height="170" fill="url(#hdr)"/>
+  <rect width="1200" height="6" fill="url(#og)"/>
+
+  <text x="600" y="68" font-family="Arial, sans-serif" font-size="26" fill="#A8C8E8" text-anchor="middle">DOCUMENTATION CHANTIER</text>
+  <text x="600" y="128" font-family="Arial, sans-serif" font-size="46" font-weight="900" fill="#FFFFFF" text-anchor="middle">📸 PHOTOGRAPHIEZ VOTRE CHANTIER</text>
+  <text x="600" y="162" font-family="Arial, sans-serif" font-size="22" fill="#E67E22" text-anchor="middle">Meilleure protection contre les litiges — Guide en 6 étapes</text>
+
+  <!-- Timeline line -->
+  <line x1="100" y1="360" x2="1100" y2="360" stroke="#BDC3C7" stroke-width="3"/>
+
+  <!-- Step 1 -->
+  <circle cx="100" cy="360" r="28" fill="#E67E22"/>
+  <text x="100" y="367" font-family="Arial, sans-serif" font-size="20" font-weight="900" fill="#fff" text-anchor="middle">1</text>
+  <rect x="40" y="185" width="120" height="120" rx="10" fill="#fff"/>
+  <text x="100" y="238" font-family="Arial, sans-serif" font-size="32" text-anchor="middle">🏗️</text>
+  <text x="100" y="268" font-family="Arial, sans-serif" font-size="13" font-weight="700" fill="#1B3A5C" text-anchor="middle">AVANT</text>
+  <text x="100" y="285" font-family="Arial, sans-serif" font-size="12" fill="#5D6D7E" text-anchor="middle">travaux</text>
+  <line x1="100" y1="305" x2="100" y2="332" stroke="#E67E22" stroke-width="2" stroke-dasharray="4"/>
+
+  <text x="100" y="415" font-family="Arial, sans-serif" font-size="12" fill="#5D6D7E" text-anchor="middle">État initial</text>
+  <text x="100" y="432" font-family="Arial, sans-serif" font-size="12" fill="#5D6D7E" text-anchor="middle">du terrain</text>
+
+  <!-- Step 2 -->
+  <circle cx="300" cy="360" r="28" fill="#2980B9"/>
+  <text x="300" y="367" font-family="Arial, sans-serif" font-size="20" font-weight="900" fill="#fff" text-anchor="middle">2</text>
+  <rect x="240" y="185" width="120" height="120" rx="10" fill="#fff"/>
+  <text x="300" y="238" font-family="Arial, sans-serif" font-size="32" text-anchor="middle">🪨</text>
+  <text x="300" y="268" font-family="Arial, sans-serif" font-size="13" font-weight="700" fill="#1B3A5C" text-anchor="middle">FONDATIONS</text>
+  <text x="300" y="285" font-family="Arial, sans-serif" font-size="12" fill="#5D6D7E" text-anchor="middle">semelles</text>
+  <line x1="300" y1="305" x2="300" y2="332" stroke="#2980B9" stroke-width="2" stroke-dasharray="4"/>
+  <text x="300" y="415" font-family="Arial, sans-serif" font-size="12" fill="#5D6D7E" text-anchor="middle">Avant et après</text>
+  <text x="300" y="432" font-family="Arial, sans-serif" font-size="12" fill="#5D6D7E" text-anchor="middle">coulage béton</text>
+
+  <!-- Step 3 -->
+  <circle cx="500" cy="360" r="28" fill="#27AE60"/>
+  <text x="500" y="367" font-family="Arial, sans-serif" font-size="20" font-weight="900" fill="#fff" text-anchor="middle">3</text>
+  <rect x="440" y="185" width="120" height="120" rx="10" fill="#fff"/>
+  <text x="500" y="238" font-family="Arial, sans-serif" font-size="32" text-anchor="middle">🧱</text>
+  <text x="500" y="268" font-family="Arial, sans-serif" font-size="13" font-weight="700" fill="#1B3A5C" text-anchor="middle">MAÇONNERIE</text>
+  <text x="500" y="285" font-family="Arial, sans-serif" font-size="12" fill="#5D6D7E" text-anchor="middle">montée murs</text>
+  <line x1="500" y1="305" x2="500" y2="332" stroke="#27AE60" stroke-width="2" stroke-dasharray="4"/>
+  <text x="500" y="415" font-family="Arial, sans-serif" font-size="12" fill="#5D6D7E" text-anchor="middle">Chaque niveau</text>
+  <text x="500" y="432" font-family="Arial, sans-serif" font-size="12" fill="#5D6D7E" text-anchor="middle">terminé</text>
+
+  <!-- Step 4 -->
+  <circle cx="700" cy="360" r="28" fill="#8E44AD"/>
+  <text x="700" y="367" font-family="Arial, sans-serif" font-size="20" font-weight="900" fill="#fff" text-anchor="middle">4</text>
+  <rect x="640" y="185" width="120" height="120" rx="10" fill="#fff"/>
+  <text x="700" y="238" font-family="Arial, sans-serif" font-size="32" text-anchor="middle">⚡</text>
+  <text x="700" y="268" font-family="Arial, sans-serif" font-size="13" font-weight="700" fill="#1B3A5C" text-anchor="middle">RÉSEAUX</text>
+  <text x="700" y="285" font-family="Arial, sans-serif" font-size="12" fill="#5D6D7E" text-anchor="middle">élec + plomberie</text>
+  <line x1="700" y1="305" x2="700" y2="332" stroke="#8E44AD" stroke-width="2" stroke-dasharray="4"/>
+  <text x="700" y="415" font-family="Arial, sans-serif" font-size="12" fill="#5D6D7E" text-anchor="middle">Avant</text>
+  <text x="700" y="432" font-family="Arial, sans-serif" font-size="12" fill="#5D6D7E" text-anchor="middle">encastrement</text>
+
+  <!-- Step 5 -->
+  <circle cx="900" cy="360" r="28" fill="#E74C3C"/>
+  <text x="900" y="367" font-family="Arial, sans-serif" font-size="20" font-weight="900" fill="#fff" text-anchor="middle">5</text>
+  <rect x="840" y="185" width="120" height="120" rx="10" fill="#fff"/>
+  <text x="900" y="238" font-family="Arial, sans-serif" font-size="32" text-anchor="middle">🎨</text>
+  <text x="900" y="268" font-family="Arial, sans-serif" font-size="13" font-weight="700" fill="#1B3A5C" text-anchor="middle">FINITIONS</text>
+  <text x="900" y="285" font-family="Arial, sans-serif" font-size="12" fill="#5D6D7E" text-anchor="middle">carrelage, peinture</text>
+  <line x1="900" y1="305" x2="900" y2="332" stroke="#E74C3C" stroke-width="2" stroke-dasharray="4"/>
+  <text x="900" y="415" font-family="Arial, sans-serif" font-size="12" fill="#5D6D7E" text-anchor="middle">Détail chaque</text>
+  <text x="900" y="432" font-family="Arial, sans-serif" font-size="12" fill="#5D6D7E" text-anchor="middle">pièce</text>
+
+  <!-- Step 6 -->
+  <circle cx="1100" cy="360" r="28" fill="#E67E22"/>
+  <text x="1100" y="367" font-family="Arial, sans-serif" font-size="20" font-weight="900" fill="#fff" text-anchor="middle">6</text>
+  <rect x="1040" y="185" width="120" height="120" rx="10" fill="#fff"/>
+  <text x="1100" y="238" font-family="Arial, sans-serif" font-size="32" text-anchor="middle">🔑</text>
+  <text x="1100" y="268" font-family="Arial, sans-serif" font-size="13" font-weight="700" fill="#1B3A5C" text-anchor="middle">RÉCEPTION</text>
+  <text x="1100" y="285" font-family="Arial, sans-serif" font-size="12" fill="#5D6D7E" text-anchor="middle">remise clés</text>
+  <line x1="1100" y1="305" x2="1100" y2="332" stroke="#E67E22" stroke-width="2" stroke-dasharray="4"/>
+  <text x="1100" y="415" font-family="Arial, sans-serif" font-size="12" fill="#5D6D7E" text-anchor="middle">Tour complet</text>
+  <text x="1100" y="432" font-family="Arial, sans-serif" font-size="12" fill="#5D6D7E" text-anchor="middle">de l'ouvrage</text>
+
+  <!-- Tips bar -->
+  <rect x="40" y="465" width="1120" height="100" rx="12" fill="#1B3A5C"/>
+  <text x="600" y="500" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#E67E22" text-anchor="middle">💡 Conseils pratiques</text>
+  <text x="600" y="528" font-family="Arial, sans-serif" font-size="16" fill="#A8C8E8" text-anchor="middle">Géolocalisez chaque photo · Nommez les fichiers avec la date · Stockez sur cloud · Minimum 20 photos/phase</text>
+  <text x="600" y="552" font-family="Arial, sans-serif" font-size="16" fill="#A8C8E8" text-anchor="middle">En cas de litige : vos photos datées sont votre meilleure preuve devant le tribunal</text>
+
+  <!-- Footer -->
+  <rect x="0" y="596" width="1200" height="34" fill="#E67E22"/>
+  <text x="600" y="619" font-family="Arial, sans-serif" font-size="17" font-weight="700" fill="#fff" text-anchor="middle">ShantiLink — Communauté BTP Maroc</text>
+</svg>

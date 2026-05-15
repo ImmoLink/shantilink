@@ -1,0 +1,123 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1080" width="1080" height="1080">
+  <defs>
+    <linearGradient id="hdr" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1B3A5C"/>
+      <stop offset="100%" style="stop-color:#0D2137"/>
+    </linearGradient>
+    <linearGradient id="og" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#E67E22"/>
+      <stop offset="100%" style="stop-color:#F39C12"/>
+    </linearGradient>
+    <linearGradient id="leftCol" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#EBF5FB"/>
+      <stop offset="100%" style="stop-color:#D6EAF8"/>
+    </linearGradient>
+    <linearGradient id="rightCol" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#EAFAF1"/>
+      <stop offset="100%" style="stop-color:#D5F5E3"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1080" height="1080" fill="#F4F6F8"/>
+
+  <!-- Header -->
+  <rect width="1080" height="200" fill="url(#hdr)"/>
+  <rect width="1080" height="6" fill="url(#og)"/>
+
+  <text x="540" y="85" font-family="Arial, sans-serif" font-size="30" fill="#A8C8E8" text-anchor="middle">NE CONFONDEZ PLUS</text>
+  <text x="540" y="150" font-family="Arial, sans-serif" font-size="62" font-weight="900" fill="#FFFFFF" text-anchor="middle">DEVIS  vs  CONTRAT</text>
+  <text x="540" y="190" font-family="Arial, sans-serif" font-size="22" fill="#E67E22" text-anchor="middle">Deux documents indispensables — rôles très différents</text>
+
+  <!-- Column headers -->
+  <rect x="40" y="215" width="478" height="72" rx="10" fill="#2980B9"/>
+  <text x="279" y="258" font-family="Arial, sans-serif" font-size="32" font-weight="900" fill="#fff" text-anchor="middle">📄 DEVIS</text>
+
+  <rect x="562" y="215" width="478" height="72" rx="10" fill="#27AE60"/>
+  <text x="801" y="258" font-family="Arial, sans-serif" font-size="32" font-weight="900" fill="#fff" text-anchor="middle">📝 CONTRAT</text>
+
+  <!-- VS badge -->
+  <circle cx="540" cy="251" r="30" fill="#E67E22"/>
+  <text x="540" y="259" font-family="Arial, sans-serif" font-size="18" font-weight="900" fill="#fff" text-anchor="middle">VS</text>
+
+  <!-- Content columns -->
+  <rect x="40" y="298" width="478" height="700" rx="10" fill="url(#leftCol)"/>
+  <rect x="562" y="298" width="478" height="700" rx="10" fill="url(#rightCol)"/>
+
+  <!-- DEVIS column content -->
+  <g font-family="Arial, sans-serif" fill="#1B3A5C">
+    <text x="279" y="345" font-size="20" font-weight="700" text-anchor="middle" fill="#2471A3">Définition</text>
+    <text x="80" y="375" font-size="17">Estimation chiffrée des travaux</text>
+    <text x="80" y="398" font-size="17">à réaliser avant accord.</text>
+
+    <line x1="80" y1="418" x2="498" y2="418" stroke="#BDC3C7" stroke-width="1.5"/>
+
+    <text x="279" y="448" font-size="20" font-weight="700" text-anchor="middle" fill="#2471A3">Valeur juridique</text>
+    <text x="80" y="478" font-size="17" fill="#E74C3C">⚠️  Faible — pas de force</text>
+    <text x="80" y="501" font-size="17" fill="#E74C3C">      contraignante seul</text>
+
+    <line x1="80" y1="521" x2="498" y2="521" stroke="#BDC3C7" stroke-width="1.5"/>
+
+    <text x="279" y="551" font-size="20" font-weight="700" text-anchor="middle" fill="#2471A3">Contenu obligatoire</text>
+    <text x="80" y="581" font-size="16">✔  Description des travaux</text>
+    <text x="80" y="606" font-size="16">✔  Prix unitaires détaillés</text>
+    <text x="80" y="631" font-size="16">✔  Délai d'exécution estimé</text>
+    <text x="80" y="656" font-size="16">✔  Validité du devis (30-90 j)</text>
+
+    <line x1="80" y1="676" x2="498" y2="676" stroke="#BDC3C7" stroke-width="1.5"/>
+
+    <text x="279" y="706" font-size="20" font-weight="700" text-anchor="middle" fill="#2471A3">Quand l'utiliser ?</text>
+    <text x="80" y="736" font-size="16">Avant de choisir votre entrepreneur.</text>
+    <text x="80" y="760" font-size="16">Comparez 3 devis minimum.</text>
+
+    <line x1="80" y1="780" x2="498" y2="780" stroke="#BDC3C7" stroke-width="1.5"/>
+
+    <text x="279" y="810" font-size="20" font-weight="700" text-anchor="middle" fill="#2471A3">Astuce</text>
+    <text x="80" y="840" font-size="16">Gardez tous les devis reçus</text>
+    <text x="80" y="864" font-size="16">même les refusés — références</text>
+    <text x="80" y="888" font-size="16">utiles pour les litiges futurs.</text>
+
+    <rect x="80" y="920" width="358" height="50" rx="8" fill="#2980B9"/>
+    <text x="259" y="951" font-size="18" font-weight="700" fill="#fff" text-anchor="middle">Pas de force légale seul</text>
+  </g>
+
+  <!-- CONTRAT column content -->
+  <g font-family="Arial, sans-serif" fill="#1B4A2C">
+    <text x="801" y="345" font-size="20" font-weight="700" text-anchor="middle" fill="#1E8449">Définition</text>
+    <text x="602" y="375" font-size="17">Accord légal entre client et</text>
+    <text x="602" y="398" font-size="17">entrepreneur — engage les deux.</text>
+
+    <line x1="602" y1="418" x2="1020" y2="418" stroke="#BDC3C7" stroke-width="1.5"/>
+
+    <text x="801" y="448" font-size="20" font-weight="700" text-anchor="middle" fill="#1E8449">Valeur juridique</text>
+    <text x="602" y="478" font-size="17" fill="#27AE60">✅  Forte — recours en justice</text>
+    <text x="602" y="501" font-size="17" fill="#27AE60">      possible en cas de litige</text>
+
+    <line x1="602" y1="521" x2="1020" y2="521" stroke="#BDC3C7" stroke-width="1.5"/>
+
+    <text x="801" y="551" font-size="20" font-weight="700" text-anchor="middle" fill="#1E8449">Contenu obligatoire</text>
+    <text x="602" y="581" font-size="16">✔  Identités complètes des parties</text>
+    <text x="602" y="606" font-size="16">✔  Description précise des travaux</text>
+    <text x="602" y="631" font-size="16">✔  Montant total + échéancier</text>
+    <text x="602" y="656" font-size="16">✔  Pénalités de retard</text>
+
+    <line x1="602" y1="676" x2="1020" y2="676" stroke="#BDC3C7" stroke-width="1.5"/>
+
+    <text x="801" y="706" font-size="20" font-weight="700" text-anchor="middle" fill="#1E8449">Quand l'utiliser ?</text>
+    <text x="602" y="736" font-size="16">Après choix de l'entrepreneur,</text>
+    <text x="602" y="760" font-size="16">AVANT tout début de travaux.</text>
+
+    <line x1="602" y1="780" x2="1020" y2="780" stroke="#BDC3C7" stroke-width="1.5"/>
+
+    <text x="801" y="810" font-size="20" font-weight="700" text-anchor="middle" fill="#1E8449">Astuce</text>
+    <text x="602" y="840" font-size="16">Faites relire par un juriste ou</text>
+    <text x="602" y="864" font-size="16">un expert ShantiLink avant signature.</text>
+    <text x="602" y="888" font-size="16">N'avancez jamais sans contrat.</text>
+
+    <rect x="602" y="920" width="358" height="50" rx="8" fill="#27AE60"/>
+    <text x="781" y="951" font-size="18" font-weight="700" fill="#fff" text-anchor="middle">Protège vos droits ✅</text>
+  </g>
+
+  <!-- Footer -->
+  <rect x="0" y="1020" width="1080" height="60" fill="#1B3A5C"/>
+  <text x="540" y="1058" font-family="Arial, sans-serif" font-size="20" font-weight="700" fill="#E67E22" text-anchor="middle">ShantiLink — Conseil BTP Maroc</text>
+</svg>
