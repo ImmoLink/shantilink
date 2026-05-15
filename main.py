@@ -2185,6 +2185,26 @@ def bootstrap_admin(body: dict):
     finally:
         conn.close()
 
+@app.post("/bootstrap/reset-admin")
+def bootstrap_reset_admin(body: dict):
+    secret = os.environ.get("BOOTSTRAP_SECRET", "")
+    if not secret or body.get("secret") != secret:
+        raise HTTPException(403, "Clé invalide")
+    pwd = body.get("password")
+    if not pwd or len(pwd) < 6:
+        raise HTTPException(400, "Mot de passe trop court (min 6 caractères)")
+    conn = get_db()
+    try:
+        row = conn.execute(text("SELECT id, email FROM users WHERE role='admin' LIMIT 1")).fetchone()
+        if not row:
+            raise HTTPException(404, "Aucun admin trouvé")
+        hashed = hash_password(pwd)
+        conn.execute(*sql_params("UPDATE users SET password_hash=? WHERE id=?", [hashed, row[0]]))
+        conn.commit()
+        return {"ok": True, "email": row[1], "message": "Mot de passe réinitialisé"}
+    finally:
+        conn.close()
+
 # ── Static files & SPA ────────────────────────────────────────────────────────
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
