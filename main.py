@@ -1031,7 +1031,7 @@ def create_community_post(data: PostIn, user: dict = Depends(get_current_user)):
         post_id = "cp" + uid()
         conn.execute(*sql_params(
             "INSERT INTO community_posts (id,user_id,content,category,titre,tags,media_url,created_at) VALUES (?,?,?,?,?,?,?,?)",
-            [post_id, user["sub"], data.content.strip()[:2000], data.category, (data.titre or '')[:200], (data.tags or '[]'), (data.media_url or '')[:500], now_iso()]
+            [post_id, user["sub"], data.content.strip()[:2000], data.category, (data.titre or '')[:200], (data.tags or '[]'), (data.media_url or ''), now_iso()]
         ))
         conn.commit()
         return {"id": post_id, "ok": True}

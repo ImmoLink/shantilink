@@ -123,7 +123,6 @@ window.showDashPanel = function(name, btn) {
   if (name === 'planning') renderPlanningPanel();
   if (name === 'communaute') loadDashComm();
   if (name === 'projet-detail' && _detailPid) renderProjectDetail(_detailPid);
-  setTimeout(() => window.maybeShowOnboarding && maybeShowOnboarding(name), 400);
   if (name === 'devis') loadBriefsPanel();
   if (name === 'parrainage') loadReferralPanel();
   if (name === 'admin') renderAdminPanel();

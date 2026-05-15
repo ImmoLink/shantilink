@@ -1201,8 +1201,8 @@ function _renderCommPost(p) {
   const titreHTML = p.titre
     ? '<div style="font-size:14px;font-weight:700;color:var(--ink);margin-bottom:.3rem">' + esc(p.titre) + '</div>'
     : '';
-  const mediaHTML = (p.media_url && /\.(jpg|jpeg|png|gif|webp)/i.test(p.media_url))
-    ? '<img src="' + esc(p.media_url) + '" style="width:100%;max-height:200px;object-fit:cover;border-radius:8px;margin-top:.5rem" loading="lazy"/>'
+  const mediaHTML = (p.media_url && (/\.(jpg|jpeg|png|gif|webp)/i.test(p.media_url) || p.media_url.startsWith('data:image/')))
+    ? '<img src="' + esc(p.media_url) + '" style="width:100%;max-height:280px;object-fit:cover;border-radius:10px;margin-top:.6rem" loading="lazy"/>'
     : '';
   const tagsHTML = p.tags
     ? '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:.4rem">'
@@ -1220,7 +1220,7 @@ function _renderCommPost(p) {
     + '</div>'
     + '</div>'
     + titreHTML
-    + '<p style="font-size:13px;color:var(--ink);line-height:1.65;margin:.5rem 0 0">' + esc(p.content||'') + '</p>'
+    + '<p style="font-size:13px;color:var(--ink);line-height:1.65;margin:.5rem 0 0;white-space:pre-line">' + esc(p.content||'') + '</p>'
     + mediaHTML
     + tagsHTML
     + '<div style="margin-top:.6rem">'
@@ -1267,24 +1267,75 @@ window.loadDashComm = async function() {
   }
 };
 
+let _commImageDataUrl = '';
+
 window.openCommComposer = function() {
   const c = document.getElementById('comm-composer-dash');
   if (!c) return;
   const isOpen = c.style.display !== 'none' && c.style.display !== '';
-  if (isOpen) { c.style.display = 'none'; return; }
-  // Build enriched composer HTML if not already built
-  if (!document.getElementById('comm-post-titre')) {
-    c.innerHTML = '<div style="background:var(--sand);border-radius:12px;padding:1rem;margin-bottom:1rem">'
-      + '<input type="text" id="comm-post-titre" placeholder="Titre (optionnel)" maxlength="80" style="width:100%;margin-bottom:.5rem;padding:8px 10px;border-radius:8px;border:1.5px solid var(--border);font-size:13px;box-sizing:border-box;font-family:Outfit,sans-serif"/>'
-      + '<textarea id="comm-post-text" placeholder="Partagez une actualité, un conseil ou une question..." style="width:100%;height:80px;border-radius:8px;border:1.5px solid var(--border);padding:8px 10px;font-size:13px;resize:none;box-sizing:border-box;font-family:Outfit,sans-serif"></textarea>'
-      + '<input type="text" id="comm-post-tags" placeholder="Tags : chantier, conseil, btp..." style="width:100%;margin-top:.5rem;padding:8px 10px;border-radius:8px;border:1.5px solid var(--border);font-size:12px;box-sizing:border-box;font-family:Outfit,sans-serif"/>'
-      + '<div style="display:flex;justify-content:flex-end;gap:.5rem;margin-top:.6rem">'
-      + '<button onclick="openCommComposer()" style="padding:7px 14px;border-radius:8px;border:1px solid var(--border);background:transparent;font-size:12px;cursor:pointer;font-family:Outfit,sans-serif">Annuler</button>'
-      + '<button onclick="submitCommPost()" style="padding:7px 16px;border-radius:8px;border:none;background:var(--clay);color:white;font-size:12px;font-weight:600;cursor:pointer;font-family:Outfit,sans-serif">Publier</button>'
-      + '</div>'
-      + '</div>';
-  }
+  if (isOpen) { c.style.display = 'none'; _commImageDataUrl = ''; return; }
+  // (Re)build composer HTML each open to reset state
+  _commImageDataUrl = '';
+  c.innerHTML = '<div style="background:var(--sand);border-radius:14px;padding:1rem 1.1rem;margin-bottom:1rem">'
+    // Titre
+    + '<input type="text" id="comm-post-titre" placeholder="Titre (optionnel)" maxlength="80" style="width:100%;margin-bottom:.6rem;padding:9px 11px;border-radius:8px;border:1.5px solid var(--border);font-size:13px;box-sizing:border-box;font-family:Outfit,sans-serif;outline:none"/>'
+    // Contenu
+    + '<textarea id="comm-post-text" placeholder="Partagez une actualité, un conseil, une question..." style="width:100%;height:100px;border-radius:8px;border:1.5px solid var(--border);padding:9px 11px;font-size:13px;resize:vertical;box-sizing:border-box;font-family:Outfit,sans-serif;outline:none;line-height:1.6"></textarea>'
+    // Tags
+    + '<input type="text" id="comm-post-tags" placeholder="Tags : chantier, conseil, btp..." style="width:100%;margin-top:.5rem;padding:8px 11px;border-radius:8px;border:1.5px solid var(--border);font-size:12px;box-sizing:border-box;font-family:Outfit,sans-serif;outline:none"/>'
+    // Image picker
+    + '<div style="margin-top:.7rem">'
+    + '<label id="comm-img-label" style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:8px;border:1.5px dashed var(--clay);background:var(--clay-pp);color:var(--clay);font-size:12px;font-weight:600;cursor:pointer;font-family:Outfit,sans-serif">'
+    + '🖼️ Ajouter une image'
+    + '<input type="file" id="comm-img-input" accept="image/*" style="display:none" onchange="previewCommImage(this)"/>'
+    + '</label>'
+    + '<span id="comm-img-name" style="font-size:11px;color:var(--muted);margin-left:.5rem"></span>'
+    + '</div>'
+    // Prévisualisation image
+    + '<div id="comm-img-preview-wrap" style="display:none;margin-top:.6rem;position:relative">'
+    + '<img id="comm-img-preview" style="width:100%;max-height:200px;object-fit:cover;border-radius:8px;border:1px solid var(--border)"/>'
+    + '<button onclick="removeCommImage()" style="position:absolute;top:6px;right:6px;background:rgba(15,29,54,.65);color:white;border:none;border-radius:50%;width:24px;height:24px;font-size:14px;cursor:pointer;line-height:1;display:flex;align-items:center;justify-content:center">✕</button>'
+    + '</div>'
+    // Actions
+    + '<div style="display:flex;justify-content:flex-end;gap:.5rem;margin-top:.8rem">'
+    + '<button onclick="openCommComposer()" style="padding:8px 16px;border-radius:8px;border:1px solid var(--border);background:transparent;font-size:12px;font-weight:600;cursor:pointer;font-family:Outfit,sans-serif;color:var(--muted)">Annuler</button>'
+    + '<button onclick="submitCommPost()" id="comm-submit-btn" style="padding:8px 18px;border-radius:8px;border:none;background:var(--clay);color:white;font-size:13px;font-weight:600;cursor:pointer;font-family:Outfit,sans-serif">Publier</button>'
+    + '</div>'
+    + '</div>';
   c.style.display = 'block';
+  // Focus textarea
+  setTimeout(() => { const t = document.getElementById('comm-post-text'); if (t) t.focus(); }, 50);
+};
+
+window.previewCommImage = function(input) {
+  const file = input.files[0];
+  if (!file) return;
+  if (file.size > 3 * 1024 * 1024) { toast('Image trop lourde (max 3 Mo)', 'error'); input.value = ''; return; }
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    _commImageDataUrl = e.target.result;
+    const preview = document.getElementById('comm-img-preview');
+    const wrap    = document.getElementById('comm-img-preview-wrap');
+    const name    = document.getElementById('comm-img-name');
+    const label   = document.getElementById('comm-img-label');
+    if (preview) preview.src = _commImageDataUrl;
+    if (wrap)    wrap.style.display = 'block';
+    if (name)    name.textContent = file.name;
+    if (label)   label.style.borderStyle = 'solid';
+  };
+  reader.readAsDataURL(file);
+};
+
+window.removeCommImage = function() {
+  _commImageDataUrl = '';
+  const wrap  = document.getElementById('comm-img-preview-wrap');
+  const input = document.getElementById('comm-img-input');
+  const name  = document.getElementById('comm-img-name');
+  const label = document.getElementById('comm-img-label');
+  if (wrap)  wrap.style.display = 'none';
+  if (input) input.value = '';
+  if (name)  name.textContent = '';
+  if (label) label.style.borderStyle = 'dashed';
 };
 
 window.submitCommPost = async function() {
@@ -1292,22 +1343,24 @@ window.submitCommPost = async function() {
   const titre = (document.getElementById('comm-post-titre') || {}).value.trim();
   const tags  = (document.getElementById('comm-post-tags') || {}).value.trim();
   if (!txt) { toast('Rédigez votre publication avant de publier.', 'error'); return; }
+  const btn = document.getElementById('comm-submit-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Publication…'; }
   try {
+    const payload = { content: txt, titre, tags, category: 'update' };
+    if (_commImageDataUrl) payload.media_url = _commImageDataUrl;
     await fetch('/api/community/posts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (API.getToken() || '') },
-      body: JSON.stringify({ content: txt, titre, tags, category: 'update' })
+      body: JSON.stringify(payload)
     });
-    const textEl  = document.getElementById('comm-post-text');
-    const titreEl = document.getElementById('comm-post-titre');
-    const tagsEl  = document.getElementById('comm-post-tags');
-    if (textEl)  textEl.value  = '';
-    if (titreEl) titreEl.value = '';
-    if (tagsEl)  tagsEl.value  = '';
+    _commImageDataUrl = '';
     document.getElementById('comm-composer-dash').style.display = 'none';
     toast('Publication envoyée !', 'success');
     loadDashComm();
-  } catch(e) { toast('Erreur lors de la publication.', 'error'); }
+  } catch(e) {
+    toast('Erreur lors de la publication.', 'error');
+    if (btn) { btn.disabled = false; btn.textContent = 'Publier'; }
+  }
 };
 
 // ── Video modal ───────────────────────────────────────────────────────────────
