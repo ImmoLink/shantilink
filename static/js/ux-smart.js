@@ -174,11 +174,11 @@ window.openReceiptScanner = function() {
 window.handleReceiptFile = async function(input) {
   const file = input.files[0];
   if (!file) return;
-  const btn = document.getElementById('receipt-scan-btn');
+  const btn    = document.getElementById('btn-photo-scan');
   const status = document.getElementById('receipt-scan-status');
 
-  if (btn) { btn.disabled = true; btn.textContent = '⏳ Analyse…'; }
-  if (status) { status.textContent = 'Analyse IA en cours…'; status.style.color = 'var(--clay)'; }
+  if (btn)    { btn.classList.add('scanning'); btn.disabled = true; }
+  if (status) { status.textContent = '⏳ Analyse IA en cours…'; status.className = 'scan-status info'; }
 
   try {
     const base64 = await _fileToBase64(file);
@@ -191,31 +191,36 @@ window.handleReceiptFile = async function(input) {
       body: JSON.stringify({ image: base64, media_type: file.type || 'image/jpeg' }),
     });
 
-    if (!res.ok) throw new Error('Analyse échouée');
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || `Erreur ${res.status}`);
+    }
     const { result } = await res.json();
 
-    if (!result || result.montant === null) {
-      if (status) { status.textContent = '⚠️ Photo peu claire — éclaire mieux le document'; status.style.color = 'var(--red)'; }
+    if (!result || (result.montant === null && !result.description)) {
+      if (status) { status.textContent = '⚠️ Photo peu lisible — éclaire mieux le document'; status.className = 'scan-status warn'; }
       return;
     }
 
     // Fill form fields
-    if (result.montant)   { _setField('dep-montant', result.montant); }
-    if (result.description || result.fournisseur) {
-      _setField('dep-desc', result.description || result.fournisseur);
-    }
-    if (result.date)      { _setField('dep-date', result.date); }
-    if (result.categorie) {
-      const uiCat = _mapCat(result.categorie);
-      selectTile('dep-cat-tiles', uiCat);
-    }
+    if (result.montant)                           { _setField('dep-montant', result.montant); }
+    if (result.description || result.fournisseur) { _setField('dep-desc', result.description || result.fournisseur); }
+    if (result.date)                              { _setField('dep-date', result.date); }
+    if (result.categorie)                         { selectTile('dep-cat-tiles', _mapCat(result.categorie)); }
     _markAIFilled();
-    if (status) { status.textContent = '✅ Champs remplis automatiquement !'; status.style.color = 'var(--green)'; }
+    if (status) { status.textContent = '✅ Champs remplis automatiquement !'; status.className = 'scan-status ok'; }
     toast('📷 Document analysé — champs pré-remplis', 'success');
   } catch (err) {
-    if (status) { status.textContent = '⚠️ Pas de connexion — remplis manuellement'; status.style.color = 'var(--muted)'; }
+    const msg = err.message || '';
+    if (status) {
+      status.textContent = msg.includes('401') ? '🔒 Connecte-toi pour utiliser cette fonction'
+                         : msg.includes('400') ? '⚙️ IA non configurée sur ce serveur'
+                         : '⚠️ Erreur — réessaie ou remplis manuellement';
+      status.className = 'scan-status warn';
+    }
+    console.error('[PhotoScan]', err);
   } finally {
-    if (btn) { btn.disabled = false; btn.textContent = '📷 Scanner un reçu'; }
+    if (btn)   { btn.classList.remove('scanning'); btn.disabled = false; }
     input.value = '';
   }
 };
@@ -267,7 +272,6 @@ window.toggleVoiceInput = function() {
 function _startVoice() {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SpeechRecognition) {
-    // Fallback: show manual text input
     _showVoiceTextFallback();
     return;
   }
@@ -276,30 +280,38 @@ function _startVoice() {
   _voiceRecognition.continuous = false;
   _voiceRecognition.interimResults = true;
 
-  const btn = document.getElementById('voice-input-btn');
+  const btn  = document.getElementById('btn-voice');
   const live = document.getElementById('voice-live-text');
-  if (btn) { btn.classList.add('recording'); btn.textContent = '⏹ Stop'; }
-  if (live) { live.style.display = 'block'; live.textContent = '🎙️ Parle maintenant…'; }
+  if (btn)  { btn.classList.add('recording'); btn.innerHTML = '<span class="voice-dot"></span>⏹ Stop'; }
+  if (live) { live.style.display = 'block'; live.textContent = '🎙️ Parle maintenant…'; live.className = 'voice-live info'; }
   _isRecording = true;
 
+  let _lastTranscript = '';
+
   _voiceRecognition.onresult = (e) => {
-    const transcript = Array.from(e.results).map(r => r[0].transcript).join(' ');
-    if (live) live.textContent = transcript;
+    _lastTranscript = Array.from(e.results).map(r => r[0].transcript).join(' ');
+    if (live) live.textContent = _lastTranscript;
   };
 
   _voiceRecognition.onend = () => {
     _isRecording = false;
-    if (btn) { btn.classList.remove('recording'); btn.textContent = '🎙️ Voix'; }
-    const transcript = live ? live.textContent : '';
-    if (transcript && transcript !== '🎙️ Parle maintenant…') {
-      _extractVoice(transcript);
+    if (btn) { btn.classList.remove('recording'); btn.innerHTML = '<span class="voice-dot"></span>🎙️ Voix'; }
+    if (_lastTranscript && _lastTranscript !== '🎙️ Parle maintenant…') {
+      _extractVoice(_lastTranscript);
+    } else {
+      if (live) { live.style.display = 'none'; }
     }
   };
 
-  _voiceRecognition.onerror = () => {
+  _voiceRecognition.onerror = (e) => {
     _isRecording = false;
-    if (btn) { btn.classList.remove('recording'); btn.textContent = '🎙️ Voix'; }
-    _showVoiceTextFallback();
+    if (btn) { btn.classList.remove('recording'); btn.innerHTML = '<span class="voice-dot"></span>🎙️ Voix'; }
+    if (e.error === 'not-allowed') {
+      if (live) { live.textContent = '🚫 Microphone refusé — autorise dans le navigateur'; live.style.display = 'block'; live.className = 'voice-live warn'; }
+    } else {
+      _showVoiceTextFallback();
+    }
+    console.warn('[Voice]', e.error);
   };
 
   _voiceRecognition.start();
@@ -312,28 +324,41 @@ function _stopVoice() {
 
 async function _extractVoice(transcription) {
   const live = document.getElementById('voice-live-text');
-  if (live) live.textContent = '⏳ Analyse en cours…';
+  const btn  = document.getElementById('btn-voice');
+  if (live) { live.textContent = '⏳ Analyse IA en cours…'; live.style.display = 'block'; live.className = 'voice-live info'; }
+  if (btn)  { btn.classList.add('processing'); btn.disabled = true; }
   try {
     const res = await fetch('/api/extract-voice', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem('bna_token') || '') },
       body: JSON.stringify({ transcription }),
     });
-    if (!res.ok) throw new Error();
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || `Erreur ${res.status}`);
+    }
     const { result } = await res.json();
-    if (result) {
-      if (result.montant)                { _setField('dep-montant', result.montant); }
-      if (result.description || result.fournisseur) { _setField('dep-desc', result.description || result.fournisseur); }
-      if (result.categorie)              { selectTile('dep-cat-tiles', _mapCat(result.categorie)); }
-      if (result.date)                   { _setField('dep-date', result.date); }
+    if (result && (result.montant || result.description || result.categorie)) {
+      if (result.montant)                              { _setField('dep-montant', result.montant); }
+      if (result.description || result.fournisseur)    { _setField('dep-desc', result.description || result.fournisseur); }
+      if (result.categorie)                            { selectTile('dep-cat-tiles', _mapCat(result.categorie)); }
+      if (result.date)                                 { _setField('dep-date', result.date); }
       _markAIFilled();
       toast('🎙️ Compris ! Champs remplis automatiquement', 'success');
-      if (live) live.textContent = '✅ ' + transcription;
+      if (live) { live.textContent = '✅ ' + transcription; live.className = 'voice-live ok'; }
     } else {
-      if (live) live.textContent = '❓ Non compris — reformule ou remplis manuellement';
+      if (live) { live.textContent = '❓ Non compris — reformule ou remplis manuellement'; live.className = 'voice-live warn'; }
     }
-  } catch (_) {
-    if (live) live.textContent = '⚠️ Pas de connexion — remplis manuellement';
+  } catch (err) {
+    const msg = err.message || '';
+    if (live) {
+      live.textContent = msg.includes('401') ? '🔒 Connecte-toi pour utiliser cette fonction'
+                       : '⚠️ Erreur IA — remplis manuellement';
+      live.className = 'voice-live warn';
+    }
+    console.error('[VoiceExtract]', err);
+  } finally {
+    if (btn) { btn.classList.remove('processing'); btn.disabled = false; }
   }
 }
 
@@ -525,7 +550,7 @@ window.onDepFormOpen = function() {
     if (el) el.classList.remove('ux-ai-filled');
   });
   const status = document.getElementById('receipt-scan-status');
-  if (status) status.textContent = '';
+  if (status) { status.textContent = ''; status.className = 'scan-status'; }
   const live = document.getElementById('voice-live-text');
-  if (live) live.style.display = 'none';
+  if (live) { live.style.display = 'none'; live.textContent = ''; }
 };

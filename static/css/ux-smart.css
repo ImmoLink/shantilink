@@ -135,6 +135,17 @@
 #btn-photo-scan.scanning .scan-spinner { display: inline-block; }
 #receipt-file-input { display: none; }
 
+/* Status messages under scan/voice buttons */
+.scan-status, .voice-live {
+  font-size: 12px;
+  padding: 4px 0 6px;
+  min-height: 18px;
+  transition: color .2s;
+}
+.scan-status.info, .voice-live.info { color: var(--clay, #1D5FA6); }
+.scan-status.ok,   .voice-live.ok   { color: var(--green, #1F6B3A); }
+.scan-status.warn, .voice-live.warn { color: var(--amber, #8B5E0A); }
+
 .ai-filled {
   position: relative;
 }
