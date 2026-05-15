@@ -28,6 +28,7 @@ function catBadge(cat) {
   return `<span style="display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:600;padding:2px 8px;border-radius:100px;background:${c.bg};color:${c.color};border:1px solid ${c.color}20">${c.icon} ${cat||'Autre'}</span>`;
 }
 let _ovCharts = {};
+let _depCatFilter = null;
 let _detailPid = null;
 window._detailPid = null;
 
@@ -122,6 +123,7 @@ window.showDashPanel = function(name, btn) {
   if (name === 'planning') renderPlanningPanel();
   if (name === 'communaute') loadDashComm();
   if (name === 'projet-detail' && _detailPid) renderProjectDetail(_detailPid);
+  setTimeout(() => window.maybeShowOnboarding && maybeShowOnboarding(name), 400);
   if (name === 'devis') loadBriefsPanel();
   if (name === 'parrainage') loadReferralPanel();
   if (name === 'admin') renderAdminPanel();
@@ -466,6 +468,7 @@ function projCardHTML(p, showActions = false) {
         + '</div>'
         + '<div style="margin-top:.6rem;display:flex;gap:.5rem;flex-wrap:wrap">'
         + '<button onclick="openPlanningPanel(\'' + p.id + '\')" style="margin:0;font-size:11px;font-weight:600;padding:5px 12px;background:var(--blue-b);color:var(--blue);border:.5px solid rgba(26,79,139,.2);border-radius:100px;cursor:pointer;font-family:Outfit,sans-serif">📋 ' + t('planning_title','Planning') + '</button>'
+        + '<button onclick="openEditProject(\'' + p.id + '\')" style="margin:0;font-size:11px;font-weight:600;padding:5px 12px;background:var(--sand);color:var(--ink);border:.5px solid var(--border);border-radius:100px;cursor:pointer;font-family:Outfit,sans-serif">✏️ Modifier</button>'
         + '<button onclick="delProjet(\'' + p.id + '\')" style="margin:0;font-size:11px;font-weight:500;padding:5px 12px;background:var(--red-b);color:var(--red);border:.5px solid rgba(139,31,31,.2);border-radius:100px;cursor:pointer;font-family:Outfit,sans-serif">' + t('delete_btn','Supprimer') + '</button>'
         + '</div>'
     : '';
@@ -1353,13 +1356,24 @@ function renderDepenses(showAll) {
 
   const tbody = document.getElementById('dep-tbody');
   if (!tbody) return;
-  const displayList = showAll
+  const baseList = showAll
     ? DB.expenses  // full history including soft-deleted
     : activeExpenses();
 
+  // Build cats from all non-deleted expenses (for the chart, unfiltered by category)
   let total = 0, semaine = 0;
   const cats = {};
   const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0];
+  baseList.forEach(d => {
+    if (!d.deleted) {
+      cats[d.categorie] = (cats[d.categorie] || 0) + d.montant;
+    }
+  });
+
+  // Apply category filter for table display
+  const displayList = _depCatFilter
+    ? baseList.filter(d => d.categorie === _depCatFilter)
+    : baseList;
 
   if (displayList.length === 0) {
     tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:2rem">' + t('dep_empty','Aucune dépense enregistrée') + '</td></tr>';
@@ -1369,7 +1383,6 @@ function renderDepenses(showAll) {
       if (!isDeleted) {
         total += d.montant;
         if (d.date >= weekAgo) semaine += d.montant;
-        cats[d.categorie] = (cats[d.categorie] || 0) + d.montant;
       }
       const proj = d.project_id ? DB.projects.find(p => p.id === d.project_id) : null;
       const projLabel = proj ? '<span style="font-size:9px;background:var(--clay-p);color:var(--clay);padding:2px 6px;border-radius:100px">' + proj.nom + '</span>' : '';
@@ -1389,7 +1402,101 @@ function renderDepenses(showAll) {
   set('dep-sem', fmt(semaine));
   const dm = document.getElementById('dep-cat-main');
   if (dm) dm.textContent = Object.keys(cats).sort((a, b) => cats[b] - cats[a])[0] || '—';
+  renderDepChart(cats);
 }
+
+window.clearDepFilter = function() { _depCatFilter = null; renderDepenses(); };
+
+function renderDepChart(cats) {
+  const canvas = document.getElementById('chart-dep-cat');
+  const placeholder = document.getElementById('dep-chart-placeholder');
+  const legendEl = document.getElementById('dep-chart-legend');
+  if (!canvas) return;
+  const catKeys = Object.keys(cats);
+  if (!catKeys.length || typeof Chart === 'undefined') {
+    if (placeholder) placeholder.style.display = 'block';
+    canvas.style.display = 'none';
+    if (legendEl) legendEl.innerHTML = '';
+    return;
+  }
+  if (placeholder) placeholder.style.display = 'none';
+  canvas.style.display = 'block';
+  // Destroy existing chart
+  if (_ovCharts['depCat']) { try { _ovCharts['depCat'].destroy(); } catch(e){} }
+  const bgColors = catKeys.map(cat => {
+    const hex = EXPENSE_CATEGORIES[cat]?.color || '#9CA3AF';
+    return hex + 'CC'; // ~0.8 opacity in hex
+  });
+  const totalAll = catKeys.reduce((s, k) => s + cats[k], 0);
+  _ovCharts['depCat'] = new Chart(canvas, {
+    type: 'doughnut',
+    data: {
+      labels: catKeys,
+      datasets: [{ data: catKeys.map(k => cats[k]), backgroundColor: bgColors, borderWidth: 2, borderColor: 'var(--white,#fff)' }]
+    },
+    options: {
+      cutout: '65%',
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: function(ctx) { return ctx.label + ' : ' + fmt(ctx.parsed); }
+          }
+        }
+      },
+      onClick: function(evt, elements) {
+        if (!elements.length) return;
+        const label = _ovCharts['depCat'].data.labels[elements[0].index];
+        _depCatFilter = (_depCatFilter === label) ? null : label;
+        renderDepenses();
+      }
+    },
+    plugins: [{
+      id: 'centerText',
+      afterDraw(chart) {
+        const { ctx, chartArea: { top, left, width, height } } = chart;
+        ctx.save();
+        const cx = left + width / 2, cy = top + height / 2;
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillStyle = 'var(--ink,#0F1D36)';
+        ctx.font = 'bold 12px Outfit,sans-serif';
+        ctx.fillText(fmt(totalAll), cx, cy - 7);
+        ctx.font = '10px Outfit,sans-serif';
+        ctx.fillStyle = 'var(--muted,#6B7280)';
+        ctx.fillText('dépenses', cx, cy + 9);
+        ctx.restore();
+      }
+    }]
+  });
+  // Build legend
+  if (legendEl) {
+    legendEl.innerHTML = catKeys.map(cat => {
+      const color = EXPENSE_CATEGORIES[cat]?.color || '#9CA3AF';
+      const pct = totalAll ? Math.round(cats[cat] / totalAll * 100) : 0;
+      const isActive = _depCatFilter === cat;
+      return '<div onclick="window._depCatClickLegend(\'' + cat.replace(/'/g,"&#39;") + '\')" style="display:flex;align-items:center;gap:6px;padding:3px 6px;border-radius:6px;cursor:pointer;margin-bottom:2px;' + (isActive ? 'background:var(--sand);' : '') + '">'
+        + '<div style="width:10px;height:10px;border-radius:2px;flex-shrink:0;background:' + color + '"></div>'
+        + '<span style="flex:1;color:var(--ink);font-size:11px">' + cat + '</span>'
+        + '<span style="color:var(--muted);font-size:10px">' + pct + '%</span>'
+        + '</div>';
+    }).join('');
+  }
+  // Update filter chip
+  const chip = document.getElementById('dep-cat-filter-chip');
+  if (chip) {
+    if (_depCatFilter) {
+      chip.textContent = 'Filtre : ' + _depCatFilter + ' ✕';
+      chip.style.display = 'inline';
+    } else {
+      chip.style.display = 'none';
+    }
+  }
+}
+
+window._depCatClickLegend = function(cat) {
+  _depCatFilter = (_depCatFilter === cat) ? null : cat;
+  renderDepenses();
+};
 
 window.addDepense = async function() {
   const desc    = document.getElementById('dep-desc').value.trim();
@@ -2861,3 +2968,116 @@ window.adminDeleteUser = async function(uid) {
     renderAdminPanel();
   } catch(e) { toast(e.message,'error'); }
 };
+
+// ── PROJECT EDITING ───────────────────────────────────────────────────────────
+window.openEditProject = function(pid) {
+  const p = DB.projects.find(x => x.id === pid);
+  if (!p) return;
+  const modal = document.getElementById('edit-project-modal');
+  if (!modal) return;
+  document.getElementById('edit-proj-id').value = p.id;
+  document.getElementById('edit-proj-nom').value = p.nom || '';
+  document.getElementById('edit-proj-ville').value = p.ville || '';
+  document.getElementById('edit-proj-budget').value = p.budget || '';
+  document.getElementById('edit-proj-type').value = p.type || 'Villa / Maison individuelle';
+  document.getElementById('edit-proj-desc').value = p.description || '';
+  modal.style.display = 'flex';
+};
+
+window.closeEditProject = function() {
+  const modal = document.getElementById('edit-project-modal');
+  if (modal) modal.style.display = 'none';
+};
+
+window.saveEditProject = async function() {
+  const id     = document.getElementById('edit-proj-id').value;
+  const nom    = document.getElementById('edit-proj-nom').value.trim();
+  const ville  = document.getElementById('edit-proj-ville').value.trim();
+  const budget = parseInt(document.getElementById('edit-proj-budget').value) || 0;
+  const type   = document.getElementById('edit-proj-type').value;
+  const description = document.getElementById('edit-proj-desc').value.trim();
+  if (!nom || !ville) { toast('Nom et ville requis.', 'error'); return; }
+  const btn = document.getElementById('edit-proj-save-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Sauvegarde…'; }
+  try {
+    const updated = await API.updateProject(id, { nom, ville, budget, type, description });
+    const idx = DB.projects.findIndex(x => x.id === id);
+    if (idx !== -1) DB.projects[idx] = { ...DB.projects[idx], ...updated };
+    closeEditProject();
+    renderProjets();
+    renderOverview();
+    toast('Projet mis à jour !', 'success');
+  } catch (e) { toast(e.message, 'error'); }
+  finally { if (btn) { btn.disabled = false; btn.textContent = 'Enregistrer'; } }
+};
+
+// ── ONBOARDING GUIDE ─────────────────────────────────────────────────────────
+const ONBOARDING_GUIDES = {
+  overview: [
+    { target: '#kpi-proj',       title: '🏗️ Vos projets', text: 'Créez votre premier projet pour démarrer le suivi.' },
+    { target: '#ov-activite',    title: '⚡ Activité',     text: 'Retrouvez ici toutes vos actions récentes.' },
+    { target: '#chart-proj-progress', title: '📊 Avancement', text: 'Ce graphique montre l\'avancement de chaque projet.' },
+  ],
+  depenses: [
+    { target: '#btn-photo-scan', title: '📸 Scanner un reçu', text: 'Photographiez votre reçu — l\'IA extrait automatiquement le montant et la catégorie.' },
+    { target: '#btn-voice',      title: '🎙️ Saisie vocale',  text: 'Dites « 3500 DH pour le béton » et le formulaire se remplit.' },
+    { target: '#chart-dep-cat',  title: '📊 Graphique catégories', text: 'Cliquez une tranche pour filtrer vos dépenses par catégorie.' },
+  ],
+  projets: [
+    { target: '.proj-card',      title: '🏗️ Carte projet', text: 'Glissez le curseur pour mettre à jour l\'avancement. Cliquez ✏️ pour modifier.' },
+  ],
+  planning: [
+    { target: '#plan-save-bar',  title: '💾 Sauvegarde',   text: 'N\'oubliez pas de sauvegarder après toute modification du planning.' },
+  ],
+};
+
+const _onboardingShown = new Set(
+  JSON.parse(localStorage.getItem('bna_onboarding_done') || '[]')
+);
+
+window.maybeShowOnboarding = function(panel) {
+  if (_onboardingShown.has(panel)) return;
+  const steps = ONBOARDING_GUIDES[panel];
+  if (!steps || !steps.length) return;
+  setTimeout(() => _runOnboarding(panel, steps, 0), 600);
+};
+
+function _runOnboarding(panel, steps, idx) {
+  if (idx >= steps.length) {
+    _onboardingShown.add(panel);
+    const done = JSON.parse(localStorage.getItem('bna_onboarding_done') || '[]');
+    done.push(panel);
+    localStorage.setItem('bna_onboarding_done', JSON.stringify(done));
+    return;
+  }
+  const step = steps[idx];
+  const target = document.querySelector(step.target);
+  const tip = document.createElement('div');
+  tip.id = 'onboarding-tip';
+  tip.style.cssText = 'position:fixed;z-index:2000;background:var(--ink,#0F1D36);color:white;border-radius:12px;padding:.9rem 1.1rem;max-width:260px;font-size:13px;font-family:Outfit,sans-serif;box-shadow:0 8px 32px rgba(0,0,0,.35);pointer-events:all';
+  tip.innerHTML = '<div style="font-weight:700;margin-bottom:.3rem">' + step.title + '</div>'
+    + '<div style="font-size:12px;opacity:.85;line-height:1.5">' + step.text + '</div>'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:.8rem">'
+    + '<span style="font-size:10px;opacity:.5">' + (idx+1) + ' / ' + steps.length + '</span>'
+    + '<button id="onboarding-next-btn" style="font-size:12px;font-weight:600;padding:5px 14px;border-radius:100px;border:none;background:var(--gold,#E8B84B);color:var(--ink,#0F1D36);cursor:pointer;font-family:Outfit,sans-serif">' + (idx+1 < steps.length ? 'Suivant →' : 'Compris ✓') + '</button>'
+    + '</div>';
+  document.body.appendChild(tip);
+  if (target) {
+    const rect = target.getBoundingClientRect();
+    const tipTop  = Math.min(rect.bottom + 10, window.innerHeight - 180);
+    const tipLeft = Math.min(Math.max(rect.left, 8), window.innerWidth - 280);
+    tip.style.top  = tipTop + 'px';
+    tip.style.left = tipLeft + 'px';
+    target.style.outline = '2px solid var(--gold,#E8B84B)';
+    target.style.outlineOffset = '3px';
+    target.style.transition = 'outline .2s';
+  } else {
+    tip.style.bottom = '90px';
+    tip.style.right  = '20px';
+  }
+  document.getElementById('onboarding-next-btn').onclick = function() {
+    tip.remove();
+    if (target) { target.style.outline = ''; target.style.outlineOffset = ''; }
+    _runOnboarding(panel, steps, idx + 1);
+  };
+}

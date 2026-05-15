@@ -1192,6 +1192,50 @@ window.loadCommunity = async function() {
   }
 };
 
+function _renderCommPost(p) {
+  const esc = typeof escHtml === 'function' ? escHtml : (s) => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const ago = typeof timeAgo === 'function' ? timeAgo(p.created_at) : (p.created_at||'').slice(0,10);
+  const pinHTML = p.est_epingle
+    ? '<span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:100px;background:var(--gold,#E8B84B);color:var(--ink,#0F1D36);margin-left:6px">📌 Épinglé</span>'
+    : '';
+  const titreHTML = p.titre
+    ? '<div style="font-size:14px;font-weight:700;color:var(--ink);margin-bottom:.3rem">' + esc(p.titre) + '</div>'
+    : '';
+  const mediaHTML = (p.media_url && /\.(jpg|jpeg|png|gif|webp)/i.test(p.media_url))
+    ? '<img src="' + esc(p.media_url) + '" style="width:100%;max-height:200px;object-fit:cover;border-radius:8px;margin-top:.5rem" loading="lazy"/>'
+    : '';
+  const tagsHTML = p.tags
+    ? '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:.4rem">'
+        + p.tags.split(',').map(tag => tag.trim()).filter(Boolean).map(tag =>
+            '<span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:100px;background:var(--clay-p);color:var(--clay)">' + esc(tag) + '</span>'
+          ).join('')
+        + '</div>'
+    : '';
+  return '<div class="comm-post">'
+    + '<div class="comm-post-header">'
+    + '<div class="comm-post-av">' + esc((p.prenom||'?')[0].toUpperCase()) + '</div>'
+    + '<div style="flex:1">'
+    + '<div style="font-size:13px;font-weight:600;color:var(--ink)">' + esc(p.prenom||'') + ' ' + esc(p.nom||'') + pinHTML + '</div>'
+    + '<div style="font-size:11px;color:var(--muted)">' + ((typeof ROLE_LABELS !== 'undefined' && ROLE_LABELS[p.role]) || p.role || '') + ' · ' + ago + '</div>'
+    + '</div>'
+    + '</div>'
+    + titreHTML
+    + '<p style="font-size:13px;color:var(--ink);line-height:1.65;margin:.5rem 0 0">' + esc(p.content||'') + '</p>'
+    + mediaHTML
+    + tagsHTML
+    + '<div style="margin-top:.6rem">'
+    + '<button onclick="likePost(this)" data-likes="0" style="font-size:11px;padding:4px 12px;background:transparent;border:1px solid var(--border);border-radius:100px;cursor:pointer;font-family:Outfit,sans-serif;color:var(--muted)">❤ J\'aime</button>'
+    + '</div>'
+    + '</div>';
+}
+
+window.likePost = function(btn) {
+  const likes = parseInt(btn.dataset.likes||0) + 1;
+  btn.dataset.likes = likes;
+  btn.textContent = '❤ ' + likes;
+  btn.style.color = 'var(--red)';
+};
+
 window.loadDashComm = async function() {
   // Load posts feed
   const postsBox = document.getElementById('dash-comm-posts');
@@ -1200,18 +1244,14 @@ window.loadDashComm = async function() {
     try {
       const res = await fetch('/api/community/posts', { headers: { Authorization: 'Bearer ' + (API.getToken() || '') } });
       const posts = await res.json();
-      if (!posts.length) { postsBox.innerHTML = '<div style="text-align:center;padding:1.5rem;color:var(--muted);font-size:13px">Aucune publication. Soyez le premier à partager !</div>'; }
-      else postsBox.innerHTML = posts.map(p => `
-        <div class="comm-post">
-          <div class="comm-post-header">
-            <div class="comm-post-av">${(p.prenom||'?')[0].toUpperCase()}</div>
-            <div>
-              <div style="font-size:13px;font-weight:600;color:var(--ink)">${p.prenom||''} ${p.nom||''}</div>
-              <div style="font-size:11px;color:var(--muted)">${ROLE_LABELS[p.role]||p.role||''} · ${(p.created_at||'').slice(0,10)}</div>
-            </div>
-          </div>
-          <p style="font-size:13px;color:var(--ink);line-height:1.65;margin:.5rem 0 0">${p.content||''}</p>
-        </div>`).join('');
+      if (!posts.length) {
+        postsBox.innerHTML = '<div style="text-align:center;padding:1.5rem;color:var(--muted);font-size:13px">Aucune publication. Soyez le premier à partager !</div>';
+      } else {
+        const pinnedPosts = posts.filter(p => p.est_epingle);
+        const normalPosts = posts.filter(p => !p.est_epingle);
+        const sorted = [...pinnedPosts, ...normalPosts];
+        postsBox.innerHTML = sorted.map(_renderCommPost).join('');
+      }
     } catch(e) { postsBox.innerHTML = '<div style="text-align:center;padding:1.5rem;color:var(--muted);font-size:13px">Impossible de charger le fil.</div>'; }
   }
   // Load directory sidebar
@@ -1229,19 +1269,41 @@ window.loadDashComm = async function() {
 
 window.openCommComposer = function() {
   const c = document.getElementById('comm-composer-dash');
-  if (c) c.style.display = c.style.display === 'none' ? 'block' : 'none';
+  if (!c) return;
+  const isOpen = c.style.display !== 'none' && c.style.display !== '';
+  if (isOpen) { c.style.display = 'none'; return; }
+  // Build enriched composer HTML if not already built
+  if (!document.getElementById('comm-post-titre')) {
+    c.innerHTML = '<div style="background:var(--sand);border-radius:12px;padding:1rem;margin-bottom:1rem">'
+      + '<input type="text" id="comm-post-titre" placeholder="Titre (optionnel)" maxlength="80" style="width:100%;margin-bottom:.5rem;padding:8px 10px;border-radius:8px;border:1.5px solid var(--border);font-size:13px;box-sizing:border-box;font-family:Outfit,sans-serif"/>'
+      + '<textarea id="comm-post-text" placeholder="Partagez une actualité, un conseil ou une question..." style="width:100%;height:80px;border-radius:8px;border:1.5px solid var(--border);padding:8px 10px;font-size:13px;resize:none;box-sizing:border-box;font-family:Outfit,sans-serif"></textarea>'
+      + '<input type="text" id="comm-post-tags" placeholder="Tags : chantier, conseil, btp..." style="width:100%;margin-top:.5rem;padding:8px 10px;border-radius:8px;border:1.5px solid var(--border);font-size:12px;box-sizing:border-box;font-family:Outfit,sans-serif"/>'
+      + '<div style="display:flex;justify-content:flex-end;gap:.5rem;margin-top:.6rem">'
+      + '<button onclick="openCommComposer()" style="padding:7px 14px;border-radius:8px;border:1px solid var(--border);background:transparent;font-size:12px;cursor:pointer;font-family:Outfit,sans-serif">Annuler</button>'
+      + '<button onclick="submitCommPost()" style="padding:7px 16px;border-radius:8px;border:none;background:var(--clay);color:white;font-size:12px;font-weight:600;cursor:pointer;font-family:Outfit,sans-serif">Publier</button>'
+      + '</div>'
+      + '</div>';
+  }
+  c.style.display = 'block';
 };
 
 window.submitCommPost = async function() {
-  const txt = (document.getElementById('comm-post-text') || {}).value.trim();
+  const txt   = (document.getElementById('comm-post-text') || {}).value.trim();
+  const titre = (document.getElementById('comm-post-titre') || {}).value.trim();
+  const tags  = (document.getElementById('comm-post-tags') || {}).value.trim();
   if (!txt) { toast('Rédigez votre publication avant de publier.', 'error'); return; }
   try {
     await fetch('/api/community/posts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (API.getToken() || '') },
-      body: JSON.stringify({ content: txt, category: 'update' })
+      body: JSON.stringify({ content: txt, titre, tags, category: 'update' })
     });
-    document.getElementById('comm-post-text').value = '';
+    const textEl  = document.getElementById('comm-post-text');
+    const titreEl = document.getElementById('comm-post-titre');
+    const tagsEl  = document.getElementById('comm-post-tags');
+    if (textEl)  textEl.value  = '';
+    if (titreEl) titreEl.value = '';
+    if (tagsEl)  tagsEl.value  = '';
     document.getElementById('comm-composer-dash').style.display = 'none';
     toast('Publication envoyée !', 'success');
     loadDashComm();

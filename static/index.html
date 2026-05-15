@@ -977,6 +977,18 @@
           <div class="kpi ok"><div class="kpi-lbl" data-i18n="kpi_week">CETTE SEMAINE</div><div class="kpi-val" id="dep-sem">0 DH</div></div>
           <div class="kpi"><div class="kpi-lbl" data-i18n="kpi_cat">CATÉGORIE PRINCIPALE</div><div class="kpi-val" style="font-size:1rem" id="dep-cat-main">—</div></div>
         </div>
+        <!-- Expense category chart -->
+        <div class="dcard" style="margin-bottom:1rem">
+          <div class="dcard-tit">📊 Répartition par catégorie <span id="dep-cat-filter-chip" style="display:none;font-size:11px;font-weight:600;padding:3px 10px;border-radius:100px;background:var(--clay-p);color:var(--clay);cursor:pointer;margin-left:8px" onclick="clearDepFilter()"></span></div>
+          <div style="display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap">
+            <div style="position:relative;width:160px;height:160px;flex-shrink:0">
+              <canvas id="chart-dep-cat" width="160" height="160"></canvas>
+            </div>
+            <div id="dep-chart-legend" style="flex:1;min-width:120px;font-size:12px"></div>
+          </div>
+          <div id="dep-chart-placeholder" style="display:none;text-align:center;padding:1.5rem;color:var(--muted);font-size:13px">Aucune dépense à afficher</div>
+        </div>
+
         <div class="dcard">
           <div class="dcard-tit"><span data-i18n="dep_active_title">Dépenses actives</span> <span><button data-show="" onclick="toggleHistorique(this)" style="font-size:11px;padding:4px 12px;background:var(--sand);color:var(--muted);border:none;border-radius:100px;cursor:pointer;font-family:Outfit,sans-serif" data-i18n="dep_hist_btn">📋 Voir historique complet</button></span></div>
           <div style="overflow-x:auto">
@@ -1720,6 +1732,36 @@
 
 <!-- FAB Quick Log -->
 <button id="quick-log-fab" title="Saisie rapide" onclick="openQuickLog()">+</button>
+
+<!-- Edit Project Modal -->
+<div id="edit-project-modal" style="display:none;position:fixed;inset:0;z-index:1100;align-items:center;justify-content:center;background:rgba(15,29,54,.45)">
+  <div style="background:var(--white);border-radius:16px;padding:1.6rem 1.8rem;width:92%;max-width:460px;max-height:90vh;overflow-y:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+      <div style="font-size:16px;font-weight:700;color:var(--ink)">✏️ Modifier le projet</div>
+      <button onclick="closeEditProject()" style="background:transparent;border:none;font-size:18px;cursor:pointer;color:var(--muted)">✕</button>
+    </div>
+    <input type="hidden" id="edit-proj-id"/>
+    <div class="fg"><label>Nom du projet</label><input type="text" id="edit-proj-nom" placeholder="Villa Dupont, Immeuble Centre..."/></div>
+    <div class="fg-row">
+      <div class="fg"><label>Ville</label><input type="text" id="edit-proj-ville" placeholder="Casablanca"/></div>
+      <div class="fg"><label>Budget (DH)</label><input type="number" id="edit-proj-budget" placeholder="500000"/></div>
+    </div>
+    <div class="fg"><label>Type de projet</label>
+      <select id="edit-proj-type">
+        <option>Villa / Maison individuelle</option>
+        <option>Appartement</option>
+        <option>Immeuble collectif</option>
+        <option>Bureau / Local commercial</option>
+        <option>Rénovation / Extension</option>
+      </select>
+    </div>
+    <div class="fg"><label>Description</label><textarea id="edit-proj-desc" style="height:60px;resize:vertical;width:100%;border-radius:8px;border:1.5px solid var(--border);padding:8px 10px;font-size:13px;box-sizing:border-box;font-family:Outfit,sans-serif" placeholder="Description optionnelle..."></textarea></div>
+    <div style="display:flex;gap:.6rem;margin-top:1rem">
+      <button onclick="closeEditProject()" style="flex:1;padding:10px;border-radius:8px;border:1.5px solid var(--border);background:transparent;font-size:14px;font-weight:600;cursor:pointer;color:var(--muted);font-family:Outfit,sans-serif">Annuler</button>
+      <button id="edit-proj-save-btn" onclick="saveEditProject()" style="flex:2;padding:10px;border-radius:8px;border:none;background:var(--clay);color:white;font-size:14px;font-weight:700;cursor:pointer;font-family:Outfit,sans-serif">Enregistrer</button>
+    </div>
+  </div>
+</div>
 
 <!-- Quick Log Modal -->
 <div id="quick-log-modal" role="dialog" aria-modal="true">
