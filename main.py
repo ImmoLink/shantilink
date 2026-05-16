@@ -1953,12 +1953,17 @@ def _extract_voice_regex(transcription: str) -> dict:
     t = transcription.lower().strip()
     result: dict = {"devise": "MAD", "date": now_iso()[:10]}
 
-    # Montant numérique
-    nm = _re.search(r'(\d+(?:[.,]\d{1,2})?)\s*(?:dh|mad|dirham)?', t)
-    if nm:
-        result["montant"] = float(nm.group(1).replace(',', '.'))
+    # Montant : priorité au nombre avant/après DH/MAD, sinon le plus grand
+    pm = _re.search(r'(\d[\d\s]*(?:[.,]\d{1,2})?)\s*(?:dh|mad|dirham)', t) or \
+         _re.search(r'(?:à|a|pour|coûte?|prix)\s*(\d[\d\s]*(?:[.,]\d{1,2})?)', t)
+    if pm:
+        result["montant"] = float(pm.group(1).replace(' ','').replace(',','.'))
     else:
-        # Darija / mots français
+        nums = [float(x.replace(',','.')) for x in _re.findall(r'\d+(?:[.,]\d{1,2})?', t)
+                if float(x.replace(',','.')) > 9]
+        if nums: result["montant"] = max(nums)
+    # Darija / mots français (si pas de montant numérique trouvé)
+    if "montant" not in result:
         darija = [
             (r'miyatayn|miytin|deux\s*cent', 200), (r'tlet\s*miyya|trois\s*cent', 300),
             (r'rba3\s*miyya|quatre\s*cent', 400),  (r'khemsa?\s*miyya|cinq\s*cent', 500),

@@ -308,9 +308,19 @@ function _extractVoiceLocally(transcript) {
   const t   = transcript.toLowerCase().trim();
   const result = { date: new Date().toISOString().split('T')[0] };
 
-  // ── Montant numérique ────────────────────────────────────────────
-  const numM = t.match(/(\d+(?:[.,]\d{1,2})?)\s*(?:dh|mad|dirham|درهم|reaux?|ryal)?/i);
-  if (numM) result.montant = parseFloat(numM[1].replace(',', '.'));
+  // ── Montant numérique ─────────────────────────────────────────────
+  // Priorité 1 : nombre juste avant/après DH / MAD / prix
+  const priceM = t.match(/(\d[\d\s]*(?:[.,]\d{1,2})?)\s*(?:dh|mad|dirham|درهم|reaux?|ryal)/i)
+              || t.match(/(?:à|a|pour|coûte?|prix de|prix:?|coût)\s*(\d[\d\s]*(?:[.,]\d{1,2})?)/i);
+  if (priceM) {
+    result.montant = parseFloat(priceM[1].replace(/\s/g,'').replace(',','.'));
+  } else {
+    // Priorité 2 : le plus grand nombre dans la phrase (hors quantités unitaires)
+    const allNums = [...t.matchAll(/(\d+(?:[.,]\d{1,2})?)/g)]
+      .map(m => parseFloat(m[1].replace(',','.')))
+      .filter(v => v > 9 && v < 1000000); // ignore quantités <= 9 (ex: "1 tonne")
+    if (allNums.length) result.montant = Math.max(...allNums);
+  }
 
   // ── Montant Darija (mots) ─────────────────────────────────────────
   if (!result.montant) {
@@ -338,6 +348,14 @@ function _extractVoiceLocally(transcript) {
   const chezM = t.match(/(?:chez|de\s*chez|3nd|عند)\s+([a-zÀ-ÿ0-9]+(?:\s+[a-zÀ-ÿ0-9]+)?)/i);
   if (chezM) {
     result.fournisseur = chezM[1].trim().replace(/\b\w/g, c => c.toUpperCase());
+  }
+
+  // ── Description : partie avant le prix ───────────────────────────
+  // Ex: "1 tonne ciment à 9000 dh" → desc = "1 tonne ciment"
+  const beforePrice = t.match(/^(.+?)(?:\s+(?:à|a|pour|coûte?|prix)\s+\d|\s+\d[\d\s]*\s*(?:dh|mad))/i);
+  if (beforePrice) {
+    result.description = beforePrice[1].trim().replace(/\b\w/g, c => c.toUpperCase());
+  } else if (result.fournisseur) {
     result.description = result.fournisseur;
   }
 
