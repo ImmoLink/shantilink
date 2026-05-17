@@ -1964,125 +1964,258 @@ window.switchRapTab = function(tab) {
 window.generatePDFForProject = async function(pid) {
   const p = DB.projects.find(x => x.id === pid);
   if (!p) return;
-  toast('Génération du rapport PDF…', 'success');
+  toast('Generation du rapport PDF...', 'success');
   try {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
-    const W = doc.internal.pageSize.getWidth();
-    const H = doc.internal.pageSize.getHeight();
-    const M = 18;
-    let y = M;
+    const W = 210; const H = 297; const M = 14;
+    let y = 0;
 
-    // ── Header band ───────────────────────────────────────────────────────
-    doc.setFillColor(29, 95, 166);
-    doc.rect(0, 0, W, 28, 'F');
-    doc.setTextColor(255,255,255);
-    doc.setFontSize(16); doc.setFont('helvetica','bold');
-    doc.text('ShantiLink', M, 16);
-    doc.setFontSize(9); doc.setFont('helvetica','normal');
-    doc.text('Rapport projet — ' + new Date().toLocaleDateString('fr-FR'), W-M, 16, {align:'right'});
-    y = 38;
+    // ── HEADER BAND ───────────────────────────────────────────────────────
+    // Deep navy background
+    doc.setFillColor(10, 25, 60);
+    doc.rect(0, 0, W, 44, 'F');
+    // Teal accent stripe
+    doc.setFillColor(14, 165, 233);
+    doc.rect(0, 41, W, 3, 'F');
+    // Left color block
+    doc.setFillColor(14, 165, 233);
+    doc.rect(0, 0, 5, 44, 'F');
+    // Logo text
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(20); doc.setFont('helvetica', 'bold');
+    doc.text('ShantiLink', 12, 18);
+    doc.setFontSize(8); doc.setFont('helvetica', 'normal');
+    doc.setTextColor(148, 194, 240);
+    doc.text('Plateforme BTP Maroc  |  www.shantilink.ma', 12, 26);
+    // Report label top-right
+    doc.setFillColor(14, 165, 233);
+    doc.roundedRect(W - 62, 8, 50, 14, 2, 2, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(8); doc.setFont('helvetica', 'bold');
+    doc.text('RAPPORT DE PROJET', W - 37, 14.5, { align: 'center' });
+    doc.setFontSize(7); doc.setFont('helvetica', 'normal');
+    doc.text(new Date().toLocaleDateString('fr-FR'), W - 37, 20, { align: 'center' });
 
-    // ── Project title ─────────────────────────────────────────────────────
-    doc.setTextColor(15,29,54);
-    doc.setFontSize(15); doc.setFont('helvetica','bold');
-    doc.text(p.nom, M, y); y += 7;
-    doc.setFontSize(9); doc.setFont('helvetica','normal'); doc.setTextColor(100,116,139);
-    const meta = [p.type, p.ville ? '📍 '+p.ville : '', p.etages ? 'R+'+p.etages : 'RDC'].filter(Boolean).join('  ·  ');
-    doc.text(meta, M, y); y += 9;
+    // ── PROJECT TITLE BAND ─────────────────────────────────────────────────
+    y = 50;
+    doc.setFillColor(240, 247, 255);
+    doc.rect(0, y, W, 26, 'F');
+    doc.setFillColor(14, 165, 233);
+    doc.rect(M, y + 4, 3, 18, 'F');
+    doc.setTextColor(10, 25, 60);
+    doc.setFontSize(16); doc.setFont('helvetica', 'bold');
+    doc.text(p.nom, M + 7, y + 13);
+    doc.setFontSize(8); doc.setFont('helvetica', 'normal'); doc.setTextColor(71, 85, 105);
+    const metaParts = [p.type || 'Projet', p.ville ? 'Ville: ' + p.ville : '', p.etages ? 'R+' + p.etages : 'RDC'].filter(Boolean);
+    doc.text(metaParts.join('   |   '), M + 7, y + 21);
+    y += 34;
 
-    // ── KPI boxes ─────────────────────────────────────────────────────────
+    // ── KPI BOXES ─────────────────────────────────────────────────────────
     const projExpenses = DB.expenses.filter(e => e.project_id === pid && !e.deleted);
-    const totalDep = projExpenses.reduce((s,e) => s+(e.montant||0), 0);
+    const totalDep = projExpenses.reduce((s, e) => s + (e.montant || 0), 0);
     const budget   = p.budget || 0;
-    const restant  = Math.max(0, budget - totalDep);
+    const restant  = budget - totalDep;
     const pct      = p.pct || 0;
+    const overBudget = budget > 0 && totalDep > budget;
     const kpis = [
-      {l:'Avancement',  v: pct+'%'},
-      {l:'Budget',      v: budget > 0 ? Math.round(budget).toLocaleString('fr-FR')+' DH' : '—'},
-      {l:'Dépenses',    v: Math.round(totalDep).toLocaleString('fr-FR')+' DH'},
-      {l:'Restant',     v: budget > 0 ? Math.round(restant).toLocaleString('fr-FR')+' DH' : '—'},
+      { l: 'Avancement', v: pct + '%',                       c: pct >= 80 ? [5,150,105] : pct >= 40 ? [14,165,233] : [71,85,105], bg: [240,253,244] },
+      { l: 'Budget',     v: budget > 0 ? pdfNum(budget) + ' DH' : 'N/D', c: [10,25,60],   bg: [240,247,255] },
+      { l: 'Depenses',   v: pdfNum(totalDep) + ' DH',         c: overBudget ? [185,28,28] : [10,25,60], bg: overBudget ? [254,242,242] : [248,250,252] },
+      { l: 'Restant',    v: budget > 0 ? pdfNum(Math.abs(restant)) + ' DH' : 'N/D', c: overBudget ? [185,28,28] : [5,150,105], bg: overBudget ? [254,242,242] : [240,253,244] },
     ];
-    const kW = (W-2*M-9)/4;
-    kpis.forEach((k,i) => {
-      const x = M + i*(kW+3);
-      doc.setFillColor(232,240,251);
-      doc.roundedRect(x, y, kW, 16, 2, 2, 'F');
-      doc.setTextColor(29,95,166); doc.setFontSize(11); doc.setFont('helvetica','bold');
-      doc.text(k.v, x+kW/2, y+7, {align:'center'});
-      doc.setTextColor(100,116,139); doc.setFontSize(7); doc.setFont('helvetica','normal');
-      doc.text(k.l, x+kW/2, y+13, {align:'center'});
+    const kW = (W - 2*M - 9) / 4;
+    kpis.forEach((k, i) => {
+      const bx = M + i * (kW + 3);
+      doc.setFillColor(...k.bg);
+      doc.roundedRect(bx, y, kW, 22, 2, 2, 'F');
+      doc.setFillColor(...k.c);
+      doc.roundedRect(bx, y, kW, 2.5, 1, 1, 'F');
+      doc.setTextColor(...k.c);
+      doc.setFontSize(k.v.length > 11 ? 9 : 12); doc.setFont('helvetica', 'bold');
+      doc.text(k.v, bx + kW/2, y + 13, { align: 'center' });
+      doc.setTextColor(100, 116, 139); doc.setFontSize(7); doc.setFont('helvetica', 'normal');
+      doc.text(k.l, bx + kW/2, y + 19, { align: 'center' });
     });
-    y += 22;
+    y += 30;
 
-    // ── Phases ────────────────────────────────────────────────────────────
+    // ── PROGRESS BAR ──────────────────────────────────────────────────────
+    doc.setFillColor(226, 232, 240);
+    doc.roundedRect(M, y, W - 2*M, 7, 2, 2, 'F');
+    const barW = Math.min(pct / 100, 1) * (W - 2*M);
+    if (barW > 0) {
+      const barColor = pct >= 80 ? [5,150,105] : pct >= 40 ? [14,165,233] : [251,146,60];
+      doc.setFillColor(...barColor);
+      doc.roundedRect(M, y, barW, 7, 2, 2, 'F');
+    }
+    doc.setTextColor(255,255,255); doc.setFontSize(7); doc.setFont('helvetica', 'bold');
+    if (pct > 10) doc.text(pct + '%', M + barW - 4, y + 5, { align: 'right' });
+    doc.setTextColor(71,85,105); doc.setFontSize(7.5);
+    doc.text('Avancement global du projet', M, y + 12);
+    y += 18;
+
+    // ── DESCRIPTION ───────────────────────────────────────────────────────
+    if (p.description && p.description.trim()) {
+      doc.setFillColor(248, 250, 252);
+      doc.roundedRect(M, y, W - 2*M, 10, 2, 2, 'F');
+      doc.setFillColor(14, 165, 233);
+      doc.rect(M, y, 2.5, 10, 'F');
+      doc.setTextColor(10, 25, 60); doc.setFontSize(8); doc.setFont('helvetica', 'bold');
+      doc.text('Description :', M + 6, y + 5);
+      doc.setFont('helvetica', 'normal'); doc.setTextColor(71, 85, 105);
+      const desc = p.description.length > 120 ? p.description.substring(0, 117) + '...' : p.description;
+      doc.text(desc, M + 32, y + 5);
+      y += 16;
+    }
+
+    // ── PHASES TABLE ──────────────────────────────────────────────────────
     let phases = [];
     try { phases = p.phases ? JSON.parse(p.phases) : []; } catch(e) {}
     if (phases.length) {
-      doc.setFontSize(11); doc.setFont('helvetica','bold'); doc.setTextColor(15,29,54);
-      doc.text('Planning des phases', M, y); y += 4;
+      if (y > H - 80) { doc.addPage(); y = M; }
+      // Section title
+      doc.setFillColor(10, 25, 60);
+      doc.roundedRect(M, y, W - 2*M, 9, 2, 2, 'F');
+      doc.setTextColor(255, 255, 255); doc.setFontSize(9); doc.setFont('helvetica', 'bold');
+      doc.text('PLANNING DES PHASES', M + 4, y + 6.2);
+      y += 12;
+      const phaseStatusText = { finalise: 'Finalise', encours: 'En cours', bloque: 'Bloque', attente: 'En attente' };
+      const phaseStatusColor = { finalise: [5,150,105], encours: [14,165,233], bloque: [185,28,28], attente: [100,116,139] };
       doc.autoTable({
         startY: y,
-        head: [['Phase','Statut','Début','Fin']],
+        head: [['Phase', 'Statut', 'Debut', 'Fin']],
         body: phases.map(ph => [
-          ph.label||'—',
-          ph.status==='finalise'?'✅ Finalisé':ph.status==='encours'?'🔄 En cours':ph.status==='bloque'?'🚫 Bloqué':'⏳ Attente',
-          ph.startDate||'—', ph.endDate||'—'
+          ph.label || '--',
+          phaseStatusText[ph.status] || 'En attente',
+          ph.startDate || '--',
+          ph.endDate || '--'
         ]),
-        theme:'striped',
-        headStyles:{fillColor:[29,95,166],textColor:255,fontStyle:'bold',fontSize:8},
-        bodyStyles:{fontSize:8},
-        margin:{left:M,right:M},
-        tableWidth: W-2*M,
+        theme: 'grid',
+        headStyles: { fillColor: [14,165,233], textColor: 255, fontStyle: 'bold', fontSize: 8, cellPadding: 4 },
+        bodyStyles: { fontSize: 8, cellPadding: 3.5 },
+        alternateRowStyles: { fillColor: [240, 247, 255] },
+        columnStyles: {
+          0: { cellWidth: 80 },
+          1: { cellWidth: 35, fontStyle: 'bold' },
+          2: { cellWidth: 35, halign: 'center' },
+          3: { cellWidth: 32, halign: 'center' },
+        },
+        didParseCell: function(data) {
+          if (data.column.index === 1 && data.section === 'body') {
+            const val = data.cell.raw;
+            const c = val === 'Finalise' ? [5,150,105] : val === 'En cours' ? [14,165,233] : val === 'Bloque' ? [185,28,28] : [100,116,139];
+            data.cell.styles.textColor = c;
+          }
+        },
+        margin: { left: M, right: M },
       });
-      y = doc.lastAutoTable.finalY + 8;
+      y = doc.lastAutoTable.finalY + 10;
     }
 
-    // ── Expenses ──────────────────────────────────────────────────────────
-    if (y > H-60) { doc.addPage(); y = M; }
-    doc.setFontSize(11); doc.setFont('helvetica','bold'); doc.setTextColor(15,29,54);
-    doc.text('Détail des dépenses', M, y); y += 4;
+    // ── EXPENSES TABLE ────────────────────────────────────────────────────
+    if (y > H - 80) { doc.addPage(); y = M; }
+    doc.setFillColor(10, 25, 60);
+    doc.roundedRect(M, y, W - 2*M, 9, 2, 2, 'F');
+    doc.setTextColor(255, 255, 255); doc.setFontSize(9); doc.setFont('helvetica', 'bold');
+    doc.text('DETAIL DES DEPENSES', M + 4, y + 6.2);
+    y += 12;
     if (projExpenses.length === 0) {
-      doc.setFontSize(9); doc.setFont('helvetica','normal'); doc.setTextColor(100,116,139);
-      doc.text('Aucune dépense enregistrée pour ce projet.', M, y+6); y += 14;
+      doc.setFillColor(248, 250, 252);
+      doc.roundedRect(M, y, W - 2*M, 12, 2, 2, 'F');
+      doc.setFontSize(8.5); doc.setFont('helvetica', 'italic'); doc.setTextColor(100, 116, 139);
+      doc.text('Aucune depense enregistree pour ce projet.', W/2, y + 7.5, { align: 'center' });
+      y += 18;
     } else {
+      // Group by category
+      const byCat = {};
+      projExpenses.forEach(e => {
+        const cat = e.categorie || 'Autre';
+        byCat[cat] = (byCat[cat] || 0) + (e.montant || 0);
+      });
       doc.autoTable({
         startY: y,
-        head: [['Date','Catégorie','Description','Montant (DH)']],
-        body: [
-          ...projExpenses.map(e => [
-            e.date||'—', e.categorie||'Autre', e.description||'—',
-            {content: Math.round(e.montant||0).toLocaleString('fr-FR'), styles:{halign:'right',fontStyle:'bold'}}
-          ]),
-          [{content:'TOTAL', colSpan:3, styles:{fontStyle:'bold',halign:'right',fillColor:[232,240,251]}},
-           {content:Math.round(totalDep).toLocaleString('fr-FR')+' DH', styles:{fontStyle:'bold',halign:'right',fillColor:[232,240,251],textColor:[29,95,166]}}]
-        ],
-        theme:'striped',
-        headStyles:{fillColor:[29,95,166],textColor:255,fontStyle:'bold',fontSize:8},
-        bodyStyles:{fontSize:8},
-        alternateRowStyles:{fillColor:[248,250,252]},
-        margin:{left:M,right:M}, tableWidth: W-2*M,
+        head: [['Date', 'Categorie', 'Description', 'Montant (DH)']],
+        body: projExpenses.map(e => [
+          e.date || '--',
+          e.categorie || 'Autre',
+          e.description || '--',
+          { content: pdfNum(e.montant || 0), styles: { halign: 'right', fontStyle: 'bold', textColor: [10,25,60] } }
+        ]),
+        foot: [[
+          { content: 'TOTAL', colSpan: 3, styles: { fontStyle: 'bold', halign: 'right', fillColor: [10,25,60], textColor: [255,255,255] } },
+          { content: pdfNum(totalDep) + ' DH', styles: { fontStyle: 'bold', halign: 'right', fillColor: [14,165,233], textColor: [255,255,255] } }
+        ]],
+        theme: 'grid',
+        headStyles: { fillColor: [71,85,105], textColor: 255, fontStyle: 'bold', fontSize: 8, cellPadding: 4 },
+        bodyStyles: { fontSize: 8, cellPadding: 3.5 },
+        footStyles: { fontSize: 9, cellPadding: 4 },
+        alternateRowStyles: { fillColor: [248, 250, 252] },
+        columnStyles: {
+          0: { cellWidth: 26, halign: 'center' },
+          1: { cellWidth: 36 },
+          2: { cellWidth: 100 },
+          3: { cellWidth: 24, halign: 'right' },
+        },
+        margin: { left: M, right: M },
       });
-      y = doc.lastAutoTable.finalY + 8;
+      y = doc.lastAutoTable.finalY + 10;
+
+      // Category breakdown
+      if (Object.keys(byCat).length > 1 && y < H - 50) {
+        doc.setFontSize(9); doc.setFont('helvetica', 'bold'); doc.setTextColor(10,25,60);
+        doc.text('Repartition par categorie :', M, y + 5);
+        y += 10;
+        const catColors = [[14,165,233],[5,150,105],[251,146,60],[168,85,247],[236,72,153],[234,179,8]];
+        let ci = 0;
+        Object.entries(byCat).forEach(([cat, amt]) => {
+          const barPct = totalDep > 0 ? amt / totalDep : 0;
+          const bw = barPct * (W - 2*M - 50);
+          doc.setFillColor(226, 232, 240);
+          doc.roundedRect(M + 40, y, W - 2*M - 50, 6, 1, 1, 'F');
+          doc.setFillColor(...(catColors[ci % catColors.length]));
+          if (bw > 0) doc.roundedRect(M + 40, y, bw, 6, 1, 1, 'F');
+          doc.setFontSize(7.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(71, 85, 105);
+          doc.text(cat, M, y + 5);
+          doc.setTextColor(10, 25, 60); doc.setFont('helvetica', 'bold');
+          doc.text(pdfNum(amt) + ' DH', W - M, y + 5, { align: 'right' });
+          y += 9; ci++;
+        });
+        y += 4;
+      }
     }
 
-    // ── Footer ────────────────────────────────────────────────────────────
+    // ── PHOTOS COUNT ──────────────────────────────────────────────────────
+    const photoCount = (DB.photos || []).filter(ph => ph.project_id === pid).length;
+    if (photoCount > 0 && y < H - 30) {
+      doc.setFillColor(240, 247, 255);
+      doc.roundedRect(M, y, W - 2*M, 12, 2, 2, 'F');
+      doc.setFillColor(14,165,233); doc.rect(M, y, 3, 12, 'F');
+      doc.setTextColor(10, 25, 60); doc.setFontSize(8.5); doc.setFont('helvetica', 'bold');
+      doc.text('Photos de chantier :', M + 7, y + 8);
+      doc.setFont('helvetica', 'normal'); doc.setTextColor(14,165,233);
+      doc.text(photoCount + ' photo' + (photoCount > 1 ? 's' : '') + ' enregistree' + (photoCount > 1 ? 's' : ''), M + 50, y + 8);
+      y += 18;
+    }
+
+    // ── FOOTER ALL PAGES ─────────────────────────────────────────────────
     const np = doc.internal.getNumberOfPages();
-    for (let pg=1; pg<=np; pg++) {
+    for (let pg = 1; pg <= np; pg++) {
       doc.setPage(pg);
-      doc.setDrawColor(226,232,240);
-      doc.line(M, H-10, W-M, H-10);
-      doc.setFontSize(7); doc.setTextColor(148,163,184);
-      doc.text('ShantiLink — Plateforme BTP Maroc', M, H-6);
-      doc.text('Page '+pg+'/'+np, W-M, H-6, {align:'right'});
+      doc.setFillColor(10, 25, 60);
+      doc.rect(0, H - 12, W, 12, 'F');
+      doc.setFillColor(14, 165, 233);
+      doc.rect(0, H - 12, W, 1.5, 'F');
+      doc.setTextColor(148, 194, 240); doc.setFontSize(7); doc.setFont('helvetica', 'normal');
+      doc.text('ShantiLink  |  Plateforme BTP Maroc  |  contact@shantilink.ma', M, H - 5);
+      doc.text('Page ' + pg + ' / ' + np, W - M, H - 5, { align: 'right' });
     }
 
-    const filename = 'ShantiLink_' + p.nom.replace(/\s+/g,'_') + '_' + new Date().toISOString().slice(0,10) + '.pdf';
+    const filename = 'ShantiLink_' + p.nom.replace(/\s+/g, '_') + '_' + new Date().toISOString().slice(0, 10) + '.pdf';
     doc.save(filename);
-    toast('Rapport "'+p.nom+'" téléchargé ✓', 'success');
+    toast('Rapport "' + p.nom + '" telecharge !', 'success');
   } catch(err) {
     console.error('PDF error', err);
-    toast('Erreur génération PDF', 'error');
+    toast('Erreur generation PDF : ' + (err.message || err), 'error');
   }
 };
 
@@ -2335,177 +2468,234 @@ window.generatePDF = function() {
   try {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-    const W = 210;
-    const u = currentUser || { prenom: 'Utilisateur', nom: '', email: 'user@ShantiLink.ma' };
+    const W = 210; const H = 297; const M = 14;
+    const u = currentUser || { prenom: 'Utilisateur', nom: '', email: 'user@shantilink.ma' };
     const week  = getWeek(new Date());
     const today = new Date().toLocaleDateString('fr-FR');
 
-    // ── HEADER ────────────────────────────────────────────────────────────────
-    doc.setFillColor(24, 24, 26);
-    doc.rect(0, 0, W, 42, 'F');
-    // Clay accent line
+    // ── HEADER ─────────────────────────────────────────────────────────────────
+    // Rich dark header
+    doc.setFillColor(15, 23, 42);
+    doc.rect(0, 0, W, 48, 'F');
+    // Gradient-style accent bars
     doc.setFillColor(160, 82, 45);
-    doc.rect(0, 39, W, 3, 'F');
+    doc.rect(0, 44, W, 4, 'F');
+    doc.setFillColor(200, 115, 60);
+    doc.rect(0, 44, W/3, 4, 'F');
+    // Left side decor
+    doc.setFillColor(160, 82, 45);
+    doc.rect(0, 0, 4, 44, 'F');
     // Logo
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(22); doc.setFont('helvetica', 'bold');
-    doc.text('ShantiLink', 14, 20);
-    // Tagline
-    doc.setFontSize(8.5); doc.setFont('helvetica', 'normal');
-    doc.setTextColor(180, 180, 180);
-    doc.text('Plateforme de gestion de chantier au Maroc', 14, 29);
-    // Report title (right-aligned)
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(13); doc.setFont('helvetica', 'bold');
-    doc.text('Rapport hebdomadaire', W - 14, 20, { align: 'right' });
-    doc.setFontSize(8.5); doc.setFont('helvetica', 'normal');
-    doc.setTextColor(180, 180, 180);
-    doc.text('Semaine ' + week + '  ·  ' + today, W - 14, 29, { align: 'right' });
-
-    // ── USER INFO BAND ────────────────────────────────────────────────────────
-    let y = 52;
-    doc.setFillColor(245, 237, 230);
-    doc.roundedRect(12, y, W - 24, 20, 3, 3, 'F');
+    doc.text('ShantiLink', 10, 20);
+    doc.setFontSize(8); doc.setFont('helvetica', 'normal');
+    doc.setTextColor(180, 160, 140);
+    doc.text('Plateforme de gestion de chantier au Maroc', 10, 29);
+    // Badge top-right
     doc.setFillColor(160, 82, 45);
-    doc.roundedRect(12, y, 4, 20, 2, 2, 'F'); // left accent bar
-    doc.setTextColor(24, 24, 26);
+    doc.roundedRect(W - 68, 7, 56, 16, 2, 2, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(9); doc.setFont('helvetica', 'bold');
+    doc.text('RAPPORT GLOBAL', W - 40, 14, { align: 'center' });
+    doc.setFontSize(7.5); doc.setFont('helvetica', 'normal');
+    doc.text('Semaine ' + week + '  |  ' + today, W - 40, 20, { align: 'center' });
+
+    // ── USER INFO BAND ─────────────────────────────────────────────────────────
+    let y = 54;
+    doc.setFillColor(253, 246, 236);
+    doc.roundedRect(M, y, W - 2*M, 22, 3, 3, 'F');
+    doc.setFillColor(160, 82, 45);
+    doc.roundedRect(M, y, 4, 22, 2, 2, 'F');
+    doc.setTextColor(15, 23, 42);
     doc.setFontSize(11); doc.setFont('helvetica', 'bold');
-    doc.text(u.prenom + (u.nom ? ' ' + u.nom : ''), 22, y + 8);
-    doc.setFontSize(8.5); doc.setFont('helvetica', 'normal');
-    doc.setTextColor(112, 107, 101);
-    doc.text(u.email, 22, y + 15);
+    doc.text(u.prenom + (u.nom ? ' ' + u.nom : ''), M + 9, y + 9);
+    doc.setFontSize(8); doc.setFont('helvetica', 'normal'); doc.setTextColor(120, 100, 80);
+    doc.text(u.email, M + 9, y + 17);
+    // Report date right
+    doc.setTextColor(160, 82, 45); doc.setFontSize(8); doc.setFont('helvetica', 'bold');
+    doc.text('Semaine ' + week, W - M, y + 9, { align: 'right' });
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(120, 100, 80);
+    doc.text(today, W - M, y + 17, { align: 'right' });
 
     // ── KPI BOXES ─────────────────────────────────────────────────────────────
-    y += 28;
+    y += 30;
     const avgPct = DB.projects.length
       ? Math.round(DB.projects.reduce((s, p) => s + (p.pct || 0), 0) / DB.projects.length)
       : 0;
     const totalBudget = DB.projects.reduce((s, p) => s + (p.budget || 0), 0);
     const totalDep    = activeExpenses().reduce((s, e) => s + (e.montant || 0), 0);
+    const nDone = DB.projects.filter(p => (p.pct||0) >= 100).length;
+    const overG = totalDep > totalBudget && totalBudget > 0;
     const kpis = [
-      { label: 'Projets',       value: String(DB.projects.length) },
-      { label: 'Budget total',  value: pdfNum(totalBudget) + ' DH' },
-      { label: 'Dépenses',      value: pdfNum(totalDep) + ' DH' },
-      { label: 'Avancement moy.', value: avgPct + '%' },
+      { label: 'Projets actifs',    value: String(DB.projects.length),    accent: [160,82,45],   bg: [253,246,236] },
+      { label: 'Budget total',      value: pdfNum(totalBudget) + ' DH',   accent: [15,23,42],    bg: [245,245,250] },
+      { label: 'Total depenses',    value: pdfNum(totalDep) + ' DH',      accent: overG ? [185,28,28] : [15,23,42], bg: overG ? [254,242,242] : [245,245,250] },
+      { label: 'Avancement moyen',  value: avgPct + '%',                   accent: avgPct >= 60 ? [5,150,105] : [160,82,45], bg: avgPct >= 60 ? [240,253,244] : [253,246,236] },
     ];
-    const bW = (W - 24 - 9) / 4; // 4 boxes, gap 3mm
+    const bW = (W - 2*M - 9) / 4;
     kpis.forEach((k, i) => {
-      const bx = 12 + i * (bW + 3);
-      doc.setFillColor(250, 246, 242);
-      doc.roundedRect(bx, y, bW, 26, 2, 2, 'F');
-      doc.setFillColor(160, 82, 45);
-      doc.roundedRect(bx, y, bW, 2.5, 1, 1, 'F'); // top accent
-      doc.setTextColor(160, 82, 45);
-      doc.setFontSize(k.value.length > 10 ? 9 : 13); doc.setFont('helvetica', 'bold');
-      doc.text(k.value, bx + bW / 2, y + 16, { align: 'center' });
-      doc.setTextColor(140, 130, 120);
-      doc.setFontSize(7.5); doc.setFont('helvetica', 'normal');
-      doc.text(k.label, bx + bW / 2, y + 22, { align: 'center' });
+      const bx = M + i * (bW + 3);
+      doc.setFillColor(...k.bg);
+      doc.roundedRect(bx, y, bW, 28, 3, 3, 'F');
+      doc.setFillColor(...k.accent);
+      doc.roundedRect(bx, y, bW, 3, 1, 1, 'F');
+      // Shadow line
+      doc.setDrawColor(220, 205, 185);
+      doc.setLineWidth(0.3);
+      doc.roundedRect(bx, y, bW, 28, 3, 3, 'S');
+      doc.setTextColor(...k.accent);
+      doc.setFontSize(k.value.length > 11 ? 9 : 13); doc.setFont('helvetica', 'bold');
+      doc.text(k.value, bx + bW/2, y + 17, { align: 'center' });
+      doc.setTextColor(120, 100, 80); doc.setFontSize(7); doc.setFont('helvetica', 'normal');
+      doc.text(k.label, bx + bW/2, y + 24, { align: 'center' });
     });
+    y += 36;
 
-    // ── PROJECTS TABLE ────────────────────────────────────────────────────────
-    y += 34;
-    doc.setDrawColor(200, 190, 180);
-    doc.setLineWidth(0.3);
-    doc.setFillColor(250, 246, 242);
-    doc.roundedRect(12, y - 1, W - 24, 8, 2, 2, 'F');
-    doc.setTextColor(24, 24, 26);
-    doc.setFontSize(10); doc.setFont('helvetica', 'bold');
-    doc.text('Projets en cours', 16, y + 5);
-    y += 10;
+    // ── GLOBAL PROGRESS BAR ───────────────────────────────────────────────────
+    doc.setFillColor(235, 220, 205);
+    doc.roundedRect(M, y, W - 2*M, 8, 2, 2, 'F');
+    const gBarW = Math.min(avgPct / 100, 1) * (W - 2*M);
+    if (gBarW > 0) {
+      const gc = avgPct >= 80 ? [5,150,105] : avgPct >= 50 ? [160,82,45] : [200,130,60];
+      doc.setFillColor(...gc);
+      doc.roundedRect(M, y, gBarW, 8, 2, 2, 'F');
+    }
+    doc.setTextColor(255,255,255); doc.setFontSize(7); doc.setFont('helvetica', 'bold');
+    if (avgPct > 12) doc.text(avgPct + '%', M + gBarW - 3, y + 5.5, { align: 'right' });
+    doc.setTextColor(100,80,60); doc.setFontSize(7.5); doc.setFont('helvetica', 'normal');
+    doc.text('Avancement moyen de tous les projets', M, y + 14);
+    if (nDone > 0) {
+      doc.setTextColor(5,150,105); doc.setFontSize(7.5); doc.setFont('helvetica', 'bold');
+      doc.text(nDone + ' projet(s) termine(s)', W - M, y + 14, { align: 'right' });
+    }
+    y += 20;
+
+    // ── PROJECTS TABLE ─────────────────────────────────────────────────────────
+    doc.setFillColor(15, 23, 42);
+    doc.roundedRect(M, y, W - 2*M, 9, 2, 2, 'F');
+    doc.setTextColor(255, 255, 255); doc.setFontSize(9); doc.setFont('helvetica', 'bold');
+    doc.text('MES PROJETS', M + 4, y + 6.2);
+    doc.setFontSize(7.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(180, 160, 140);
+    doc.text('Vue d\'ensemble', W - M, y + 6.2, { align: 'right' });
+    y += 12;
 
     if (DB.projects.length > 0) {
       doc.autoTable({
         startY: y,
-        head: [['Projet', 'Ville', 'Budget (DH)', 'Avancement']],
-        body: DB.projects.map(p => [
-          p.nom || '—',
-          p.ville || '—',
-          pdfNum(p.budget || 0),
-          (p.pct || 0) + '%',
-        ]),
-        foot: [['', 'TOTAL', pdfNum(totalBudget), '']],
+        head: [['Projet', 'Ville', 'Type', 'Budget (DH)', 'Depenses (DH)', 'Avancement']],
+        body: DB.projects.map(p => {
+          const dep = DB.expenses.filter(e => e.project_id === p.id && !e.deleted).reduce((s,e) => s+(e.montant||0), 0);
+          const over = dep > (p.budget||0) && (p.budget||0) > 0;
+          return [
+            p.nom || '—',
+            p.ville || '—',
+            (p.type || '—').replace('Villa / Maison individuelle', 'Villa'),
+            { content: pdfNum(p.budget || 0), styles: { halign: 'right' } },
+            { content: pdfNum(dep), styles: { halign: 'right', textColor: over ? [185,28,28] : [40,36,32], fontStyle: over ? 'bold' : 'normal' } },
+            { content: (p.pct || 0) + '%', styles: { halign: 'center', fontStyle: 'bold', textColor: (p.pct||0) >= 100 ? [5,150,105] : (p.pct||0) >= 50 ? [160,82,45] : [100,80,60] } },
+          ];
+        }),
+        foot: [[
+          { content: 'TOTAUX', colSpan: 3, styles: { fontStyle: 'bold', halign: 'right', fillColor: [15,23,42], textColor: [255,255,255] } },
+          { content: pdfNum(totalBudget), styles: { halign: 'right', fontStyle: 'bold', fillColor: [15,23,42], textColor: [255,255,255] } },
+          { content: pdfNum(totalDep), styles: { halign: 'right', fontStyle: 'bold', fillColor: [160,82,45], textColor: [255,255,255] } },
+          { content: avgPct + '%', styles: { halign: 'center', fontStyle: 'bold', fillColor: [15,23,42], textColor: [255,255,255] } },
+        ]],
         theme: 'grid',
-        styles: { fontSize: 9, cellPadding: { top: 3.5, bottom: 3.5, left: 3, right: 3 }, textColor: [40, 36, 32] },
-        headStyles: { fillColor: [160, 82, 45], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 9 },
-        footStyles: { fillColor: [235, 220, 205], textColor: [80, 50, 20], fontStyle: 'bold', fontSize: 9 },
-        alternateRowStyles: { fillColor: [251, 248, 245] },
+        styles: { fontSize: 8, cellPadding: 3.5, textColor: [40, 36, 32] },
+        headStyles: { fillColor: [160, 82, 45], textColor: [255,255,255], fontStyle: 'bold', fontSize: 8, cellPadding: 4 },
+        footStyles: { fontSize: 9, cellPadding: 4 },
+        alternateRowStyles: { fillColor: [253, 248, 244] },
         columnStyles: {
-          0: { cellWidth: 80 },
-          1: { cellWidth: 30 },
-          2: { cellWidth: 52, halign: 'right' },
-          3: { cellWidth: 24, halign: 'center' },
+          0: { cellWidth: 54 },
+          1: { cellWidth: 26 },
+          2: { cellWidth: 30 },
+          3: { cellWidth: 30, halign: 'right' },
+          4: { cellWidth: 30, halign: 'right' },
+          5: { cellWidth: 12, halign: 'center' },
         },
-        margin: { left: 12, right: 12 },
+        margin: { left: M, right: M },
       });
-      y = doc.lastAutoTable.finalY;
+      y = doc.lastAutoTable.finalY + 10;
     } else {
-      doc.setFontSize(9); doc.setFont('helvetica', 'italic'); doc.setTextColor(170, 160, 150);
-      doc.text('Aucun projet enregistré.', 16, y + 6);
-      y += 14;
+      doc.setFillColor(253, 248, 244);
+      doc.roundedRect(M, y, W - 2*M, 14, 2, 2, 'F');
+      doc.setFontSize(8.5); doc.setFont('helvetica', 'italic'); doc.setTextColor(150, 130, 110);
+      doc.text('Aucun projet enregistre.', W/2, y + 9, { align: 'center' });
+      y += 20;
     }
 
-    // ── EXPENSES TABLE ────────────────────────────────────────────────────────
-    y += 10;
-    if (y > 220) { doc.addPage(); y = 18; }
-
-    doc.setFillColor(250, 246, 242);
-    doc.roundedRect(12, y - 1, W - 24, 8, 2, 2, 'F');
-    doc.setTextColor(24, 24, 26);
-    doc.setFontSize(10); doc.setFont('helvetica', 'bold');
-    doc.text('Dernieres depenses', 16, y + 5);
-    y += 10;
+    // ── EXPENSES TABLE ─────────────────────────────────────────────────────────
+    if (y > H - 85) { doc.addPage(); y = M; }
+    doc.setFillColor(15, 23, 42);
+    doc.roundedRect(M, y, W - 2*M, 9, 2, 2, 'F');
+    doc.setTextColor(255, 255, 255); doc.setFontSize(9); doc.setFont('helvetica', 'bold');
+    doc.text('DERNIERES DEPENSES', M + 4, y + 6.2);
+    doc.setFontSize(7.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(180, 160, 140);
+    doc.text('10 dernieres transactions', W - M, y + 6.2, { align: 'right' });
+    y += 12;
 
     const pdfExpenses = activeExpenses().slice(0, 10);
     if (pdfExpenses.length > 0) {
       const depTotal = pdfExpenses.reduce((s, d) => s + (d.montant || 0), 0);
+      // Get project name helper
+      const projName = (pid) => { const pr = DB.projects.find(x => x.id === pid); return pr ? pr.nom : '—'; };
       doc.autoTable({
         startY: y,
-        head: [['Description', 'Catégorie', 'Montant (DH)', 'Date']],
+        head: [['Projet', 'Description', 'Categorie', 'Montant (DH)', 'Date']],
         body: pdfExpenses.map(d => [
+          projName(d.project_id),
           d.description || '—',
-          d.categorie   || '—',
-          pdfNum(d.montant || 0),
+          d.categorie   || 'Autre',
+          { content: pdfNum(d.montant || 0), styles: { halign: 'right', fontStyle: 'bold' } },
           d.date || '—',
         ]),
-        foot: [['', 'TOTAL', pdfNum(depTotal), '']],
+        foot: [[
+          { content: 'TOTAL', colSpan: 3, styles: { fontStyle: 'bold', halign: 'right', fillColor: [15,23,42], textColor: [255,255,255] } },
+          { content: pdfNum(depTotal) + ' DH', styles: { halign: 'right', fontStyle: 'bold', fillColor: [160,82,45], textColor: [255,255,255] } },
+          { content: '', styles: { fillColor: [15,23,42] } },
+        ]],
         theme: 'grid',
-        styles: { fontSize: 9, cellPadding: { top: 3.5, bottom: 3.5, left: 3, right: 3 }, textColor: [40, 36, 32] },
-        headStyles: { fillColor: [160, 82, 45], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 9 },
-        footStyles: { fillColor: [235, 220, 205], textColor: [80, 50, 20], fontStyle: 'bold', fontSize: 9 },
-        alternateRowStyles: { fillColor: [251, 248, 245] },
+        styles: { fontSize: 8, cellPadding: 3.5, textColor: [40, 36, 32] },
+        headStyles: { fillColor: [71, 55, 40], textColor: [255,255,255], fontStyle: 'bold', fontSize: 8, cellPadding: 4 },
+        footStyles: { fontSize: 9, cellPadding: 4 },
+        alternateRowStyles: { fillColor: [253, 248, 244] },
         columnStyles: {
-          0: { cellWidth: 80 },
-          1: { cellWidth: 34 },
-          2: { cellWidth: 50, halign: 'right' },
-          3: { cellWidth: 22, halign: 'right' },
+          0: { cellWidth: 40 },
+          1: { cellWidth: 64 },
+          2: { cellWidth: 34 },
+          3: { cellWidth: 30, halign: 'right' },
+          4: { cellWidth: 14, halign: 'center' },
         },
-        margin: { left: 12, right: 12 },
+        margin: { left: M, right: M },
       });
+      y = doc.lastAutoTable.finalY + 8;
     } else {
-      doc.setFontSize(9); doc.setFont('helvetica', 'italic'); doc.setTextColor(170, 160, 150);
-      doc.text('Aucune dépense enregistrée.', 16, y + 6);
+      doc.setFillColor(253, 248, 244);
+      doc.roundedRect(M, y, W - 2*M, 14, 2, 2, 'F');
+      doc.setFontSize(8.5); doc.setFont('helvetica', 'italic'); doc.setTextColor(150, 130, 110);
+      doc.text('Aucune depense enregistree.', W/2, y + 9, { align: 'center' });
     }
 
-    // ── FOOTER (all pages) ────────────────────────────────────────────────────
+    // ── FOOTER ALL PAGES ──────────────────────────────────────────────────────
     const pageCount = doc.internal.getNumberOfPages();
     for (let pg = 1; pg <= pageCount; pg++) {
       doc.setPage(pg);
-      doc.setFillColor(24, 24, 26);
-      doc.rect(0, 284, W, 13, 'F');
+      doc.setFillColor(15, 23, 42);
+      doc.rect(0, H - 12, W, 12, 'F');
       doc.setFillColor(160, 82, 45);
-      doc.rect(0, 284, W, 1.5, 'F'); // clay top line
-      doc.setTextColor(160, 160, 160);
-      doc.setFontSize(7.5); doc.setFont('helvetica', 'normal');
-      doc.text('ShantiLink  ·  contact@ShantiLink.ma  ·  www.ShantiLink.ma', 14, 292);
-      doc.text('Page ' + pg + ' / ' + pageCount, W - 14, 292, { align: 'right' });
+      doc.rect(0, H - 12, W, 1.5, 'F');
+      doc.setTextColor(180, 160, 140); doc.setFontSize(7); doc.setFont('helvetica', 'normal');
+      doc.text('ShantiLink  |  contact@shantilink.ma  |  www.shantilink.ma', M, H - 5);
+      doc.text('Page ' + pg + ' / ' + pageCount, W - M, H - 5, { align: 'right' });
     }
 
     doc.save('ShantiLink_Rapport_S' + week + '_' + today.replace(/\//g, '-') + '.pdf');
-    toast('Rapport PDF généré !', 'success');
+    toast('Rapport PDF genere !', 'success');
   } catch (e) {
     console.error(e);
-    toast('Erreur génération PDF : ' + e.message, 'error');
+    toast('Erreur generation PDF : ' + (e.message || e), 'error');
   }
 };
 
@@ -3117,3 +3307,4 @@ function _runOnboarding(panel, steps, idx) {
     _runOnboarding(panel, steps, idx + 1);
   };
 }
+
