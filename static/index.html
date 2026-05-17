@@ -1797,11 +1797,14 @@
   <div class="modal-backdrop" onclick="closeVoiceFallback()"></div>
   <div id="voice-fallback-sheet">
     <h4>🎙️ Saisie vocale</h4>
-    <p style="font-size:12px;color:var(--muted);margin:0 0 10px">Votre navigateur ne supporte pas la reconnaissance vocale. Tapez ce que vous souhaitez enregistrer en français ou darija :</p>
-    <textarea id="voice-fallback-text" placeholder="Ex: khdamt 3500 dyal carrelage…"></textarea>
+    <p style="font-size:12px;color:var(--muted);margin:0 0 4px">Décris ta dépense en français ou darija :</p>
+    <p style="font-size:11px;color:var(--muted);margin:0 0 10px;opacity:.75">
+      Ex : <em>1 tonne ciment à 9000 dh</em> · <em>khdamt carrelage 3500</em> · <em>transport chez Hassan 800 dh</em>
+    </p>
+    <textarea id="voice-fallback-text" rows="3" placeholder="1 tonne ciment à 9000 dh…" style="font-size:15px;resize:none"></textarea>
     <div class="vf-actions">
       <button id="btn-vf-cancel" onclick="closeVoiceFallback()">Annuler</button>
-      <button id="btn-vf-submit" onclick="submitVoiceFallback()">Analyser avec IA</button>
+      <button id="btn-vf-submit" onclick="submitVoiceFallback()">⚡ Extraire les données</button>
     </div>
   </div>
 </div>

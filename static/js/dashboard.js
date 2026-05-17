@@ -466,6 +466,7 @@ function projCardHTML(p, showActions = false) {
         + '<div style="display:flex;justify-content:space-between;font-size:9px;color:var(--muted);margin-top:1px"><span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span></div>'
         + '</div>'
         + '<div style="margin-top:.6rem;display:flex;gap:.5rem;flex-wrap:wrap">'
+        + '<button onclick="addExpenseForProject(\'' + p.id + '\',\'' + p.nom.replace(/'/g,"\\'") + '\')" style="margin:0;font-size:11px;font-weight:600;padding:5px 12px;background:#eafaf1;color:#1e8449;border:.5px solid rgba(30,132,73,.25);border-radius:100px;cursor:pointer;font-family:Outfit,sans-serif">💸 Dépense</button>'
         + '<button onclick="openPlanningPanel(\'' + p.id + '\')" style="margin:0;font-size:11px;font-weight:600;padding:5px 12px;background:var(--blue-b);color:var(--blue);border:.5px solid rgba(26,79,139,.2);border-radius:100px;cursor:pointer;font-family:Outfit,sans-serif">📋 ' + t('planning_title','Planning') + '</button>'
         + '<button onclick="openEditProject(\'' + p.id + '\')" style="margin:0;font-size:11px;font-weight:600;padding:5px 12px;background:var(--sand);color:var(--ink);border:.5px solid var(--border);border-radius:100px;cursor:pointer;font-family:Outfit,sans-serif">✏️ Modifier</button>'
         + '<button onclick="delProjet(\'' + p.id + '\')" style="margin:0;font-size:11px;font-weight:500;padding:5px 12px;background:var(--red-b);color:var(--red);border:.5px solid rgba(139,31,31,.2);border-radius:100px;cursor:pointer;font-family:Outfit,sans-serif">' + t('delete_btn','Supprimer') + '</button>'
@@ -491,6 +492,27 @@ function renderProjets() {
   }
   list.innerHTML = DB.projects.map(p => projCardHTML(p, true)).join('');
 }
+
+window.addExpenseForProject = function(projectId, projectName) {
+  // Navigate to depenses panel
+  showDashPanel('depenses', null);
+  // After render, pre-select the project and open the add form
+  setTimeout(() => {
+    const sel = document.getElementById('dep-project');
+    if (sel) {
+      sel.value = projectId;
+      // Dispatch change event in case listeners depend on it
+      sel.dispatchEvent(new Event('change'));
+    }
+    // Open the add expense form if not already open
+    const form = document.getElementById('add-dep-form');
+    if (form && form.style.display !== 'block') {
+      toggleForm('add-dep-form');
+    }
+    // Scroll form into view
+    if (form) form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 150);
+};
 
 window.togglePhaseCustom = function(sel) {
   const custom = document.getElementById('photo-phase-custom');

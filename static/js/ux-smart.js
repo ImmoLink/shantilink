@@ -164,12 +164,21 @@ window.selectTile = function(containerId, value) {
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// FEATURE 2 — SCAN REÇU (photo → Claude via backend)
+// FEATURE 2 — SCAN REÇU (Tesseract.js OCR, 100% gratuit, zéro API externe)
 // ═══════════════════════════════════════════════════════════════════════════════
 window.openReceiptScanner = function() {
   const input = document.getElementById('receipt-file-input');
   if (input) input.click();
 };
+
+function _loadScript(src) {
+  return new Promise((resolve, reject) => {
+    if (document.querySelector(`script[src="${src}"]`)) { resolve(); return; }
+    const s = document.createElement('script');
+    s.src = src; s.onload = resolve; s.onerror = reject;
+    document.head.appendChild(s);
+  });
+}
 
 window.handleReceiptFile = async function(input) {
   const file = input.files[0];
@@ -178,52 +187,71 @@ window.handleReceiptFile = async function(input) {
   const status = document.getElementById('receipt-scan-status');
 
   if (btn)    { btn.classList.add('scanning'); btn.disabled = true; }
-  if (status) { status.textContent = '⏳ Analyse IA en cours…'; status.className = 'scan-status info'; }
+  if (status) { status.textContent = '⏳ Lecture OCR en cours…'; status.className = 'scan-status info'; }
 
   try {
-    const base64 = await _fileToBase64(file);
-    const res = await fetch('/api/analyze-receipt', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + (localStorage.getItem('bna_token') || ''),
-      },
-      body: JSON.stringify({ image: base64, media_type: file.type || 'image/jpeg' }),
-    });
+    // Charge Tesseract.js depuis CDN si pas encore chargé
+    await _loadScript('https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js');
 
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.detail || `Erreur ${res.status}`);
-    }
-    const { result } = await res.json();
+    const { data: { text } } = await Tesseract.recognize(file, 'fra', { logger: () => {} });
 
-    if (!result || (result.montant === null && !result.description)) {
+    const result = _parseReceiptText(text);
+
+    if (!result.montant && !result.description) {
       if (status) { status.textContent = '⚠️ Photo peu lisible — éclaire mieux le document'; status.className = 'scan-status warn'; }
       return;
     }
 
-    // Fill form fields
-    if (result.montant)                           { _setField('dep-montant', result.montant); }
-    if (result.description || result.fournisseur) { _setField('dep-desc', result.description || result.fournisseur); }
-    if (result.date)                              { _setField('dep-date', result.date); }
-    if (result.categorie)                         { selectTile('dep-cat-tiles', _mapCat(result.categorie)); }
+    if (result.montant)                              { _setField('dep-montant', result.montant); }
+    if (result.description || result.fournisseur)    { _setField('dep-desc', result.description || result.fournisseur); }
+    if (result.date)                                 { _setField('dep-date', result.date); }
+    if (result.categorie)                            { selectTile('dep-cat-tiles', _mapCat(result.categorie)); }
     _markAIFilled();
     if (status) { status.textContent = '✅ Champs remplis automatiquement !'; status.className = 'scan-status ok'; }
     toast('📷 Document analysé — champs pré-remplis', 'success');
   } catch (err) {
-    const msg = err.message || '';
-    if (status) {
-      status.textContent = msg.includes('401') ? '🔒 Connecte-toi pour utiliser cette fonction'
-                         : msg.includes('400') ? '⚙️ IA non configurée sur ce serveur'
-                         : '⚠️ Erreur — réessaie ou remplis manuellement';
-      status.className = 'scan-status warn';
-    }
+    if (status) { status.textContent = '⚠️ Scan échoué — remplis manuellement'; status.className = 'scan-status warn'; }
     console.error('[PhotoScan]', err);
   } finally {
     if (btn)   { btn.classList.remove('scanning'); btn.disabled = false; }
     input.value = '';
   }
 };
+
+function _parseReceiptText(rawText) {
+  const lines = rawText.split('\n').map(l => l.trim()).filter(Boolean);
+  const full  = lines.join(' ');
+  const low   = full.toLowerCase();
+  const result = {};
+
+  // Montant : récupère le plus grand nombre qui ressemble à un prix
+  const amounts = [];
+  const reAmt = /(\d{1,6}(?:[.,]\d{1,2})?)\s*(?:dh|mad|dirham)?/gi;
+  let m;
+  while ((m = reAmt.exec(low)) !== null) {
+    const v = parseFloat(m[1].replace(',', '.'));
+    if (v > 0 && v < 999999) amounts.push(v);
+  }
+  if (amounts.length) result.montant = Math.max(...amounts);
+
+  // Date
+  const reDate = /(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})/;
+  const dm = full.match(reDate);
+  if (dm) {
+    const y = dm[3].length === 2 ? '20' + dm[3] : dm[3];
+    result.date = `${y}-${dm[2].padStart(2,'0')}-${dm[1].padStart(2,'0')}`;
+  } else {
+    result.date = new Date().toISOString().split('T')[0];
+  }
+
+  // Fournisseur = première ligne non vide (généralement le nom du magasin)
+  result.fournisseur = lines[0] || '';
+  result.description = lines.slice(0, 2).join(' ').substring(0, 80);
+
+  // Catégorie
+  result.categorie = _guessCategoryFromText(low);
+  return result;
+}
 
 function _fileToBase64(file) {
   return new Promise((resolve, reject) => {
@@ -255,8 +283,91 @@ function _mapCat(cat) {
   return map[cat] || cat;
 }
 
+// ── Helpers communs OCR + Voice ───────────────────────────────────────────────
+function _guessCategoryFromText(low) {
+  const cats = [
+    [['ciment','sable','gravier','fer ','brique','béton','beton','parpaing','lhajra','lhdid','cimant','matériau','materiau','mwad','agglo'], 'Matériaux'],
+    [['ouvrier','maçon','macon','plâtrier','platre','carreleur','électricien','electricien','plombier','peintre','khdama','main.d'], "Main d'œuvre"],
+    [['transport','camion','livraison','chauffeur','tracteur','camionnette'], 'Transport'],
+    [['outil','machine','bétonnière','betoniere','perceuse','meuleuse','moada','équipement','equipement'], 'Équipement'],
+    [['architecte','bureau etude','plan ','honoraire','ingénieur','ingenieur','ujra'], 'Honoraires'],
+    [['électricité','electricite','câble','cable','disjoncteur','tableau elect','kahrrba'], 'Électricité'],
+    [['plomberie','tuyau','robinet',' wc ','sanitaire','sabak'], 'Plomberie'],
+    [['peinture','enduit','vernis','lwan'], 'Peinture'],
+    [['menuiserie','porte ','fenêtre','fenetre','bois ','nijara'], 'Menuiserie'],
+    [['carrelage','zelij','faience','dallage'], 'Carrelage'],
+    [['dalle','coffrage','gros oeuvre','gros œuvre','bina'], 'Gros œuvre'],
+  ];
+  for (const [kw, cat] of cats) {
+    if (kw.some(k => low.includes(k))) return cat;
+  }
+  return 'Autre';
+}
+
+function _extractVoiceLocally(transcript) {
+  const t   = transcript.toLowerCase().trim();
+  const result = { date: new Date().toISOString().split('T')[0] };
+
+  // ── Montant numérique ─────────────────────────────────────────────
+  // Priorité 1 : nombre juste avant/après DH / MAD / prix
+  const priceM = t.match(/(\d[\d\s]*(?:[.,]\d{1,2})?)\s*(?:dh|mad|dirham|درهم|reaux?|ryal)/i)
+              || t.match(/(?:à|a|pour|coûte?|prix de|prix:?|coût)\s*(\d[\d\s]*(?:[.,]\d{1,2})?)/i);
+  if (priceM) {
+    result.montant = parseFloat(priceM[1].replace(/\s/g,'').replace(',','.'));
+  } else {
+    // Priorité 2 : le plus grand nombre dans la phrase (hors quantités unitaires)
+    const allNums = [...t.matchAll(/(\d+(?:[.,]\d{1,2})?)/g)]
+      .map(m => parseFloat(m[1].replace(',','.')))
+      .filter(v => v > 9 && v < 1000000); // ignore quantités <= 9 (ex: "1 tonne")
+    if (allNums.length) result.montant = Math.max(...allNums);
+  }
+
+  // ── Montant Darija (mots) ─────────────────────────────────────────
+  if (!result.montant) {
+    const darijaMap = [
+      [/miyatayn|miytin|deux\s*cent/,200],[/tlet\s*miyya|trois\s*cent/,300],
+      [/rba3\s*miyya|quatre\s*cent/,400],[/khemsa?\s*miyya|cinq\s*cent/,500],
+      [/setta?\s*miyya|six\s*cent/,600],[/sba3\s*miyya|sept\s*cent/,700],
+      [/tmanya\s*miyya|huit\s*cent/,800],[/ts3ud\s*miyya|neuf\s*cent/,900],
+      [/alfayn|alfen|deux\s*mille/,2000],[/alf|mille(?!\s*\d)/,1000],
+      [/miyya|miya|cent(?!\s*\d)/,100],
+    ];
+    for (const [re, val] of darijaMap) {
+      if (re.test(t)) { result.montant = val; break; }
+    }
+  }
+
+  // ── Date ─────────────────────────────────────────────────────────
+  const today = new Date();
+  const fmtD  = d => d.toISOString().split('T')[0];
+  if (/aujourd.?hui|lyoum|l\s?yom/.test(t))        result.date = fmtD(today);
+  else if (/hier|lbara7/.test(t))                   { const y = new Date(today); y.setDate(y.getDate()-1); result.date = fmtD(y); }
+  else if (/avant.?hier/.test(t))                   { const y = new Date(today); y.setDate(y.getDate()-2); result.date = fmtD(y); }
+
+  // ── Fournisseur ───────────────────────────────────────────────────
+  const chezM = t.match(/(?:chez|de\s*chez|3nd|عند)\s+([a-zÀ-ÿ0-9]+(?:\s+[a-zÀ-ÿ0-9]+)?)/i);
+  if (chezM) {
+    result.fournisseur = chezM[1].trim().replace(/\b\w/g, c => c.toUpperCase());
+  }
+
+  // ── Description : partie avant le prix ───────────────────────────
+  // Ex: "1 tonne ciment à 9000 dh" → desc = "1 tonne ciment"
+  const beforePrice = t.match(/^(.+?)(?:\s+(?:à|a|pour|coûte?|prix)\s+\d|\s+\d[\d\s]*\s*(?:dh|mad))/i);
+  if (beforePrice) {
+    result.description = beforePrice[1].trim().replace(/\b\w/g, c => c.toUpperCase());
+  } else if (result.fournisseur) {
+    result.description = result.fournisseur;
+  }
+
+  // ── Catégorie ─────────────────────────────────────────────────────
+  result.categorie = _guessCategoryFromText(t);
+  if (!result.description) result.description = result.categorie;
+
+  return result;
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
-// FEATURE 4 — SAISIE VOCALE (Web Speech API + Claude via backend)
+// FEATURE 4 — SAISIE VOCALE (Web Speech API, extraction locale, zéro API)
 // ═══════════════════════════════════════════════════════════════════════════════
 let _voiceRecognition = null;
 let _isRecording = false;
@@ -322,44 +433,27 @@ function _stopVoice() {
   _isRecording = false;
 }
 
-async function _extractVoice(transcription) {
+function _extractVoice(transcription) {
   const live = document.getElementById('voice-live-text');
   const btn  = document.getElementById('btn-voice');
-  if (live) { live.textContent = '⏳ Analyse IA en cours…'; live.style.display = 'block'; live.className = 'voice-live info'; }
-  if (btn)  { btn.classList.add('processing'); btn.disabled = true; }
-  try {
-    const res = await fetch('/api/extract-voice', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem('bna_token') || '') },
-      body: JSON.stringify({ transcription }),
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.detail || `Erreur ${res.status}`);
-    }
-    const { result } = await res.json();
-    if (result && (result.montant || result.description || result.categorie)) {
-      if (result.montant)                              { _setField('dep-montant', result.montant); }
-      if (result.description || result.fournisseur)    { _setField('dep-desc', result.description || result.fournisseur); }
-      if (result.categorie)                            { selectTile('dep-cat-tiles', _mapCat(result.categorie)); }
-      if (result.date)                                 { _setField('dep-date', result.date); }
-      _markAIFilled();
-      toast('🎙️ Compris ! Champs remplis automatiquement', 'success');
-      if (live) { live.textContent = '✅ ' + transcription; live.className = 'voice-live ok'; }
-    } else {
-      if (live) { live.textContent = '❓ Non compris — reformule ou remplis manuellement'; live.className = 'voice-live warn'; }
-    }
-  } catch (err) {
-    const msg = err.message || '';
-    if (live) {
-      live.textContent = msg.includes('401') ? '🔒 Connecte-toi pour utiliser cette fonction'
-                       : '⚠️ Erreur IA — remplis manuellement';
-      live.className = 'voice-live warn';
-    }
-    console.error('[VoiceExtract]', err);
-  } finally {
-    if (btn) { btn.classList.remove('processing'); btn.disabled = false; }
+  if (btn) { btn.classList.add('processing'); btn.disabled = true; }
+
+  // Extraction 100% locale — zéro API, zéro coût
+  const result = _extractVoiceLocally(transcription);
+
+  if (result.montant || result.description || result.categorie) {
+    if (result.montant)                              { _setField('dep-montant', result.montant); }
+    if (result.description || result.fournisseur)    { _setField('dep-desc', result.description || result.fournisseur); }
+    if (result.categorie)                            { selectTile('dep-cat-tiles', _mapCat(result.categorie)); }
+    if (result.date)                                 { _setField('dep-date', result.date); }
+    _markAIFilled();
+    toast('🎙️ Compris ! Champs remplis automatiquement', 'success');
+    if (live) { live.textContent = '✅ ' + transcription; live.className = 'voice-live ok'; }
+  } else {
+    if (live) { live.textContent = '❓ Non compris — reformule ou remplis manuellement'; live.className = 'voice-live warn'; }
   }
+
+  if (btn) { btn.classList.remove('processing'); btn.disabled = false; }
 }
 
 function _showVoiceTextFallback() {

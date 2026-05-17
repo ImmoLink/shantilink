@@ -1947,28 +1947,97 @@ async def analyze_receipt(data: AnalyzeReceiptIn, user: dict = Depends(get_curre
     except Exception as e:
         raise HTTPException(500, f"Analyse échouée : {str(e)}")
 
+def _extract_voice_regex(transcription: str) -> dict:
+    """Extraction locale French + Darija — zéro API, zéro coût."""
+    import re as _re
+    t = transcription.lower().strip()
+    result: dict = {"devise": "MAD", "date": now_iso()[:10]}
+
+    # Montant : priorité au nombre avant/après DH/MAD, sinon le plus grand
+    pm = _re.search(r'(\d[\d\s]*(?:[.,]\d{1,2})?)\s*(?:dh|mad|dirham)', t) or \
+         _re.search(r'(?:à|a|pour|coûte?|prix)\s*(\d[\d\s]*(?:[.,]\d{1,2})?)', t)
+    if pm:
+        result["montant"] = float(pm.group(1).replace(' ','').replace(',','.'))
+    else:
+        nums = [float(x.replace(',','.')) for x in _re.findall(r'\d+(?:[.,]\d{1,2})?', t)
+                if float(x.replace(',','.')) > 9]
+        if nums: result["montant"] = max(nums)
+    # Darija / mots français (si pas de montant numérique trouvé)
+    if "montant" not in result:
+        darija = [
+            (r'miyatayn|miytin|deux\s*cent', 200), (r'tlet\s*miyya|trois\s*cent', 300),
+            (r'rba3\s*miyya|quatre\s*cent', 400),  (r'khemsa?\s*miyya|cinq\s*cent', 500),
+            (r'setta?\s*miyya|six\s*cent', 600),    (r'sba3\s*miyya|sept\s*cent', 700),
+            (r'tmanya\s*miyya|huit\s*cent', 800),   (r'ts3ud\s*miyya|neuf\s*cent', 900),
+            (r'alfayn|alfen|deux\s*mille', 2000),   (r'\balf\b|mille(?!\s*\d)', 1000),
+            (r'\bmiyya\b|miya\b|cent(?!\s*\d)', 100),
+        ]
+        for pat, val in darija:
+            if _re.search(pat, t):
+                result["montant"] = float(val); break
+
+    # Date
+    if _re.search(r"aujourd.?hui|lyoum|l\s?yom", t):
+        pass  # already today
+    elif _re.search(r"hier|lbara7", t):
+        from datetime import date, timedelta
+        result["date"] = (date.today() - timedelta(days=1)).isoformat()
+    elif _re.search(r"avant.?hier", t):
+        from datetime import date, timedelta
+        result["date"] = (date.today() - timedelta(days=2)).isoformat()
+
+    # Fournisseur
+    fm = _re.search(r'(?:chez|de\s*chez|3nd)\s+([a-zÀ-ÿ0-9]+(?:\s+[a-zÀ-ÿ0-9]+)?)', t)
+    if fm:
+        result["fournisseur"] = fm.group(1).strip().title()
+        result["description"] = result["fournisseur"]
+
+    # Catégorie
+    cat_map = [
+        (['ciment','sable','gravier','fer ','brique','béton','beton','parpaing','lhajra','lhdid','mwad'], 'materiaux'),
+        (['ouvrier','maçon','macon','khdama','main.d','plâtrier','carreleur'], 'maindoeuvre'),
+        (['transport','camion','livraison','chauffeur'], 'transport'),
+        (['outil','machine','bétonnière','betoniere','perceuse','moada'], 'equipement'),
+        (['architecte','honoraire','ingénieur','ujra'], 'honoraires'),
+        (['électricité','electricite','câble','disjoncteur','kahrrba'], 'electricite'),
+        (['plomberie','tuyau','robinet','sanitaire','sabak'], 'plomberie'),
+        (['peinture','enduit','lwan'], 'peinture'),
+        (['menuiserie','porte ','fenêtre','bois ','nijara'], 'menuiserie'),
+        (['carrelage','zelij','faience'], 'carrelage'),
+    ]
+    for kws, cat in cat_map:
+        if any(k in t for k in kws):
+            result["categorie"] = cat
+            break
+    else:
+        result["categorie"] = "autre"
+
+    if "description" not in result:
+        result["description"] = result.get("categorie", "")
+
+    return result
+
 @app.post("/api/extract-voice")
 async def extract_voice(data: ExtractVoiceIn, user: dict = Depends(get_current_user)):
-    if not ANTHROPIC_API_KEY:
-        raise HTTPException(400, "Analyse IA non configurée sur ce serveur.")
-    try:
-        import anthropic as _anthropic
-        client = _anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
-        today = now_iso()[:10]
-        response = client.messages.create(
-            model="claude-sonnet-4-5",
-            max_tokens=400,
-            system=_VOICE_SYSTEM + f"\nDate du jour : {today}",
-            messages=[{"role": "user", "content": f'Transcription : "{data.transcription}"'}]
-        )
-        raw = response.content[0].text if response.content else ""
-        import re as _re
-        m = _re.search(r'\{[\s\S]*\}', raw)
-        if not m:
-            return {"result": None}
-        return {"result": json.loads(m.group(0))}
-    except Exception as e:
-        raise HTTPException(500, f"Extraction échouée : {str(e)}")
+    # Si Anthropic configuré → utilise l'IA, sinon → regex local gratuit
+    if ANTHROPIC_API_KEY:
+        try:
+            import anthropic as _anthropic
+            client = _anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+            today = now_iso()[:10]
+            response = client.messages.create(
+                model="claude-sonnet-4-5", max_tokens=400,
+                system=_VOICE_SYSTEM + f"\nDate du jour : {today}",
+                messages=[{"role": "user", "content": f'Transcription : "{data.transcription}"'}]
+            )
+            raw = response.content[0].text if response.content else ""
+            import re as _re
+            m = _re.search(r'\{[\s\S]*\}', raw)
+            if m:
+                return {"result": json.loads(m.group(0))}
+        except Exception:
+            pass  # fallback regex
+    return {"result": _extract_voice_regex(data.transcription)}
 
 # ── Admin routes ───────────────────────────────────────────────────────────────
 def require_admin(user: dict = Depends(get_current_user)):
@@ -2182,6 +2251,26 @@ def bootstrap_admin(body: dict):
         ))
         conn.commit()
         return {"ok": True, "email": "admin@shantilink.ma", "id": uid_val}
+    finally:
+        conn.close()
+
+@app.post("/bootstrap/reset-admin")
+def bootstrap_reset_admin(body: dict):
+    secret = os.environ.get("BOOTSTRAP_SECRET", "")
+    if not secret or body.get("secret") != secret:
+        raise HTTPException(403, "Clé invalide")
+    pwd = body.get("password")
+    if not pwd or len(pwd) < 6:
+        raise HTTPException(400, "Mot de passe trop court (min 6 caractères)")
+    conn = get_db()
+    try:
+        row = conn.execute(text("SELECT id, email FROM users WHERE role='admin' LIMIT 1")).fetchone()
+        if not row:
+            raise HTTPException(404, "Aucun admin trouvé")
+        hashed = hash_password(pwd)
+        conn.execute(*sql_params("UPDATE users SET password_hash=? WHERE id=?", [hashed, row[0]]))
+        conn.commit()
+        return {"ok": True, "email": row[1], "message": "Mot de passe réinitialisé"}
     finally:
         conn.close()
 
