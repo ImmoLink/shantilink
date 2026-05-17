@@ -3131,67 +3131,154 @@ function escHtml(s) {
 };
 
 // ── ADMIN PANEL ───────────────────────────────────────────────────────────────
+let _adminUsers = [];
+let _adminSearch = '';
+
 window.renderAdminPanel = async function() {
   const panel = document.getElementById('panel-admin');
   if (!panel) return;
   if (!currentUser || currentUser.role !== 'admin') {
-    panel.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--red)">Accès refusé</div>';
+    panel.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--red)">Acces refuse</div>';
     return;
   }
-  panel.innerHTML = '<div style="padding:1rem;color:var(--muted);font-size:13px">⏳ Chargement…</div>';
+  panel.innerHTML = '<div style="padding:1.5rem;color:var(--muted);font-size:13px;text-align:center">Chargement...</div>';
   try {
     const [stats, users] = await Promise.all([
       API.get('/api/admin/stats'),
-      API.get('/api/admin/users?limit=30'),
+      API.get('/api/admin/users?limit=200'),
     ]);
+    _adminUsers = users;
+    _adminSearch = '';
+
+    const roles = ['client','pro','promoteur','architecte','admin'];
+    const roleColor = { admin:'#7C3AED', pro:'#1D4ED8', promoteur:'#0D9488', architecte:'#D97706', client:'#64748B' };
+    const planBadge = p => p === 'pro' ? '<span style="background:#FEF3C7;color:#92400E;border-radius:100px;padding:1px 7px;font-size:9px;font-weight:700">PRO</span>'
+      : p === 'business' ? '<span style="background:#EDE9FE;color:#6D28D9;border-radius:100px;padding:1px 7px;font-size:9px;font-weight:700">BIZ</span>'
+      : '<span style="background:#F1F5F9;color:#64748B;border-radius:100px;padding:1px 7px;font-size:9px">Gratuit</span>';
+
+    function renderUserRows(list) {
+      if (!list.length) return '<tr><td colspan="8" style="text-align:center;padding:1.5rem;color:var(--muted);font-size:12px">Aucun utilisateur</td></tr>';
+      return list.map(u => {
+        const rc = roleColor[u.role] || '#64748B';
+        const initials = (u.prenom||'?')[0].toUpperCase() + (u.nom ? u.nom[0].toUpperCase() : '');
+        const dep = u.total_expenses ? Math.round(u.total_expenses).toLocaleString('fr-FR') + ' DH' : '0 DH';
+        return '<tr id="arow-'+u.id+'">'
+          + '<td style="padding:.6rem .8rem">'
+            + '<div style="display:flex;align-items:center;gap:.6rem">'
+            + '<div style="width:32px;height:32px;border-radius:50%;background:'+rc+';display:flex;align-items:center;justify-content:center;color:white;font-size:11px;font-weight:700;flex-shrink:0">'+initials+'</div>'
+            + '<div><div style="font-weight:600;font-size:12px">'+u.prenom+' '+(u.nom||'')+'</div>'
+            + '<div style="font-size:10px;color:var(--muted)">'+u.email+'</div></div>'
+            + '</div>'
+          + '</td>'
+          + '<td style="padding:.4rem .6rem">'+planBadge(u.plan||'starter')+'</td>'
+          + '<td style="padding:.4rem .6rem">'
+            + '<select onchange="adminSetRole(\''+u.id+'\',this.value)" style="font-size:11px;padding:3px 8px;border:.5px solid var(--border);border-radius:6px;background:white;color:'+rc+';font-weight:600">'
+            + roles.map(r=>'<option value="'+r+'" style="color:'+(roleColor[r]||'#64748B')+'"'+(u.role===r?' selected':'')+'>'+r+'</option>').join('')
+            + '</select>'
+          + '</td>'
+          + '<td style="padding:.4rem .6rem;font-size:11px;color:var(--muted)">'+(u.ville||'—')+'</td>'
+          + '<td style="padding:.4rem .6rem;text-align:center"><span style="background:var(--clay-pp);border-radius:100px;padding:2px 8px;font-size:11px;font-weight:600">'+(u.nb_projects||0)+'</span></td>'
+          + '<td style="padding:.4rem .6rem;font-size:11px;color:var(--ink);font-weight:500">'+dep+'</td>'
+          + '<td style="padding:.4rem .6rem;font-size:10px;color:var(--muted)">'+(u.created_at?u.created_at.slice(0,10):'—')+'</td>'
+          + '<td style="padding:.4rem .6rem;text-align:center">'
+            + '<button onclick="adminDeleteUser(\''+u.id+'\')" title="Supprimer" style="width:24px;height:24px;display:inline-flex;align-items:center;justify-content:center;background:var(--red-b);color:var(--red);border:none;border-radius:50%;cursor:pointer;font-size:14px;line-height:1">x</button>'
+          + '</td>'
+          + '</tr>';
+      }).join('');
+    }
+
+    window._adminRenderRows = function() {
+      const q = _adminSearch.toLowerCase();
+      const filtered = q ? _adminUsers.filter(u =>
+        (u.prenom+' '+u.nom+' '+u.email+' '+u.ville+' '+u.role).toLowerCase().includes(q)
+      ) : _adminUsers;
+      const tbody = document.getElementById('admin-users-tbody');
+      if (tbody) tbody.innerHTML = renderUserRows(filtered);
+      const countEl = document.getElementById('admin-user-count');
+      if (countEl) countEl.textContent = filtered.length + ' / ' + _adminUsers.length + ' utilisateurs';
+    };
+
+    const nByRole = {};
+    users.forEach(u => { nByRole[u.role] = (nByRole[u.role]||0)+1; });
+
     panel.innerHTML =
-      '<div class="dh"><div><div class="dh-title">⚙️ Administration</div><div class="dh-sub">Gestion de la plateforme</div></div></div>'
-      // KPI grid
-      + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.8rem;margin-bottom:1.5rem">'
-      + adminKpi('👤 Utilisateurs', stats.total_users, '+'+stats.new_users_today+' aujourd\'hui')
-      + adminKpi('🏗️ Projets', stats.total_projects, 'actifs')
-      + adminKpi('💸 Dépenses totales', Math.round(stats.total_expenses).toLocaleString('fr-FR')+' DH', 'toutes catégories')
-      + adminKpi('💬 Posts communauté', stats.total_posts, 'publications')
+      // Header
+      '<div class="dh"><div>'
+      + '<div class="dh-title">Administration ShantiLink</div>'
+      + '<div class="dh-sub">Vue plateforme — acces admin uniquement</div>'
       + '</div>'
-      // Users table
-      + '<div class="dcard"><div class="dcard-tit">Utilisateurs inscrits</div>'
-      + '<div style="overflow-x:auto"><table class="dep-table"><thead><tr>'
-      + '<th>Prénom / Nom</th><th>Email</th><th>Rôle</th><th>Ville</th><th>Projets</th><th>Inscrit le</th><th></th>'
-      + '</tr></thead><tbody>'
-      + users.map(u => '<tr>'
-        + '<td style="font-weight:600">'+u.prenom+' '+(u.nom||'')+'</td>'
-        + '<td style="font-size:11px;color:var(--muted)">'+u.email+'</td>'
-        + '<td><select onchange="adminSetRole(\''+u.id+'\',this.value)" style="font-size:11px;padding:3px 6px;border:.5px solid var(--border);border-radius:6px">'
-        + ['client','promoteur','architecte','admin'].map(r=>'<option value="'+r+'"'+(u.role===r?' selected':'')+'>'+r+'</option>').join('')
-        + '</select></td>'
-        + '<td style="font-size:11px">'+( u.ville||'—')+'</td>'
-        + '<td style="text-align:center">'+( u.nb_projects||0)+'</td>'
-        + '<td style="font-size:10px;color:var(--muted)">'+(u.created_at?u.created_at.slice(0,10):'')+'</td>'
-        + '<td><button onclick="adminDeleteUser(\''+u.id+'\')" style="font-size:10px;padding:2px 8px;background:var(--red-b);color:var(--red);border:none;border-radius:100px;cursor:pointer">✕</button></td>'
-        + '</tr>').join('')
-      + '</tbody></table></div></div>';
+      + '<button onclick="renderAdminPanel()" style="font-size:11px;padding:6px 14px;background:var(--clay-pp);border:.5px solid var(--border);border-radius:100px;cursor:pointer;font-family:Outfit,sans-serif;color:var(--ink)">Actualiser</button>'
+      + '</div>'
+
+      // KPI row
+      + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:.8rem;margin-bottom:1.5rem">'
+      + _adminKpi('Utilisateurs', stats.total_users, '+'+stats.new_users_today+' auj.', '#1D4ED8', '#EFF6FF')
+      + _adminKpi('Projets', stats.total_projects, 'sur la plateforme', '#0D9488', '#F0FDFA')
+      + _adminKpi('Depenses totales', Math.round(stats.total_expenses).toLocaleString('fr-FR')+' DH', 'toutes categories', '#D97706', '#FEF3C7')
+      + _adminKpi('Posts communaute', stats.total_posts, 'publications', '#7C3AED', '#EDE9FE')
+      + '</div>'
+
+      // Role breakdown
+      + '<div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1.2rem">'
+      + Object.entries(nByRole).sort((a,b)=>b[1]-a[1]).map(([r,n])=>
+          '<span style="background:'+(roleColor[r]||'#64748B')+'22;color:'+(roleColor[r]||'#64748B')+';border-radius:100px;padding:3px 10px;font-size:11px;font-weight:600">'+r+' ('+n+')</span>'
+        ).join('')
+      + '</div>'
+
+      // Search bar
+      + '<div style="display:flex;gap:.6rem;align-items:center;margin-bottom:.8rem">'
+      + '<input id="admin-search-input" type="text" placeholder="Rechercher par nom, email, ville, role..." oninput="_adminSearch=this.value;_adminRenderRows()" style="flex:1;padding:.5rem .9rem;border:.5px solid var(--border);border-radius:100px;font-family:Outfit,sans-serif;font-size:12px;outline:none"/>'
+      + '<span id="admin-user-count" style="font-size:11px;color:var(--muted);white-space:nowrap">'+users.length+' / '+users.length+' utilisateurs</span>'
+      + '</div>'
+
+      // Table
+      + '<div class="dcard" style="padding:0;overflow:hidden">'
+      + '<div style="overflow-x:auto">'
+      + '<table style="width:100%;border-collapse:collapse;font-size:12px">'
+      + '<thead><tr style="background:var(--clay-pp);border-bottom:.5px solid var(--border)">'
+      + '<th style="padding:.6rem .8rem;text-align:left;font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.05em;text-transform:uppercase">Utilisateur</th>'
+      + '<th style="padding:.6rem .6rem;text-align:left;font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.05em;text-transform:uppercase">Plan</th>'
+      + '<th style="padding:.6rem .6rem;text-align:left;font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.05em;text-transform:uppercase">Role</th>'
+      + '<th style="padding:.6rem .6rem;text-align:left;font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.05em;text-transform:uppercase">Ville</th>'
+      + '<th style="padding:.6rem .6rem;text-align:center;font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.05em;text-transform:uppercase">Projets</th>'
+      + '<th style="padding:.6rem .6rem;text-align:left;font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.05em;text-transform:uppercase">Depenses</th>'
+      + '<th style="padding:.6rem .6rem;text-align:left;font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.05em;text-transform:uppercase">Inscription</th>'
+      + '<th style="padding:.6rem .6rem"></th>'
+      + '</tr></thead>'
+      + '<tbody id="admin-users-tbody">' + renderUserRows(users) + '</tbody>'
+      + '</table>'
+      + '</div></div>';
+
   } catch(e) {
-    panel.innerHTML = '<div style="padding:2rem;color:var(--red)">Erreur : '+e.message+'</div>';
+    panel.innerHTML = '<div style="padding:2rem;color:var(--red);text-align:center">Erreur : '+e.message+'</div>';
   }
 };
 
-function adminKpi(label, value, note) {
-  return '<div class="kpi"><div class="kpi-lbl">'+label+'</div><div class="kpi-val" style="font-size:1.1rem">'+value+'</div>'+(note?'<div class="kpi-note">'+note+'</div>':'')+'</div>';
+function _adminKpi(label, value, note, color, bg) {
+  return '<div style="background:'+bg+';border-radius:12px;padding:1rem;border:.5px solid '+color+'22">'
+    + '<div style="font-size:9px;font-weight:700;color:'+color+';text-transform:uppercase;letter-spacing:.06em;margin-bottom:.3rem">'+label+'</div>'
+    + '<div style="font-size:1.3rem;font-weight:800;color:'+color+'">'+value+'</div>'
+    + (note?'<div style="font-size:10px;color:'+color+'99;margin-top:.2rem">'+note+'</div>':'')
+    + '</div>';
 }
 
 window.adminSetRole = async function(uid, role) {
   try {
     await API.put('/api/admin/users/'+uid+'/role', {role});
-    toast('Rôle mis à jour', 'success');
+    const u = _adminUsers.find(x => x.id === uid);
+    if (u) u.role = role;
+    toast('Role mis a jour : ' + role, 'success');
   } catch(e) { toast(e.message,'error'); }
 };
 
 window.adminDeleteUser = async function(uid) {
-  if (!confirm('Supprimer cet utilisateur définitivement ?')) return;
+  const u = _adminUsers.find(x => x.id === uid);
+  if (!confirm('Supprimer ' + (u ? u.prenom + ' ' + (u.nom||'') + ' (' + u.email + ')' : 'cet utilisateur') + ' definitivement ?')) return;
   try {
     await API.del('/api/admin/users/'+uid);
-    toast('Utilisateur supprimé','success');
-    renderAdminPanel();
+    _adminUsers = _adminUsers.filter(x => x.id !== uid);
+    if (typeof _adminRenderRows === 'function') _adminRenderRows();
+    toast('Utilisateur supprime', 'success');
   } catch(e) { toast(e.message,'error'); }
 };
 

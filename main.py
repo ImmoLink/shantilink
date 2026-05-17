@@ -713,7 +713,7 @@ def get_expenses(user: dict = Depends(get_current_user)):
     conn = get_db()
     try:
         rows = conn.execute(
-            *sql_params("SELECT * FROM expenses WHERE user_id=? ORDER BY date DESC, rowid DESC", [user["sub"]])
+            *sql_params("SELECT * FROM expenses WHERE user_id=? ORDER BY date DESC, id DESC", [user["sub"]])
         ).fetchall()
         return [dict(r._mapping) for r in rows]
     finally:
@@ -756,7 +756,7 @@ def get_photos(user: dict = Depends(get_current_user)):
     conn = get_db()
     try:
         rows = conn.execute(
-            *sql_params("SELECT * FROM photos WHERE user_id=? ORDER BY date DESC, rowid DESC", [user["sub"]])
+            *sql_params("SELECT * FROM photos WHERE user_id=? ORDER BY date DESC, id DESC", [user["sub"]])
         ).fetchall()
         return [dict(r._mapping) for r in rows]
     finally:
@@ -2068,11 +2068,10 @@ def admin_list_users(skip: int = 0, limit: int = 50, admin=Depends(require_admin
     conn = get_db()
     try:
         rows = conn.execute(*sql_params("""
-            SELECT u.id, u.prenom, u.nom, u.email, u.role, u.ville, u.plan, u.created_at,
-                   COUNT(p.id) as nb_projects
+            SELECT u.id, u.prenom, u.nom, u.email, u.role, u.ville, u.plan, u.created_at, u.status,
+                   (SELECT COUNT(*) FROM projects p WHERE p.user_id = u.id) as nb_projects,
+                   (SELECT COALESCE(SUM(e.montant),0) FROM expenses e WHERE e.user_id = u.id AND e.deleted=0) as total_expenses
             FROM users u
-            LEFT JOIN projects p ON p.user_id = u.id
-            GROUP BY u.id
             ORDER BY u.created_at DESC
             LIMIT ? OFFSET ?
         """, [limit, skip])).fetchall()
