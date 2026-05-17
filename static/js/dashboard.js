@@ -1964,7 +1964,8 @@ window.switchRapTab = function(tab) {
 window.generatePDFForProject = async function(pid) {
   const p = DB.projects.find(x => x.id === pid);
   if (!p) return;
-  toast('Generation du rapport PDF...', 'success');
+  if (!window.jspdf) { toast('Librairie PDF non chargee — rechargez la page', 'error'); return; }
+  toast('Ouverture du rapport PDF...', 'success');
   try {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
@@ -1972,30 +1973,34 @@ window.generatePDFForProject = async function(pid) {
     let y = 0;
 
     // ── HEADER BAND ───────────────────────────────────────────────────────
-    // Deep navy background
-    doc.setFillColor(10, 25, 60);
+    // ShantiLink clay/orange brand header
+    doc.setFillColor(160, 82, 45);
     doc.rect(0, 0, W, 44, 'F');
-    // Teal accent stripe
-    doc.setFillColor(14, 165, 233);
+    // Dark accent bottom stripe
+    doc.setFillColor(100, 46, 20);
     doc.rect(0, 41, W, 3, 'F');
-    // Left color block
-    doc.setFillColor(14, 165, 233);
+    // Warm left block
+    doc.setFillColor(200, 120, 60);
     doc.rect(0, 0, 5, 44, 'F');
+    // Subtle diagonal decoration (top-right corner)
+    doc.setFillColor(200, 120, 60);
+    doc.triangle(W, 0, W - 40, 0, W, 44, 'F');
     // Logo text
     doc.setTextColor(255, 255, 255);
-    doc.setFontSize(20); doc.setFont('helvetica', 'bold');
-    doc.text('ShantiLink', 12, 18);
+    doc.setFontSize(22); doc.setFont('helvetica', 'bold');
+    doc.text('ShantiLink', 12, 19);
     doc.setFontSize(8); doc.setFont('helvetica', 'normal');
-    doc.setTextColor(148, 194, 240);
-    doc.text('Plateforme BTP Maroc  |  www.shantilink.ma', 12, 26);
-    // Report label top-right
-    doc.setFillColor(14, 165, 233);
-    doc.roundedRect(W - 62, 8, 50, 14, 2, 2, 'F');
-    doc.setTextColor(255, 255, 255);
+    doc.setTextColor(255, 220, 190);
+    doc.text('Plateforme BTP Maroc  |  www.shantilink.ma', 12, 28);
+    // Report label top-right badge
+    doc.setFillColor(255, 255, 255);
+    doc.roundedRect(W - 60, 8, 48, 15, 2, 2, 'F');
+    doc.setTextColor(160, 82, 45);
     doc.setFontSize(8); doc.setFont('helvetica', 'bold');
-    doc.text('RAPPORT DE PROJET', W - 37, 14.5, { align: 'center' });
+    doc.text('RAPPORT PROJET', W - 36, 14.5, { align: 'center' });
     doc.setFontSize(7); doc.setFont('helvetica', 'normal');
-    doc.text(new Date().toLocaleDateString('fr-FR'), W - 37, 20, { align: 'center' });
+    doc.setTextColor(120, 60, 20);
+    doc.text(new Date().toLocaleDateString('fr-FR'), W - 36, 20.5, { align: 'center' });
 
     // ── PROJECT TITLE BAND ─────────────────────────────────────────────────
     y = 50;
@@ -2019,10 +2024,10 @@ window.generatePDFForProject = async function(pid) {
     const pct      = p.pct || 0;
     const overBudget = budget > 0 && totalDep > budget;
     const kpis = [
-      { l: 'Avancement', v: pct + '%',                       c: pct >= 80 ? [5,150,105] : pct >= 40 ? [14,165,233] : [71,85,105], bg: [240,253,244] },
-      { l: 'Budget',     v: budget > 0 ? pdfNum(budget) + ' DH' : 'N/D', c: [10,25,60],   bg: [240,247,255] },
-      { l: 'Depenses',   v: pdfNum(totalDep) + ' DH',         c: overBudget ? [185,28,28] : [10,25,60], bg: overBudget ? [254,242,242] : [248,250,252] },
-      { l: 'Restant',    v: budget > 0 ? pdfNum(Math.abs(restant)) + ' DH' : 'N/D', c: overBudget ? [185,28,28] : [5,150,105], bg: overBudget ? [254,242,242] : [240,253,244] },
+      { l: 'Avancement', v: pct + '%',                       c: pct >= 80 ? [22,163,74] : pct >= 40 ? [160,82,45] : [100,116,139], bg: pct >= 80 ? [240,253,244] : pct >= 40 ? [253,246,236] : [248,250,252] },
+      { l: 'Budget',     v: budget > 0 ? pdfNum(budget) + ' DH' : 'N/D', c: [30,64,175], bg: [239,246,255] },
+      { l: 'Depenses',   v: pdfNum(totalDep) + ' DH',         c: overBudget ? [185,28,28] : [160,82,45], bg: overBudget ? [254,242,242] : [253,246,236] },
+      { l: 'Restant',    v: budget > 0 ? pdfNum(Math.abs(restant)) + ' DH' : 'N/D', c: overBudget ? [185,28,28] : [22,163,74], bg: overBudget ? [254,242,242] : [240,253,244] },
     ];
     const kW = (W - 2*M - 9) / 4;
     kpis.forEach((k, i) => {
@@ -2074,7 +2079,7 @@ window.generatePDFForProject = async function(pid) {
     if (phases.length) {
       if (y > H - 80) { doc.addPage(); y = M; }
       // Section title
-      doc.setFillColor(10, 25, 60);
+      doc.setFillColor(160, 82, 45);
       doc.roundedRect(M, y, W - 2*M, 9, 2, 2, 'F');
       doc.setTextColor(255, 255, 255); doc.setFontSize(9); doc.setFont('helvetica', 'bold');
       doc.text('PLANNING DES PHASES', M + 4, y + 6.2);
@@ -2114,7 +2119,7 @@ window.generatePDFForProject = async function(pid) {
 
     // ── EXPENSES TABLE ────────────────────────────────────────────────────
     if (y > H - 80) { doc.addPage(); y = M; }
-    doc.setFillColor(10, 25, 60);
+    doc.setFillColor(160, 82, 45);
     doc.roundedRect(M, y, W - 2*M, 9, 2, 2, 'F');
     doc.setTextColor(255, 255, 255); doc.setFontSize(9); doc.setFont('helvetica', 'bold');
     doc.text('DETAIL DES DEPENSES', M + 4, y + 6.2);
@@ -2201,21 +2206,23 @@ window.generatePDFForProject = async function(pid) {
     const np = doc.internal.getNumberOfPages();
     for (let pg = 1; pg <= np; pg++) {
       doc.setPage(pg);
-      doc.setFillColor(10, 25, 60);
+      doc.setFillColor(160, 82, 45);
       doc.rect(0, H - 12, W, 12, 'F');
-      doc.setFillColor(14, 165, 233);
+      doc.setFillColor(100, 46, 20);
       doc.rect(0, H - 12, W, 1.5, 'F');
-      doc.setTextColor(148, 194, 240); doc.setFontSize(7); doc.setFont('helvetica', 'normal');
+      doc.setTextColor(255, 220, 190); doc.setFontSize(7); doc.setFont('helvetica', 'normal');
       doc.text('ShantiLink  |  Plateforme BTP Maroc  |  contact@shantilink.ma', M, H - 5);
       doc.text('Page ' + pg + ' / ' + np, W - M, H - 5, { align: 'right' });
     }
 
-    const filename = 'ShantiLink_' + p.nom.replace(/\s+/g, '_') + '_' + new Date().toISOString().slice(0, 10) + '.pdf';
-    doc.save(filename);
-    toast('Rapport "' + p.nom + '" telecharge !', 'success');
+    // Open in new browser tab
+    const blob = doc.output('blob');
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+    toast('Rapport "' + p.nom + '" ouvert !', 'success');
   } catch(err) {
     console.error('PDF error', err);
-    toast('Erreur generation PDF : ' + (err.message || err), 'error');
+    toast('Erreur PDF : ' + (err.message || String(err)), 'error');
   }
 };
 
