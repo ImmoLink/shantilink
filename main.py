@@ -314,58 +314,58 @@ def init_db():
                 (
                     "Bienvenue sur la communauté ShantiLink 🏗️",
                     "Bienvenue sur la communauté ShantiLink — l'espace des professionnels et clients du BTP au Maroc. 🇲🇦\n\nCe fil est le vôtre.\n\nIci, vous pouvez :\n📌 Partager des conseils de chantier\n📌 Poser des questions techniques\n📌 Signaler les prix du marché\n📌 Présenter vos réalisations\n📌 Trouver des collaborateurs\n📌 Rester informés de la réglementation\n\nShantiLink est une plateforme BTP marocaine créée pour simplifier la gestion de chantier et relier clients et professionnels. Notre mission : rendre la construction au Maroc plus transparente, plus professionnelle et plus simple pour tout le monde.\n\nComment participer ?\n→ Cliquez « Publier » pour partager\n→ Invitez vos collègues et clients à rejoindre\n\nOn démarre avec du contenu — à vous de prendre la suite. 🤝\nL'équipe ShantiLink",
-                    "annonce", '["annonce"]', 1
+                    "annonce", '["annonce"]', 1, "/static/images/posts/post-bienvenue.svg"
                 ),
                 (
                     "Guide : Choisir un bon entrepreneur BTP au Maroc",
                     "Choisir le mauvais entrepreneur, c'est le risque numéro 1 d'un projet BTP raté.\nVoici les 5 critères que tout client doit vérifier — sans exception.\n\n✅ 1. Registre du commerce actif\nDemande le numéro RC et vérifie-le sur le portail du Tribunal de Commerce. Un entrepreneur sans RC officiel = aucun recours légal en cas de litige.\n\n✅ 2. Références de chantiers similaires\nPas juste des photos — demande à visiter un chantier terminé et à parler au client. Un bon professionnel accepte sans hésiter.\n\n✅ 3. Devis détaillé par lot\nBéton, maçonnerie, plomberie, électricité... chaque poste doit être chiffré séparément. Un devis global « forfait » cache souvent des surprises.\n\n✅ 4. Attestation d'assurance\nAssurance décennale obligatoire pour les gros travaux. Demande le certificat — s'il ne l'a pas, passe ton chemin.\n\n✅ 5. Visite de chantier en cours\nObserve comment il gère ses ouvriers, sa propreté, ses délais. Un chantier bien tenu = un pro sérieux.\n\n💡 Les profils vérifiés sur ShantiLink ont tous passé ces 5 critères.",
-                    "conseil", '["conseil","client"]', 1
+                    "conseil", '["conseil","client"]', 1, "/static/images/posts/post-choisir-entrepreneur.svg"
                 ),
                 (
                     "Prix matériaux BTP Mai 2026 — Ciment, Fer, Sable",
                     "Mise à jour des prix courants au Maroc (mai 2026). Ces prix sont des moyennes — ils varient selon la région et le fournisseur.\n\n🏗️ GROS ŒUVRE\n• Ciment CPJ45 (50kg) : 68–75 MAD / sac\n• Ciment CPJ55 (50kg) : 82–90 MAD / sac\n• Fer à béton HA12 : 8,2–9,0 MAD / kg\n• Fer rond HA8 : 8,5–9,2 MAD / kg\n• Treillis soudé ST25 : 180–220 MAD / m²\n\n🪨 GRANULATS & MAÇONNERIE\n• Sable de rivière : 180–220 MAD / tonne\n• Sable de carrière : 120–150 MAD / tonne\n• Gravier 15/25 : 200–240 MAD / tonne\n• Parpaing 20×20×40 : 4,5–5,5 MAD / unité\n• Brique rouge 6 trous : 1,8–2,2 MAD / unité\n\n🏠 SECOND ŒUVRE\n• Carrelage 60×60 céramique : 90–150 MAD / m²\n• Carrelage grès cérame : 180–350 MAD / m²\n• Enduit ciment (sac 40kg) : 55–70 MAD / sac\n\n💡 Conseil : demandez toujours 3 devis fournisseurs avant d'acheter en grande quantité. Les grossistes offrent des remises de 10–20% à partir de 5 tonnes.",
-                    "materiaux", '["matériaux","prix"]', 0
+                    "materiaux", '["matériaux","prix"]', 0, "/static/images/posts/post-prix-materiaux.svg"
                 ),
                 (
                     "Normes parasismiques RPS 2011 révisées — Impact sur vos chantiers",
                     "Suite au séisme d'Al Haouz (2023), le Maroc a accéléré l'application du Règlement Parasismique des Bâtiments (RPS 2011 révisé).\n\n📍 Ce qui a changé en 2024 :\n\nZONAGE RÉVISÉ :\n→ Zone 1 (faible) : Sahara, extrême sud\n→ Zone 2 (modéré) : Casablanca, Rabat, côte atlantique ← NOUVEAU pour Casablanca\n→ Zone 3 (fort) : Rif, Atlas, Agadir\n\nIMPACT CONCRET SUR LE FERRAILLAGE :\nPour une villa R+1 à Casablanca (zone 2 désormais) :\n• Semelles filantes : ferraillage minimum HA12 tous les 15cm (au lieu de 20cm)\n• Chaînages horizontaux : HA10 minimum à chaque plancher\n• Poteaux : HA12 minimum, cadres HA8 tous les 10cm en zone nodale\n\n⚠️ Non-conformité = refus de réception par le bureau de contrôle.\n\nPour les projets en cours : vérifiez avec votre architecte si votre permis a été établi sous l'ancienne zone.",
-                    "reglementation", '["réglementation","pro"]', 0
+                    "reglementation", '["réglementation","pro"]', 0, "/static/images/posts/post-normes-parasismiques.svg"
                 ),
                 (
                     "Checklist réception de chantier — Évitez les malfaçons",
                     "La réception de chantier est le moment le plus important du projet. C'est là que vous acceptez — ou refusez — le travail effectué. Une fois signée, il est très difficile de revenir en arrière.\n\n📋 CHECKLIST COMPLÈTE\n\nPLANÉITÉ & NIVEAUX\n☐ Sols : testez avec une règle de 2m → écart max 5mm autorisé\n☐ Murs : vérifiez la verticalité avec un niveau à bulle\n☐ Plafonds : recherchez les variations de niveau\n\nCARRELAGE & FAÏENCE\n☐ Joints réguliers et bien remplis (pas de joints creux au son)\n☐ Pas de carreaux fêlés ou mal collés\n☐ Alignement des joints d'une pièce à l'autre\n\nÉTANCHÉITÉ\n☐ Terrasse : versez 10L d'eau → aucune infiltration sous 24h\n☐ Joints silicone baignoire/douche continus\n\nPLOMBERIE & ÉLECTRICITÉ\n☐ Toutes les robinetteries et prises testées\n☐ Disjoncteurs fonctionnels — testez chaque circuit\n☐ Tableau électrique : étiquetage de chaque disjoncteur\n\nEN CAS DE RÉSERVE\n→ Notez par écrit sur le PV de réception\n→ Retenez 5% du montant total jusqu'à levée complète",
-                    "conseil", '["conseil","qualité","client"]', 0
+                    "conseil", '["conseil","qualité","client"]', 0, "/static/images/posts/post-checklist-reception.svg"
                 ),
                 (
                     "Devis vs Contrat : Ne confondez plus ces deux documents",
                     "C'est l'erreur la plus répandue chez les propriétaires au Maroc : signer un devis en croyant avoir un contrat.\n\n📄 LE DEVIS\n• C'est une OFFRE commerciale de l'entrepreneur\n• Il n'est pas contraignant tant qu'il n'est pas signé des deux parties\n• Il a une durée de validité limitée (généralement 30 jours)\n• Il indique les prix, quantités et délais ESTIMÉS\n\n📋 LE CONTRAT\n• C'est un ENGAGEMENT juridique bilatéral\n• Il est opposable devant un tribunal\n• Il doit préciser : délais, pénalités de retard, garanties, conditions de paiement\n• Les modifications nécessitent un avenant signé\n\n⚠️ Ce qui manque souvent dans les contrats marocains :\n1. Clause de pénalité de retard (ex: 0,5% par semaine de retard)\n2. Planning détaillé annexé\n3. Conditions de réception et de garantie\n\n✅ La règle simple :\nNe versez AUCUN acompte avant d'avoir un contrat SIGNÉ.\n\n💡 ShantiLink génère automatiquement des rapports d'avancement qui servent de preuve opposable en cas de litige.",
-                    "reglementation", '["réglementation","client"]', 0
+                    "reglementation", '["réglementation","client"]', 0, "/static/images/posts/post-devis-vs-contrat.svg"
                 ),
                 (
                     "Photographiez votre chantier : la meilleure protection contre les litiges",
                     "Un litige de chantier sur deux aurait pu être évité avec de bonnes photos.\n\n📸 QUAND PHOTOGRAPHIER (étapes clés absolues)\n\nAvant les travaux :\n→ État des lieux complet (sols, murs, plafond, extérieur)\n\nGros œuvre :\n→ Ferraillage AVANT le coulage du béton ← le plus important\n→ Fouilles et semelles, chaînages et poteaux avant coffrage\n\nAvant fermeture :\n→ Réseaux plomberie AVANT la chape\n→ Réseaux électriques AVANT l'enduit\n\n📱 COMMENT PHOTOGRAPHIER EFFICACEMENT\n• Activez la géolocalisation → preuve de lieu automatique\n• La date/heure s'enregistre dans les métadonnées EXIF\n• Photographiez avec un objet de référence pour l'échelle\n\n💡 ShantiLink enregistre automatiquement les coordonnées GPS de chaque photo uploadée. Vos preuves sont horodatées et géolocalisées — opposables juridiquement.",
-                    "conseil", '["conseil","documentation"]', 0
+                    "conseil", '["conseil","documentation"]', 0, "/static/images/posts/post-photos-chantier.svg"
                 ),
                 (
                     "Grille des salaires BTP Maroc 2026 — Référence officielle",
                     "Vous recrutez pour un chantier ? Voici les rémunérations de référence pour respecter vos obligations légales.\n\n💰 SMIG BTP (base légale 2026)\n• Taux horaire : 16,29 MAD / heure\n• Journée 8h : 130 MAD / jour\n• Mensuel (26 jours) : 3 380 MAD\n\n👷 OUVRIERS — Salaire journalier\n• Manœuvre (OS1) : 130–150 MAD / jour\n• Aide-maçon (OS2) : 150–180 MAD / jour\n• Maçon qualifié (OS3) : 180–220 MAD / jour\n• Maçon spécialisé (P1) : 220–280 MAD / jour\n• Chef d'équipe (P2) : 280–380 MAD / jour\n\n🔌 CORPS DE MÉTIERS SPÉCIALISÉS\n• Électricien qualifié : 200–300 MAD / jour\n• Plombier qualifié : 200–280 MAD / jour\n• Carreleur : 180–280 MAD / jour\n\n👔 ENCADREMENT (salaires mensuels)\n• Chef de chantier junior : 4 000–6 000 MAD / mois\n• Conducteur de travaux : 8 000–15 000 MAD / mois\n\n⚠️ OBLIGATIONS LÉGALES : CNSS obligatoire, congés payés 1,5 j/mois, heures sup +25%.",
-                    "rh", '["ressources humaines","pro"]', 0
+                    "rh", '["ressources humaines","pro"]', 0, "/static/images/posts/post-salaires-btp.svg"
                 ),
                 (
                     "Isolation thermique RTBM : Ce que la réglementation impose",
                     "Depuis 2014, le Règlement Thermique du Bâtiment Marocain (RTBM) est obligatoire pour tout nouveau bâtiment.\n\n🌡️ LES COEFFICIENTS U IMPOSÉS\n(U = coefficient de transmission thermique — plus il est bas, mieux c'est)\n\nZONE 1 (côtière — Casablanca, Rabat, Tanger) :\n• Murs extérieurs : U ≤ 0,6 W/m²K\n• Toiture-terrasse : U ≤ 0,4 W/m²K\n• Vitrage : Ug ≤ 2,5 W/m²K\n\nZONE 2 (semi-aride — Fès, Meknès, Marrakech) :\n• Murs extérieurs : U ≤ 0,5 W/m²K\n• Toiture-terrasse : U ≤ 0,35 W/m²K\n\n🧱 SOLUTIONS PRATIQUES\n→ Isolation par l'extérieur (ITE) : 6cm polystyrène expansé\n→ Doubles parois avec lame d'air + isolant 4cm\n→ Liège expansé 6–8cm sous chape de terrasse\n\n⚠️ Non-respect = refus de réception + consommation énergétique 40–60% plus élevée.\n\n💡 Demandez à votre architecte l'étude thermique RTBM — elle doit figurer dans le dossier de permis de construire.",
-                    "reglementation", '["réglementation","énergie"]', 0
+                    "reglementation", '["réglementation","énergie"]', 0, "/static/images/posts/post-isolation-thermique.svg"
                 ),
                 (
                     "Comment lire un plan d'architecte : Guide complet pour les clients",
                     "Votre architecte vous a remis des plans et vous ne savez pas par où commencer ? Ce guide vous permet de comprendre les bases en 5 minutes.\n\n📐 LES ÉCHELLES\n1:50 → 1 cm sur le plan = 50 cm en réalité\n1:100 → 1 cm = 1 mètre (vue d'ensemble)\n1:20 → 1 cm = 20 cm (détails de construction)\n\n📏 LES TYPES DE TRAITS\nTrait épais continu → Murs porteurs (ne pas toucher !)\nTrait fin continu → Cloisons légères (peuvent être déplacées)\nTrait interrompu (tirets) → Éléments en hauteur ou cachés\nTrait mixte → Axes de symétrie ou de coupe\n\n🚪 LES SYMBOLES COURANTS\nPorte → Arc de cercle indiquant le sens d'ouverture\nFenêtre → Trait fin entre deux traits épais\nEscalier → Flèche avec « Mont. » ou « Desc. »\n\n❓ QUESTIONS À POSER À VOTRE ARCHITECTE\n• Où sont les murs porteurs ?\n• Quels sont les vides sanitaires et gaines techniques ?\n• Quelle est l'orientation par rapport au soleil ?\n• Les plans AS-BUILT correspondent-ils aux plans permis ?",
-                    "conseil", '["conseil","client","plans"]', 0
+                    "conseil", '["conseil","client","plans"]', 0, "/static/images/posts/post-lire-un-plan.svg"
                 ),
             ]
-            for titre, content, category, tags, epingle in SEED_POSTS:
+            for titre, content, category, tags, epingle, media_url in SEED_POSTS:
                 conn.execute(*sql_params(
-                    "INSERT INTO community_posts (id,user_id,content,titre,category,tags,est_epingle,likes,created_at) VALUES (?,?,?,?,?,?,?,?,?)",
-                    ["cp"+uid(), seed_user_id, content, titre, category, tags, epingle, random.randint(3,28), now_iso()]
+                    "INSERT INTO community_posts (id,user_id,content,titre,category,tags,est_epingle,likes,media_url,created_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                    ["cp"+uid(), seed_user_id, content, titre, category, tags, epingle, random.randint(3,28), media_url, now_iso()]
                 ))
         conn.commit()
     finally:
