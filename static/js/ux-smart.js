@@ -606,34 +606,40 @@ window.openQuickLog = function() {
   const today = new Date().toISOString().split('T')[0];
   const qlDate = document.getElementById('ql-date');
   if (qlDate && !qlDate.value) qlDate.value = today;
+  // Populate project selector
+  const qlProj = document.getElementById('ql-project');
+  if (qlProj && typeof DB !== 'undefined' && DB.projects) {
+    const current = qlProj.value;
+    qlProj.innerHTML = '<option value="">— Projet (optionnel) —</option>'
+      + DB.projects.map(p => `<option value="${p.id}"${p.id === current ? ' selected' : ''}>${p.nom}${p.ville ? ' · ' + p.ville : ''}</option>`).join('');
+  }
   setTimeout(() => { const el = document.getElementById('ql-desc'); if (el) el.focus(); }, 100);
 };
 
 window.closeQuickLog = function() {
   const modal = document.getElementById('quick-log-modal');
   if (modal) modal.classList.remove('open');
-  ['ql-desc','ql-montant'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  ['ql-desc','ql-montant','ql-project'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
 };
 
 window.saveQuickLog = async function() {
-  const descEl   = document.getElementById('ql-desc');
+  const descEl    = document.getElementById('ql-desc');
   const montantEl = document.getElementById('ql-montant');
-  const catEl    = document.getElementById('ql-cat');
-  const dateEl   = document.getElementById('ql-date');
-  const desc    = descEl   ? descEl.value.trim()   : '';
-  const montant = parseFloat(montantEl ? montantEl.value : 0) || 0;
-  const cat     = catEl    ? catEl.value            : 'Matériaux';
-  const date    = dateEl   ? dateEl.value           : new Date().toISOString().split('T')[0];
+  const catEl     = document.getElementById('ql-cat');
+  const dateEl    = document.getElementById('ql-date');
+  const projEl    = document.getElementById('ql-project');
+  const desc      = descEl    ? descEl.value.trim()    : '';
+  const montant   = parseFloat(montantEl ? montantEl.value : 0) || 0;
+  const cat       = catEl     ? catEl.value             : 'Matériaux';
+  const date      = dateEl    ? dateEl.value            : new Date().toISOString().split('T')[0];
+  const projectId = projEl    ? projEl.value            : '';
   if (!montant) { toast('Entre un montant', 'error'); return; }
   const btn = document.getElementById('btn-ql-save');
   if (btn) { btn.disabled = true; btn.textContent = '…'; }
   try {
-    const d = await API.createExpense({
-      description: desc || cat,
-      montant,
-      categorie: cat,
-      date,
-    });
+    const payload = { description: desc || cat, montant, categorie: cat, date };
+    if (projectId) payload.project_id = projectId;
+    const d = await API.createExpense(payload);
     if (typeof DB !== 'undefined' && DB.expenses) {
       DB.expenses.unshift(d);
       if (typeof renderDepenses === 'function') renderDepenses();
