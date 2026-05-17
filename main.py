@@ -1810,22 +1810,25 @@ def list_chats(user: dict = Depends(get_current_user)):
     try:
         uid = user["sub"]
         rows = conn.execute(*sql_params("""
+            WITH base AS (
+                SELECT id, sender_id, recipient_id, content, created_at, read_at,
+                       CASE WHEN sender_id=? THEN recipient_id ELSE sender_id END AS other_id
+                FROM user_chats
+                WHERE sender_id=? OR recipient_id=?
+            )
             SELECT
-                CASE WHEN uc.sender_id=? THEN uc.recipient_id ELSE uc.sender_id END AS other_id,
+                b.other_id,
                 u.prenom, u.nom, u.role, u.ville, u.photo_url,
-                MAX(uc.created_at) AS last_at,
-                (SELECT content FROM user_chats uc2
-                 WHERE (uc2.sender_id=? AND uc2.recipient_id=CASE WHEN uc.sender_id=? THEN uc.recipient_id ELSE uc.sender_id END)
-                    OR (uc2.sender_id=CASE WHEN uc.sender_id=? THEN uc.recipient_id ELSE uc.sender_id END AND uc2.recipient_id=?)
-                 ORDER BY uc2.created_at DESC LIMIT 1) AS last_msg,
-                SUM(CASE WHEN uc.recipient_id=? AND (uc.read_at IS NULL OR uc.read_at='') THEN 1 ELSE 0 END) AS unread
-            FROM user_chats uc
-            JOIN users u ON u.id = CASE WHEN uc.sender_id=? THEN uc.recipient_id ELSE uc.sender_id END
-            WHERE uc.sender_id=? OR uc.recipient_id=?
-            GROUP BY CASE WHEN uc.sender_id=? THEN uc.recipient_id ELSE uc.sender_id END,
-                     u.prenom, u.nom, u.role, u.ville, u.photo_url
+                MAX(b.created_at) AS last_at,
+                (SELECT b2.content FROM base b2 WHERE b2.other_id=b.other_id
+                 ORDER BY b2.created_at DESC LIMIT 1) AS last_msg,
+                SUM(CASE WHEN b.recipient_id=? AND (b.read_at IS NULL OR b.read_at='')
+                    THEN 1 ELSE 0 END) AS unread
+            FROM base b
+            JOIN users u ON u.id = b.other_id
+            GROUP BY b.other_id, u.prenom, u.nom, u.role, u.ville, u.photo_url
             ORDER BY last_at DESC
-        """, [uid, uid, uid, uid, uid, uid, uid, uid, uid, uid])).fetchall()
+        """, [uid, uid, uid, uid])).fetchall()
         return [dict(r._mapping) for r in rows]
     finally:
         conn.close()
