@@ -136,7 +136,26 @@ window.renderQuickTiles = function(containerId, tiles, selectedValue) {
       <span class="ux-tile-icon">${t.icon}</span>
       <span class="ux-tile-label">${t.label}</span>
       <span class="ux-tile-sub">${t.sub}</span>
-    </button>`).join('');
+    </button>`).join('')
+  + `<button type="button"
+      class="ux-tile${selectedValue === '__custom__' ? ' active' : ''}"
+      onclick="selectTile('${containerId}','__custom__')"
+      data-value="__custom__"
+      title="Saisir une catégorie personnalisée">
+      <span class="ux-tile-icon">✏️</span>
+      <span class="ux-tile-label">Autre</span>
+      <span class="ux-tile-sub">Personnalisé</span>
+    </button>`;
+  // Inject custom input below tiles if not already there
+  let wrap = document.getElementById('dep-cat-custom-wrap');
+  if (!wrap) {
+    wrap = document.createElement('div');
+    wrap.id = 'dep-cat-custom-wrap';
+    wrap.innerHTML = '<input id="dep-cat-custom-input" type="text" placeholder="Saisir votre catégorie…" oninput="window._onCustomCatInput(this.value)"/>';
+    container.parentNode.insertBefore(wrap, container.nextSibling);
+  }
+  if (selectedValue === '__custom__') wrap.classList.add('visible');
+  else wrap.classList.remove('visible');
 };
 
 window.selectTile = function(containerId, value) {
@@ -146,21 +165,41 @@ window.selectTile = function(containerId, value) {
   container.querySelectorAll('.ux-tile').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.value === value);
   });
+  // Show/hide custom input
+  const wrap = document.getElementById('dep-cat-custom-wrap');
+  if (wrap) {
+    if (value === '__custom__') {
+      wrap.classList.add('visible');
+      const inp = document.getElementById('dep-cat-custom-input');
+      if (inp) { inp.focus(); return; } // don't sync yet — wait for user input
+    } else {
+      wrap.classList.remove('visible');
+    }
+  }
   // Sync hidden input and native select
   const hidden = document.getElementById('dep-cat-hidden');
   if (hidden) hidden.value = value;
   const nativeSelect = document.getElementById('dep-cat');
   if (nativeSelect) {
-    // Find matching option (case-insensitive)
     const opt = Array.from(nativeSelect.options).find(o => o.value === value || o.text === value);
     if (opt) nativeSelect.value = opt.value;
-    else { // Add option if not present
-      const o = new Option(value, value, true, true);
-      nativeSelect.add(o);
-    }
+    else { const o = new Option(value, value, true, true); nativeSelect.add(o); }
   }
-  // Trigger auto-draft update
   AutoDraft.update('dep-cat', value);
+};
+
+window._onCustomCatInput = function(val) {
+  const v = val.trim();
+  if (!v) return;
+  const nativeSelect = document.getElementById('dep-cat');
+  if (nativeSelect) {
+    const opt = Array.from(nativeSelect.options).find(o => o.value === v);
+    if (!opt) { const o = new Option(v, v, true, true); nativeSelect.add(o); }
+    nativeSelect.value = v;
+  }
+  const hidden = document.getElementById('dep-cat-hidden');
+  if (hidden) hidden.value = v;
+  AutoDraft.update('dep-cat', v);
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════

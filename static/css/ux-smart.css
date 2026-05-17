@@ -58,43 +58,68 @@
   gap: 8px;
   margin-bottom: 10px;
 }
-.quick-tile {
-  display: flex;
+
+/* ── ux-tile (classe JS) + quick-tile (classe legacy) ── */
+.quick-tile, .ux-tile {
+  display: inline-flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: calc(33.33% - 6px);
-  min-width: 80px;
-  padding: 10px 6px;
+  min-width: 72px;
+  padding: 7px 10px;
   border-radius: 10px;
   border: 1.5px solid var(--border, rgba(15,29,54,.1));
   background: var(--white, #fff);
   cursor: pointer;
-  transition: border-color .15s, background .15s, transform .1s;
+  transition: border-color .15s, background .15s, box-shadow .15s, transform .1s;
   user-select: none;
+  font-family: inherit;
 }
-.quick-tile:hover {
+.quick-tile:hover, .ux-tile:hover {
   border-color: var(--gold, #E8B84B);
   background: var(--gold-b, rgba(232,184,75,.12));
+  transform: translateY(-1px);
 }
-.quick-tile.selected {
+.quick-tile.selected, .quick-tile.active,
+.ux-tile.selected, .ux-tile.active {
   border-color: var(--clay, #1D5FA6);
   background: var(--clay-p, #E8F0FB);
+  box-shadow: 0 0 0 2px var(--clay, #1D5FA6);
+  transform: translateY(-1px);
 }
-.quick-tile .tile-icon { font-size: 22px; line-height: 1; }
-.quick-tile .tile-label {
-  font-size: 11px;
-  font-weight: 600;
+.quick-tile .tile-icon, .ux-tile .ux-tile-icon { font-size: 18px; line-height: 1; }
+.quick-tile .tile-label, .ux-tile .ux-tile-label {
+  font-size: 10px;
+  font-weight: 700;
   color: var(--ink, #0F1D36);
-  margin-top: 4px;
+  margin-top: 3px;
   text-align: center;
   line-height: 1.2;
 }
-.quick-tile .tile-sub {
-  font-size: 9px;
+.quick-tile.active .tile-label, .ux-tile.active .ux-tile-label { color: var(--clay, #1D5FA6); }
+.quick-tile .tile-sub, .ux-tile .ux-tile-sub {
+  font-size: 8px;
   color: var(--muted, #64748B);
-  margin-top: 2px;
+  margin-top: 1px;
   text-align: center;
+}
+
+/* Champ "Autre personnalisé" */
+#dep-cat-custom-wrap {
+  display: none;
+  margin-top: 8px;
+}
+#dep-cat-custom-wrap.visible { display: block; }
+#dep-cat-custom-input {
+  width: 100%;
+  border: 1.5px solid var(--clay, #1D5FA6);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--ink);
+  outline: none;
+  box-sizing: border-box;
 }
 
 /* ── PHOTO SCAN BUTTON ───────────────────────────────────────────────── */
