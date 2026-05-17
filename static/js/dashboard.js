@@ -3144,8 +3144,8 @@ window.renderAdminPanel = async function() {
   panel.innerHTML = '<div style="padding:1.5rem;color:var(--muted);font-size:13px;text-align:center">Chargement...</div>';
   try {
     const [stats, users] = await Promise.all([
-      API.get('/api/admin/stats'),
-      API.get('/api/admin/users?limit=200'),
+      API.get('/admin/stats'),
+      API.get('/admin/users?limit=200'),
     ]);
     _adminUsers = users;
     _adminSearch = '';
@@ -3264,7 +3264,7 @@ function _adminKpi(label, value, note, color, bg) {
 
 window.adminSetRole = async function(uid, role) {
   try {
-    await API.put('/api/admin/users/'+uid+'/role', {role});
+    await API.put('/admin/users/'+uid+'/role', {role});
     const u = _adminUsers.find(x => x.id === uid);
     if (u) u.role = role;
     toast('Role mis a jour : ' + role, 'success');
@@ -3275,7 +3275,7 @@ window.adminDeleteUser = async function(uid) {
   const u = _adminUsers.find(x => x.id === uid);
   if (!confirm('Supprimer ' + (u ? u.prenom + ' ' + (u.nom||'') + ' (' + u.email + ')' : 'cet utilisateur') + ' definitivement ?')) return;
   try {
-    await API.del('/api/admin/users/'+uid);
+    await API.del('/admin/users/'+uid);
     _adminUsers = _adminUsers.filter(x => x.id !== uid);
     if (typeof _adminRenderRows === 'function') _adminRenderRows();
     toast('Utilisateur supprime', 'success');
