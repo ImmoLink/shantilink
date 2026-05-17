@@ -196,7 +196,11 @@ def init_db():
         _run_migration(migration)
 
     # ── Backfill referral codes ───────────────────────────────────────────────
-    conn = get_db()
+    try:
+        conn = get_db()
+    except Exception as e:
+        print(f"[init_db] DB connection failed, skipping seed/backfill: {e}")
+        return
     try:
         rows = conn.execute(text(
             "SELECT id FROM users WHERE referral_code='' OR referral_code IS NULL"
