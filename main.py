@@ -1834,7 +1834,8 @@ def list_chats(user: dict = Depends(get_current_user)):
             FROM user_chats uc
             JOIN users u ON u.id = CASE WHEN uc.sender_id=? THEN uc.recipient_id ELSE uc.sender_id END
             WHERE uc.sender_id=? OR uc.recipient_id=?
-            GROUP BY CASE WHEN uc.sender_id=? THEN uc.recipient_id ELSE uc.sender_id END
+            GROUP BY CASE WHEN uc.sender_id=? THEN uc.recipient_id ELSE uc.sender_id END,
+                     u.prenom, u.nom, u.role, u.ville, u.photo_url
             ORDER BY last_at DESC
         """, [uid, uid, uid, uid, uid, uid, uid, uid, uid, uid])).fetchall()
         return [dict(r._mapping) for r in rows]
