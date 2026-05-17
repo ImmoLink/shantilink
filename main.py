@@ -515,6 +515,27 @@ app.add_middleware(
 @app.on_event("startup")
 def startup():
     init_db()
+    # If ADMIN_PASSWORD env var is set, force-update the admin account password on every boot
+    admin_pwd = os.environ.get("ADMIN_PASSWORD", "")
+    admin_email = os.environ.get("ADMIN_EMAIL", "admin@shantilink.ma")
+    if admin_pwd:
+        try:
+            conn = get_db()
+            hashed = hash_password(admin_pwd)
+            existing = conn.execute(*sql_params("SELECT id FROM users WHERE email=?", [admin_email])).fetchone()
+            if existing:
+                conn.execute(*sql_params("UPDATE users SET password_hash=?, role='admin' WHERE email=?", [hashed, admin_email]))
+            else:
+                new_id = "admin-" + uid()
+                conn.execute(*sql_params(
+                    "INSERT INTO users (id,prenom,nom,email,password_hash,role,ville,referral_code,created_at) VALUES (?,?,?,?,?,?,?,?,?)",
+                    [new_id, "Admin", "ShantiLink", admin_email, hashed, "admin", "Casablanca", "SLADMIN", now_iso()]
+                ))
+            conn.commit()
+            conn.close()
+            print(f"[startup] Admin account set for {admin_email}")
+        except Exception as e:
+            print(f"[startup] Admin password sync failed: {e}")
 
 @app.get("/health")
 def health():
