@@ -448,6 +448,20 @@ function pctColor(pct) {
 function projCardHTML(p, showActions = false) {
   const pct = p.pct || 0;
   const badgeId = 'pct-badge-' + p.id;
+  // Budget vs dépenses
+  const projExp = (DB.expenses || []).filter(e => e.project_id === p.id && !e.deleted);
+  const totalDep = projExp.reduce((s, e) => s + (e.montant || 0), 0);
+  const overBudget = p.budget > 0 && totalDep > p.budget;
+  const budgetPct = p.budget > 0 ? Math.min(100, Math.round(totalDep / p.budget * 100)) : 0;
+  const budgetBar = p.budget > 0
+    ? '<div style="margin-top:.5rem">'
+      + '<div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:3px">'
+      + '<span style="color:var(--muted)">💰 Dépenses / Budget</span>'
+      + '<span style="font-weight:700;color:' + (overBudget ? 'var(--red)' : 'var(--ink)') + '">' + fmt(totalDep) + ' / ' + fmt(p.budget) + '</span>'
+      + '</div>'
+      + '<div style="height:5px;background:var(--sand);border-radius:3px"><div style="height:100%;border-radius:3px;background:' + (overBudget ? 'var(--red)' : budgetPct > 75 ? 'var(--amber)' : 'var(--green)') + ';width:' + budgetPct + '%"></div></div>'
+      + '</div>'
+    : '';
   const badge = pct >= 100
     ? '<span id="' + badgeId + '" class="bdg bdg-ok">✓ ' + t('proj_done','Terminé') + '</span>'
     : pct >= 60 ? '<span id="' + badgeId + '" class="bdg bdg-warn">' + pct + '%</span>'
@@ -479,6 +493,7 @@ function projCardHTML(p, showActions = false) {
     + badge + '</div>'
     + (p.description ? '<div style="font-size:12px;color:var(--muted);margin:.4rem 0">' + p.description + '</div>' : '')
     + '<div class="prog-bar"><div class="prog-fill" style="width:' + pct + '%;background:' + pctColor(pct) + '"></div></div>'
+    + budgetBar
     + sliderBlock
     + '</div>';
 }

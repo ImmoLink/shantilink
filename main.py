@@ -874,18 +874,6 @@ def send_message(data: MessageIn, user: dict = Depends(get_current_user)):
             "INSERT INTO messages (id,user_id,professional_id,content,from_user,created_at) VALUES (?,?,?,?,1,?)",
             [mid, user["sub"], data.professional_id, data.content, now_iso()]
         ))
-        replies = [
-            "Bonjour ! Votre demande est bien reçue. Je reviens vers vous très vite.",
-            "Merci pour votre message. Pouvez-vous me préciser la ville et la surface ?",
-            "Bonjour, je suis disponible. Envoyez-moi les détails de votre projet.",
-            "Message reçu. Je prépare un devis sous 48h.",
-            "Bonjour ! Je serais ravi de travailler avec vous sur ce projet.",
-        ]
-        reply_mid = "m" + uid()
-        conn.execute(*sql_params(
-            "INSERT INTO messages (id,user_id,professional_id,content,from_user,created_at) VALUES (?,?,?,?,0,?)",
-            [reply_mid, user["sub"], data.professional_id, random.choice(replies), now_iso()]
-        ))
         conn.commit()
         rows = conn.execute(
             *sql_params("SELECT * FROM messages WHERE user_id=? AND professional_id=? ORDER BY created_at ASC", [user["sub"], data.professional_id])
