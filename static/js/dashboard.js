@@ -8,6 +8,18 @@ let _planPid = null;
 let _planPhases = [];
 let _planUnsaved = false;
 
+// ── Event delegation pour les boutons PDF par projet ─────────────────────────
+document.addEventListener('click', function(e) {
+  const btn = e.target.closest('[data-pdf-pid]');
+  if (!btn) return;
+  const pid = btn.getAttribute('data-pdf-pid');
+  if (typeof window.generatePDFForProject === 'function') {
+    window.generatePDFForProject(pid);
+  } else {
+    console.error('generatePDFForProject non disponible');
+  }
+});
+
 const EXPENSE_CATEGORIES = {
   'Matériaux':    { color:'#3b82f6', bg:'#dbeafe', icon:'🧱' },
   "Main d'œuvre": { color:'#10b981', bg:'#d1fae5', icon:'👷' },
@@ -1849,7 +1861,7 @@ function renderRapports() {
           + '<div class="rap-proj-card-name">' + p.nom + '</div>'
           + '<div class="rap-proj-card-meta">' + (p.type||'Projet') + ' · ' + (p.ville||'') + ' · Rapport S' + week + '</div>'
           + '</div>'
-          + '<button onclick="generatePDFForProject(' + JSON.stringify(p.id) + ')" style="font-size:10px;font-weight:600;padding:5px 12px;background:var(--clay);color:white;border:none;border-radius:100px;cursor:pointer;font-family:Outfit,sans-serif;white-space:nowrap;flex-shrink:0">⬇ PDF</button>'
+          + '<button data-pdf-pid="' + p.id + '" style="font-size:10px;font-weight:600;padding:5px 12px;background:var(--clay);color:white;border:none;border-radius:100px;cursor:pointer;font-family:Outfit,sans-serif;white-space:nowrap;flex-shrink:0">&#11015; PDF</button>'
           + '</div>'
           + '<div class="rap-mini-bar-wrap"><div class="rap-mini-bar" style="width:' + pct + '%;background:' + pctColor(pct) + '"></div></div>'
           + '<div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-bottom:.7rem"><span>' + pct + '% avancement</span><span>' + (p.budget ? fmt(p.budget) + ' budget' : 'Budget non défini') + '</span></div>'
