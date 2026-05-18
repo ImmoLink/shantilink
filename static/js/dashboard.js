@@ -1972,46 +1972,63 @@ window.generatePDFForProject = async function(pid) {
     const W = 210; const H = 297; const M = 14;
     let y = 0;
 
+    // Palette officielle ShantiLink: navy #0F1D36 + gold #E8B84B
+    const NAVY  = [15, 29, 54];
+    const NAVYL = [26, 48, 85];
+    const GOLD  = [232, 184, 75];
+    const GOLDL = [245, 208, 128];
+    const GOLDB = [253, 248, 232];
+    const BLUE  = [29, 95, 166];
+    const BLUEB = [232, 240, 251];
+    const GREEN = [31, 107, 58];
+    const GREENB= [232, 245, 238];
+    const RED   = [139, 31, 31];
+    const REDB  = [253, 234, 234];
+    const MUTED = [100, 116, 139];
+
     // ── HEADER BAND ───────────────────────────────────────────────────────
-    // ShantiLink clay/orange brand header
-    doc.setFillColor(160, 82, 45);
-    doc.rect(0, 0, W, 44, 'F');
-    // Dark accent bottom stripe
-    doc.setFillColor(100, 46, 20);
-    doc.rect(0, 41, W, 3, 'F');
-    // Warm left block
-    doc.setFillColor(200, 120, 60);
-    doc.rect(0, 0, 5, 44, 'F');
-    // Logo text
+    doc.setFillColor(...NAVY);
+    doc.rect(0, 0, W, 46, 'F');
+    // Gold accent stripe at bottom of header
+    doc.setFillColor(...GOLD);
+    doc.rect(0, 43, W, 3, 'F');
+    // Gold left accent bar
+    doc.setFillColor(...GOLD);
+    doc.rect(0, 0, 4, 43, 'F');
+    // ShantiLink logo text
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(22); doc.setFont('helvetica', 'bold');
-    doc.text('ShantiLink', 12, 19);
+    doc.text('Shanti', 10, 20);
+    doc.setTextColor(...GOLD);
+    doc.text('Link', 10 + doc.getTextWidth('Shanti'), 20);
     doc.setFontSize(8); doc.setFont('helvetica', 'normal');
-    doc.setTextColor(255, 220, 190);
-    doc.text('Plateforme BTP Maroc  |  www.shantilink.ma', 12, 28);
-    // Report label top-right badge
-    doc.setFillColor(255, 255, 255);
-    doc.roundedRect(W - 60, 8, 48, 15, 2, 2, 'F');
-    doc.setTextColor(160, 82, 45);
+    doc.setTextColor(...GOLDL);
+    doc.text('Plateforme BTP Maroc  |  www.shantilink.ma', 10, 29);
+    // Badge top-right (gold on white)
+    doc.setFillColor(...GOLDB);
+    doc.roundedRect(W - 62, 8, 50, 16, 2, 2, 'F');
+    doc.setDrawColor(...GOLD);
+    doc.setLineWidth(0.5);
+    doc.roundedRect(W - 62, 8, 50, 16, 2, 2, 'S');
+    doc.setTextColor(...NAVY);
     doc.setFontSize(8); doc.setFont('helvetica', 'bold');
-    doc.text('RAPPORT PROJET', W - 36, 14.5, { align: 'center' });
-    doc.setFontSize(7); doc.setFont('helvetica', 'normal');
-    doc.setTextColor(120, 60, 20);
-    doc.text(new Date().toLocaleDateString('fr-FR'), W - 36, 20.5, { align: 'center' });
+    doc.text('RAPPORT PROJET', W - 37, 15, { align: 'center' });
+    doc.setFontSize(7); doc.setFont('helvetica', 'normal'); doc.setTextColor(...MUTED);
+    doc.text(new Date().toLocaleDateString('fr-FR'), W - 37, 21, { align: 'center' });
 
     // ── PROJECT TITLE BAND ─────────────────────────────────────────────────
-    y = 50;
-    doc.setFillColor(240, 247, 255);
-    doc.rect(0, y, W, 26, 'F');
-    doc.setFillColor(14, 165, 233);
-    doc.rect(M, y + 4, 3, 18, 'F');
-    doc.setTextColor(10, 25, 60);
-    doc.setFontSize(16); doc.setFont('helvetica', 'bold');
-    doc.text(p.nom, M + 7, y + 13);
-    doc.setFontSize(8); doc.setFont('helvetica', 'normal'); doc.setTextColor(71, 85, 105);
-    const metaParts = [p.type || 'Projet', p.ville ? 'Ville: ' + p.ville : '', p.etages ? 'R+' + p.etages : 'RDC'].filter(Boolean);
-    doc.text(metaParts.join('   |   '), M + 7, y + 21);
-    y += 34;
+    y = 52;
+    doc.setFillColor(...GOLDB);
+    doc.rect(0, y, W, 28, 'F');
+    doc.setFillColor(...GOLD);
+    doc.rect(0, y, 4, 28, 'F');
+    doc.setTextColor(...NAVY);
+    doc.setFontSize(17); doc.setFont('helvetica', 'bold');
+    doc.text(p.nom, M + 4, y + 14);
+    doc.setFontSize(8); doc.setFont('helvetica', 'normal'); doc.setTextColor(...MUTED);
+    const metaParts = [p.type || 'Projet', p.ville ? p.ville : '', p.etages ? 'R+' + p.etages : 'RDC'].filter(Boolean);
+    doc.text(metaParts.join('   |   '), M + 4, y + 22);
+    y += 36;
 
     // ── KPI BOXES ─────────────────────────────────────────────────────────
     const projExpenses = DB.expenses.filter(e => e.project_id === pid && !e.deleted);
@@ -2021,52 +2038,53 @@ window.generatePDFForProject = async function(pid) {
     const pct      = p.pct || 0;
     const overBudget = budget > 0 && totalDep > budget;
     const kpis = [
-      { l: 'Avancement', v: pct + '%',                       c: pct >= 80 ? [22,163,74] : pct >= 40 ? [160,82,45] : [100,116,139], bg: pct >= 80 ? [240,253,244] : pct >= 40 ? [253,246,236] : [248,250,252] },
-      { l: 'Budget',     v: budget > 0 ? pdfNum(budget) + ' DH' : 'N/D', c: [30,64,175], bg: [239,246,255] },
-      { l: 'Depenses',   v: pdfNum(totalDep) + ' DH',         c: overBudget ? [185,28,28] : [160,82,45], bg: overBudget ? [254,242,242] : [253,246,236] },
-      { l: 'Restant',    v: budget > 0 ? pdfNum(Math.abs(restant)) + ' DH' : 'N/D', c: overBudget ? [185,28,28] : [22,163,74], bg: overBudget ? [254,242,242] : [240,253,244] },
+      { l: 'Avancement', v: pct + '%',
+        c: pct >= 80 ? GREEN : pct >= 40 ? BLUE : MUTED,
+        bg: pct >= 80 ? GREENB : pct >= 40 ? BLUEB : [248,250,252] },
+      { l: 'Budget',     v: budget > 0 ? pdfNum(budget) + ' DH' : 'N/D', c: NAVY,  bg: GOLDB },
+      { l: 'Depenses',   v: pdfNum(totalDep) + ' DH', c: overBudget ? RED : BLUE, bg: overBudget ? REDB : BLUEB },
+      { l: 'Restant',    v: budget > 0 ? pdfNum(Math.abs(restant)) + ' DH' : 'N/D', c: overBudget ? RED : GREEN, bg: overBudget ? REDB : GREENB },
     ];
     const kW = (W - 2*M - 9) / 4;
     kpis.forEach((k, i) => {
       const bx = M + i * (kW + 3);
       doc.setFillColor(...k.bg);
-      doc.roundedRect(bx, y, kW, 22, 2, 2, 'F');
-      doc.setFillColor(...k.c);
+      doc.roundedRect(bx, y, kW, 24, 2, 2, 'F');
+      // Gold top accent
+      doc.setFillColor(...GOLD);
       doc.roundedRect(bx, y, kW, 2.5, 1, 1, 'F');
       doc.setTextColor(...k.c);
       doc.setFontSize(k.v.length > 11 ? 9 : 12); doc.setFont('helvetica', 'bold');
-      doc.text(k.v, bx + kW/2, y + 13, { align: 'center' });
-      doc.setTextColor(100, 116, 139); doc.setFontSize(7); doc.setFont('helvetica', 'normal');
-      doc.text(k.l, bx + kW/2, y + 19, { align: 'center' });
+      doc.text(k.v, bx + kW/2, y + 14, { align: 'center' });
+      doc.setTextColor(...MUTED); doc.setFontSize(7); doc.setFont('helvetica', 'normal');
+      doc.text(k.l, bx + kW/2, y + 20.5, { align: 'center' });
     });
-    y += 30;
+    y += 32;
 
     // ── PROGRESS BAR ──────────────────────────────────────────────────────
     doc.setFillColor(226, 232, 240);
     doc.roundedRect(M, y, W - 2*M, 7, 2, 2, 'F');
     const barW = Math.min(pct / 100, 1) * (W - 2*M);
     if (barW > 0) {
-      const barColor = pct >= 80 ? [5,150,105] : pct >= 40 ? [14,165,233] : [251,146,60];
-      doc.setFillColor(...barColor);
+      doc.setFillColor(...(pct >= 80 ? GREEN : pct >= 40 ? GOLD : BLUE));
       doc.roundedRect(M, y, barW, 7, 2, 2, 'F');
     }
     doc.setTextColor(255,255,255); doc.setFontSize(7); doc.setFont('helvetica', 'bold');
-    if (pct > 10) doc.text(pct + '%', M + barW - 4, y + 5, { align: 'right' });
-    doc.setTextColor(71,85,105); doc.setFontSize(7.5);
+    if (pct > 10) doc.text(pct + '%', M + barW - 3, y + 5, { align: 'right' });
+    doc.setTextColor(...MUTED); doc.setFontSize(7.5); doc.setFont('helvetica', 'normal');
     doc.text('Avancement global du projet', M, y + 12);
     y += 18;
 
     // ── DESCRIPTION ───────────────────────────────────────────────────────
     if (p.description && p.description.trim()) {
-      doc.setFillColor(248, 250, 252);
+      doc.setFillColor(...GOLDB);
       doc.roundedRect(M, y, W - 2*M, 10, 2, 2, 'F');
-      doc.setFillColor(14, 165, 233);
-      doc.rect(M, y, 2.5, 10, 'F');
-      doc.setTextColor(10, 25, 60); doc.setFontSize(8); doc.setFont('helvetica', 'bold');
-      doc.text('Description :', M + 6, y + 5);
-      doc.setFont('helvetica', 'normal'); doc.setTextColor(71, 85, 105);
-      const desc = p.description.length > 120 ? p.description.substring(0, 117) + '...' : p.description;
-      doc.text(desc, M + 32, y + 5);
+      doc.setFillColor(...GOLD); doc.rect(M, y, 3, 10, 'F');
+      doc.setTextColor(...NAVY); doc.setFontSize(8); doc.setFont('helvetica', 'bold');
+      doc.text('Description :', M + 7, y + 5);
+      doc.setFont('helvetica', 'normal'); doc.setTextColor(...MUTED);
+      const desc = p.description.length > 110 ? p.description.substring(0, 107) + '...' : p.description;
+      doc.text(desc, M + 35, y + 5);
       y += 16;
     }
 
@@ -2075,14 +2093,13 @@ window.generatePDFForProject = async function(pid) {
     try { phases = p.phases ? JSON.parse(p.phases) : []; } catch(e) {}
     if (phases.length) {
       if (y > H - 80) { doc.addPage(); y = M; }
-      // Section title
-      doc.setFillColor(160, 82, 45);
+      doc.setFillColor(...NAVY);
       doc.roundedRect(M, y, W - 2*M, 9, 2, 2, 'F');
-      doc.setTextColor(255, 255, 255); doc.setFontSize(9); doc.setFont('helvetica', 'bold');
-      doc.text('PLANNING DES PHASES', M + 4, y + 6.2);
+      doc.setFillColor(...GOLD); doc.rect(M, y, 3, 9, 'F');
+      doc.setTextColor(...GOLD); doc.setFontSize(9); doc.setFont('helvetica', 'bold');
+      doc.text('PLANNING DES PHASES', M + 7, y + 6.2);
       y += 12;
       const phaseStatusText = { finalise: 'Finalise', encours: 'En cours', bloque: 'Bloque', attente: 'En attente' };
-      const phaseStatusColor = { finalise: [5,150,105], encours: [14,165,233], bloque: [185,28,28], attente: [100,116,139] };
       doc.autoTable({
         startY: y,
         head: [['Phase', 'Statut', 'Debut', 'Fin']],
@@ -2093,9 +2110,9 @@ window.generatePDFForProject = async function(pid) {
           ph.endDate || '--'
         ]),
         theme: 'grid',
-        headStyles: { fillColor: [14,165,233], textColor: 255, fontStyle: 'bold', fontSize: 8, cellPadding: 4 },
+        headStyles: { fillColor: NAVYL, textColor: [232,184,75], fontStyle: 'bold', fontSize: 8, cellPadding: 4 },
         bodyStyles: { fontSize: 8, cellPadding: 3.5 },
-        alternateRowStyles: { fillColor: [240, 247, 255] },
+        alternateRowStyles: { fillColor: GOLDB },
         columnStyles: {
           0: { cellWidth: 80 },
           1: { cellWidth: 35, fontStyle: 'bold' },
@@ -2105,8 +2122,7 @@ window.generatePDFForProject = async function(pid) {
         didParseCell: function(data) {
           if (data.column.index === 1 && data.section === 'body') {
             const val = data.cell.raw;
-            const c = val === 'Finalise' ? [5,150,105] : val === 'En cours' ? [14,165,233] : val === 'Bloque' ? [185,28,28] : [100,116,139];
-            data.cell.styles.textColor = c;
+            data.cell.styles.textColor = val === 'Finalise' ? GREEN : val === 'En cours' ? BLUE : val === 'Bloque' ? RED : MUTED;
           }
         },
         margin: { left: M, right: M },
@@ -2116,70 +2132,63 @@ window.generatePDFForProject = async function(pid) {
 
     // ── EXPENSES TABLE ────────────────────────────────────────────────────
     if (y > H - 80) { doc.addPage(); y = M; }
-    doc.setFillColor(160, 82, 45);
+    doc.setFillColor(...NAVY);
     doc.roundedRect(M, y, W - 2*M, 9, 2, 2, 'F');
-    doc.setTextColor(255, 255, 255); doc.setFontSize(9); doc.setFont('helvetica', 'bold');
-    doc.text('DETAIL DES DEPENSES', M + 4, y + 6.2);
+    doc.setFillColor(...GOLD); doc.rect(M, y, 3, 9, 'F');
+    doc.setTextColor(...GOLD); doc.setFontSize(9); doc.setFont('helvetica', 'bold');
+    doc.text('DETAIL DES DEPENSES', M + 7, y + 6.2);
     y += 12;
     if (projExpenses.length === 0) {
-      doc.setFillColor(248, 250, 252);
+      doc.setFillColor(...GOLDB);
       doc.roundedRect(M, y, W - 2*M, 12, 2, 2, 'F');
-      doc.setFontSize(8.5); doc.setFont('helvetica', 'italic'); doc.setTextColor(100, 116, 139);
+      doc.setFontSize(8.5); doc.setFont('helvetica', 'italic'); doc.setTextColor(...MUTED);
       doc.text('Aucune depense enregistree pour ce projet.', W/2, y + 7.5, { align: 'center' });
       y += 18;
     } else {
-      // Group by category
       const byCat = {};
-      projExpenses.forEach(e => {
-        const cat = e.categorie || 'Autre';
-        byCat[cat] = (byCat[cat] || 0) + (e.montant || 0);
-      });
+      projExpenses.forEach(e => { const cat = e.categorie || 'Autre'; byCat[cat] = (byCat[cat]||0)+(e.montant||0); });
       doc.autoTable({
         startY: y,
         head: [['Date', 'Categorie', 'Description', 'Montant (DH)']],
         body: projExpenses.map(e => [
-          e.date || '--',
-          e.categorie || 'Autre',
-          e.description || '--',
-          { content: pdfNum(e.montant || 0), styles: { halign: 'right', fontStyle: 'bold', textColor: [10,25,60] } }
+          e.date || '--', e.categorie || 'Autre', e.description || '--',
+          { content: pdfNum(e.montant||0), styles: { halign:'right', fontStyle:'bold', textColor: NAVY } }
         ]),
         foot: [[
-          { content: 'TOTAL', colSpan: 3, styles: { fontStyle: 'bold', halign: 'right', fillColor: [10,25,60], textColor: [255,255,255] } },
-          { content: pdfNum(totalDep) + ' DH', styles: { fontStyle: 'bold', halign: 'right', fillColor: [14,165,233], textColor: [255,255,255] } }
+          { content: 'TOTAL', colSpan: 3, styles: { fontStyle:'bold', halign:'right', fillColor: NAVY, textColor: [232,184,75] } },
+          { content: pdfNum(totalDep)+' DH', styles: { fontStyle:'bold', halign:'right', fillColor: GOLD, textColor: NAVY } }
         ]],
         theme: 'grid',
-        headStyles: { fillColor: [71,85,105], textColor: 255, fontStyle: 'bold', fontSize: 8, cellPadding: 4 },
-        bodyStyles: { fontSize: 8, cellPadding: 3.5 },
-        footStyles: { fontSize: 9, cellPadding: 4 },
-        alternateRowStyles: { fillColor: [248, 250, 252] },
+        headStyles: { fillColor: NAVYL, textColor: [232,184,75], fontStyle:'bold', fontSize:8, cellPadding:4 },
+        bodyStyles: { fontSize:8, cellPadding:3.5 },
+        footStyles: { fontSize:9, cellPadding:4 },
+        alternateRowStyles: { fillColor: GOLDB },
         columnStyles: {
-          0: { cellWidth: 26, halign: 'center' },
-          1: { cellWidth: 36 },
-          2: { cellWidth: 100 },
-          3: { cellWidth: 24, halign: 'right' },
+          0: { cellWidth:26, halign:'center' },
+          1: { cellWidth:36 },
+          2: { cellWidth:100 },
+          3: { cellWidth:24, halign:'right' },
         },
         margin: { left: M, right: M },
       });
       y = doc.lastAutoTable.finalY + 10;
 
-      // Category breakdown
       if (Object.keys(byCat).length > 1 && y < H - 50) {
-        doc.setFontSize(9); doc.setFont('helvetica', 'bold'); doc.setTextColor(10,25,60);
+        doc.setFontSize(8.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(...NAVY);
         doc.text('Repartition par categorie :', M, y + 5);
         y += 10;
-        const catColors = [[14,165,233],[5,150,105],[251,146,60],[168,85,247],[236,72,153],[234,179,8]];
+        const catColors = [GOLD, BLUE, GREEN, [168,85,247], [29,158,117], RED];
         let ci = 0;
         Object.entries(byCat).forEach(([cat, amt]) => {
-          const barPct = totalDep > 0 ? amt / totalDep : 0;
-          const bw = barPct * (W - 2*M - 50);
+          const bw = (totalDep > 0 ? amt/totalDep : 0) * (W - 2*M - 50);
           doc.setFillColor(226, 232, 240);
-          doc.roundedRect(M + 40, y, W - 2*M - 50, 6, 1, 1, 'F');
+          doc.roundedRect(M+42, y, W-2*M-52, 6, 1, 1, 'F');
           doc.setFillColor(...(catColors[ci % catColors.length]));
-          if (bw > 0) doc.roundedRect(M + 40, y, bw, 6, 1, 1, 'F');
-          doc.setFontSize(7.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(71, 85, 105);
+          if (bw > 0) doc.roundedRect(M+42, y, bw, 6, 1, 1, 'F');
+          doc.setFontSize(7.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(...MUTED);
           doc.text(cat, M, y + 5);
-          doc.setTextColor(10, 25, 60); doc.setFont('helvetica', 'bold');
-          doc.text(pdfNum(amt) + ' DH', W - M, y + 5, { align: 'right' });
+          doc.setTextColor(...NAVY); doc.setFont('helvetica', 'bold');
+          doc.text(pdfNum(amt)+' DH', W-M, y+5, { align:'right' });
           y += 9; ci++;
         });
         y += 4;
@@ -2187,15 +2196,15 @@ window.generatePDFForProject = async function(pid) {
     }
 
     // ── PHOTOS COUNT ──────────────────────────────────────────────────────
-    const photoCount = (DB.photos || []).filter(ph => ph.project_id === pid).length;
+    const photoCount = (DB.photos||[]).filter(ph => ph.project_id === pid).length;
     if (photoCount > 0 && y < H - 30) {
-      doc.setFillColor(240, 247, 255);
-      doc.roundedRect(M, y, W - 2*M, 12, 2, 2, 'F');
-      doc.setFillColor(14,165,233); doc.rect(M, y, 3, 12, 'F');
-      doc.setTextColor(10, 25, 60); doc.setFontSize(8.5); doc.setFont('helvetica', 'bold');
-      doc.text('Photos de chantier :', M + 7, y + 8);
-      doc.setFont('helvetica', 'normal'); doc.setTextColor(14,165,233);
-      doc.text(photoCount + ' photo' + (photoCount > 1 ? 's' : '') + ' enregistree' + (photoCount > 1 ? 's' : ''), M + 50, y + 8);
+      doc.setFillColor(...GOLDB);
+      doc.roundedRect(M, y, W-2*M, 12, 2, 2, 'F');
+      doc.setFillColor(...GOLD); doc.rect(M, y, 3, 12, 'F');
+      doc.setTextColor(...NAVY); doc.setFontSize(8.5); doc.setFont('helvetica', 'bold');
+      doc.text('Photos de chantier :', M+7, y+8);
+      doc.setFont('helvetica', 'normal'); doc.setTextColor(...BLUE);
+      doc.text(photoCount + ' photo' + (photoCount>1?'s':'') + ' enregistree' + (photoCount>1?'s':''), M+50, y+8);
       y += 18;
     }
 
@@ -2203,13 +2212,13 @@ window.generatePDFForProject = async function(pid) {
     const np = doc.internal.getNumberOfPages();
     for (let pg = 1; pg <= np; pg++) {
       doc.setPage(pg);
-      doc.setFillColor(160, 82, 45);
-      doc.rect(0, H - 12, W, 12, 'F');
-      doc.setFillColor(100, 46, 20);
-      doc.rect(0, H - 12, W, 1.5, 'F');
-      doc.setTextColor(255, 220, 190); doc.setFontSize(7); doc.setFont('helvetica', 'normal');
-      doc.text('ShantiLink  |  Plateforme BTP Maroc  |  contact@shantilink.ma', M, H - 5);
-      doc.text('Page ' + pg + ' / ' + np, W - M, H - 5, { align: 'right' });
+      doc.setFillColor(...NAVY);
+      doc.rect(0, H-12, W, 12, 'F');
+      doc.setFillColor(...GOLD);
+      doc.rect(0, H-12, W, 1.5, 'F');
+      doc.setTextColor(...GOLDL); doc.setFontSize(7); doc.setFont('helvetica', 'normal');
+      doc.text('ShantiLink  |  Plateforme BTP Maroc  |  contact@shantilink.ma', M, H-5);
+      doc.text('Page ' + pg + ' / ' + np, W-M, H-5, { align:'right' });
     }
 
     // Open in new browser tab
