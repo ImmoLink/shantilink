@@ -1982,9 +1982,6 @@ window.generatePDFForProject = async function(pid) {
     // Warm left block
     doc.setFillColor(200, 120, 60);
     doc.rect(0, 0, 5, 44, 'F');
-    // Subtle diagonal decoration (top-right corner)
-    doc.setFillColor(200, 120, 60);
-    doc.triangle(W, 0, W - 40, 0, W, 44, 'F');
     // Logo text
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(22); doc.setFont('helvetica', 'bold');
