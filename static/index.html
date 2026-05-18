@@ -156,7 +156,7 @@
 
 <div class="stats">
   <div class="stats-in">
-    <div><div class="sv" id="stat-pros">80+</div><div class="sl">Pros vérifiés</div></div>
+    <div><div class="sv" id="stat-pros">—</div><div class="sl">Pros vérifiés</div></div>
     <div><div class="sv" id="stat-cities">12</div><div class="sl">Villes couvertes</div></div>
     <div><div class="sv" id="stat-projects">100+</div><div class="sl">Projets gérés</div></div>
     <div><div class="sv">3 mois</div><div class="sl">Essai gratuit</div></div>
@@ -674,11 +674,9 @@
         </div>
         <!-- REGISTER -->
         <div id="apanel-register" class="apanel on">
-          <div style="display:inline-flex;align-items:center;gap:.4rem;background:var(--clay-p);border:.5px solid var(--clay);border-radius:100px;padding:.25rem .75rem;margin-bottom:.8rem">
-            <span style="font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--clay)">🔒 Accès bêta contrôlé</span>
-          </div>
-          <h2 class="auth-title">Demandez votre accès</h2>
-          <p class="auth-sub">Places limitées — Vérification du profil avant activation de l'espace</p>
+          
+          <h2 class="auth-title">Créez votre compte</h2>
+          <p class="auth-sub">Accès gratuit — 3 mois offerts, sans carte bancaire.</p>
           <div id="reg-ok" class="aok">Demande envoyée ! Votre espace est en cours d'activation...</div>
           <div id="reg-err" class="aerr"></div>
           <div class="fg-row">
@@ -700,10 +698,14 @@
             </select>
           </div>
           <div class="fg"><label data-i18n="auth_ville_lbl">Ville principale</label><input type="text" id="r-ville" placeholder="Casablanca, Rabat..."/></div>
-          <div class="fg"><label data-i18n="auth_pwd_lbl">Mot de passe</label><input type="password" id="r-pwd" placeholder="Minimum 6 caractères" onkeydown="if(event.key==='Enter')doRegister()"/></div>
+          <div class="fg"><label data-i18n="auth_pwd_lbl">Mot de passe</label><input type="password" id="r-pwd" placeholder="Minimum 10 caractères (1 maj, 1 chiffre, 1 symbole)" onkeydown="if(event.key==='Enter')doRegister()"/></div>
           <div id="ref-code-row" class="fg" style="display:none"><label>Code de parrainage (optionnel)</label><input type="text" id="r-ref-code" placeholder="Ex: SLXXXXXX" style="font-family:monospace;letter-spacing:.05em"/></div>
-          <button class="asubmit" id="reg-btn" onclick="doRegister()">Demander l'accès →</button>
-          <p style="font-size:11px;color:var(--muted);margin-top:1rem;text-align:center;line-height:1.6">Votre profil sera examiné sous 24h. 3 mois d'accès complet offerts à la validation.</p>
+          <div style="display:flex;align-items:flex-start;gap:.6rem;margin:.6rem 0;font-size:12px;color:var(--muted)">
+            <input type="checkbox" id="r-consent" style="margin-top:2px;flex-shrink:0" required/>
+            <label for="r-consent" style="cursor:pointer;line-height:1.5">J'accepte les <a onclick="goPage('pg-cgu')" style="color:var(--clay);cursor:pointer;text-decoration:underline">CGU</a> et la <a onclick="goPage('pg-privacy')" style="color:var(--clay);cursor:pointer;text-decoration:underline">Politique de confidentialité</a> de ShantiLink.</label>
+          </div>
+          <button class="asubmit" id="reg-btn" onclick="doRegister()">Créer mon compte →</button>
+          <p style="font-size:11px;color:var(--muted);margin-top:1rem;text-align:center;line-height:1.6">3 mois d'accès complet offerts, sans carte bancaire.</p>
         </div>
         <div style="margin-top:1.5rem;text-align:center">
           <span style="font-size:12px;color:var(--muted);cursor:pointer" onclick="goPage('landing')" data-i18n="auth_back">← Retour au site</span>
@@ -757,9 +759,11 @@
         <div id="ov-sim-banner" style="display:none;background:var(--white);border:.5px solid var(--sand);border-radius:14px;padding:1.4rem 1.6rem;margin-bottom:1.5rem"></div>
         <div class="dh">
           <div><div class="dh-title" id="dash-greet">Bonjour !</div><div class="dh-sub">Voici l'état de vos projets</div></div>
-          <div style="display:flex;gap:.7rem;flex-wrap:wrap">
+          <div style="display:flex;gap:.7rem;flex-wrap:wrap;align-items:center">
             <button class="submit-btn" style="margin:0;font-size:12px;padding:8px 16px" onclick="showDashPanel('projets',null);toggleForm('add-proj-form')">+ Nouveau projet</button>
             <button style="font-size:12px;padding:8px 14px;background:var(--white);color:var(--ink);border:.5px solid var(--border);border-radius:100px;cursor:pointer;font-family:'Outfit',sans-serif" onclick="showDashPanel('pros',null)">Trouver un pro</button>
+            <!-- UXT-07: EUR/MAD toggle -->
+            <button id="currency-toggle" title="Changer la devise" onclick="setCurrency(window._currency==='MAD'?'EUR':'MAD')" style="font-size:11px;padding:6px 12px;background:var(--white);color:var(--muted);border:.5px solid var(--border);border-radius:100px;cursor:pointer;font-family:'Outfit',sans-serif">DH → € EUR</button>
           </div>
         </div>
         <!-- KPI row — chaque carte est cliquable -->
@@ -873,6 +877,7 @@
           <div style="display:flex;gap:.5rem;flex-wrap:wrap">
             <button class="submit-btn" style="margin:0;font-size:12px;padding:8px 16px;background:var(--clay-pp);color:var(--clay);border:.5px solid rgba(29,95,166,.3)" onclick="exportRapportExcel()">📥 Export CSV</button>
             <button class="submit-btn" style="margin:0;font-size:12px;padding:8px 16px" onclick="generatePDF()">⬇ Export PDF</button>
+            <button id="btn-weekly-report" style="margin:0;font-size:12px;padding:8px 16px;background:var(--white);color:var(--muted);border:.5px solid var(--border);border-radius:100px;cursor:pointer;font-family:'Outfit',sans-serif" onclick="sendWeeklyReport()" title="Envoyer le résumé hebdomadaire par email">📧 Rapport hebdo</button>
           </div>
         </div>
         <!-- Tabs -->
@@ -1153,7 +1158,7 @@
       <!-- MESSAGES -->
       <div id="panel-messages" class="dash-panel">
         <div class="dh"><div><div class="dh-title" data-i18n="dash_messages">Messages</div><div class="dh-sub">Messages directs entre inscrits</div></div></div>
-        <div style="display:grid;grid-template-columns:1fr 2fr;gap:1rem;height:520px">
+        <div style="display:grid;grid-template-columns:1fr 2fr;gap:1rem;height:520px;min-height:0">
           <!-- Colonne gauche : liste + recherche -->
           <div style="background:var(--white);border-radius:14px;border:.5px solid var(--border);overflow:hidden;display:flex;flex-direction:column">
             <div style="padding:.7rem;border-bottom:.5px solid var(--border)">
@@ -1446,8 +1451,26 @@
     <div style="display:grid;gap:.7rem">
       <div class="fg"><label>Votre message *</label><textarea id="resp-msg" style="width:100%;padding:.6rem .8rem;border:.5px solid var(--border);border-radius:10px;font-family:Outfit,sans-serif;font-size:13px;resize:vertical;min-height:80px" placeholder="Décrivez votre approche, vos références, pourquoi vous êtes le bon choix…"></textarea></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:.7rem">
-        <div class="fg"><label>Prix proposé (DH)</label><input id="resp-prix" type="number" placeholder="0"/></div>
+        <div class="fg"><label>Prix total proposé (DH)</label><input id="resp-prix" type="number" placeholder="0"/></div>
         <div class="fg"><label>Délai estimé</label><input id="resp-delai" type="text" placeholder="Ex: 3 mois"/></div>
+      </div>
+      <!-- ARC-04: Phase breakdown -->
+      <details style="border:.5px solid var(--border);border-radius:10px;padding:.6rem .9rem">
+        <summary style="font-size:12px;font-weight:600;cursor:pointer;color:var(--clay)">📋 Détail par phase (optionnel)</summary>
+        <div id="resp-phases" style="margin-top:.8rem;display:grid;gap:.5rem">
+          <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:.4rem;font-size:10px;font-weight:700;color:var(--muted);padding:0 2px">
+            <span>Phase</span><span>Prix (DH)</span><span>Durée</span>
+          </div>
+          <div id="resp-phase-rows"></div>
+          <button type="button" onclick="addRespPhaseRow()" style="font-size:11px;padding:4px 12px;background:var(--sand);border:.5px solid var(--border);border-radius:100px;cursor:pointer;font-family:Outfit,sans-serif;width:fit-content">+ Ajouter une phase</button>
+        </div>
+        <div class="fg" style="margin-top:.6rem"><label>Conditions de paiement</label><input id="resp-conditions" type="text" placeholder="Ex: 30% à la commande, 70% à la livraison"/></div>
+      </details>
+      <!-- ARC-04: PDF attachment -->
+      <div class="fg">
+        <label>Pièce jointe (devis PDF, plans…)</label>
+        <input id="resp-attachment" type="file" accept=".pdf,.jpg,.png,.docx" style="font-size:12px"/>
+        <div style="font-size:10px;color:var(--muted);margin-top:3px">Formats acceptés : PDF, JPG, PNG, DOCX — max 5 Mo</div>
       </div>
       <div style="display:flex;justify-content:flex-end;gap:.6rem">
         <button onclick="closeRespondBriefModal()" style="font-size:12px;padding:8px 16px;border:.5px solid var(--border);background:white;border-radius:100px;cursor:pointer;font-family:Outfit,sans-serif">Annuler</button>
@@ -1716,6 +1739,27 @@
   </div>
 </div>
 
+<!-- POLITIQUE DE CONFIDENTIALITÉ -->
+<div id="pg-privacy" class="pg">
+  <div style="max-width:760px;margin:0 auto;padding:8rem 1.5rem 5rem">
+    <h1 style="font-family:'Playfair Display',serif;font-size:2rem;font-weight:400;margin-bottom:2rem">Politique de Confidentialité</h1>
+    <div style="background:var(--white);border:.5px solid var(--border);border-radius:18px;padding:2rem">
+      <p style="font-size:13px;color:var(--muted);margin-bottom:1.5rem">Dernière mise à jour : Mai 2026 — Conforme à la Loi 09-08 Maroc (CNDP)</p>
+      <h3 style="font-size:14px;font-weight:600;color:var(--clay);margin-bottom:.5rem">1. Responsable du traitement</h3>
+      <p style="font-size:14px;color:var(--muted);margin-bottom:1.5rem">ShantiLink — contact@shantilink.ma. Les données sont traitées conformément à la Loi 09-08 relative à la protection des personnes physiques à l'égard du traitement des données à caractère personnel au Maroc.</p>
+      <h3 style="font-size:14px;font-weight:600;color:var(--clay);margin-bottom:.5rem">2. Données collectées</h3>
+      <p style="font-size:14px;color:var(--muted);margin-bottom:1.5rem">Nom, prénom, email, ville, rôle, photos de chantier (avec coordonnées GPS), dépenses et messages. Ces données sont nécessaires au fonctionnement du service.</p>
+      <h3 style="font-size:14px;font-weight:600;color:var(--clay);margin-bottom:.5rem">3. Finalité du traitement</h3>
+      <p style="font-size:14px;color:var(--muted);margin-bottom:1.5rem">Gestion de votre compte, suivi de projets, mise en relation avec des professionnels, statistiques anonymisées d'utilisation. Vos données ne sont jamais revendues à des tiers.</p>
+      <h3 style="font-size:14px;font-weight:600;color:var(--clay);margin-bottom:.5rem">4. Vos droits (Art. 8 Loi 09-08)</h3>
+      <p style="font-size:14px;color:var(--muted);margin-bottom:1.5rem">Vous disposez d'un droit d'accès, de rectification, d'opposition et de suppression de vos données. Pour exercer ces droits : contact@shantilink.ma. La suppression définitive de votre compte interviendra dans un délai de 30 jours.</p>
+      <h3 style="font-size:14px;font-weight:600;color:var(--clay);margin-bottom:.5rem">5. Sécurité</h3>
+      <p style="font-size:14px;color:var(--muted)">Vos mots de passe sont stockés sous forme hachée (Argon2id). Les communications sont chiffrées (HTTPS). Les tokens d'authentification expirent après 24 heures.</p>
+    </div>
+    <div style="text-align:center;margin-top:2rem"><button onclick="history.back()" style="font-size:14px;font-weight:600;padding:12px 28px;background:var(--clay);color:white;border:none;border-radius:100px;cursor:pointer;font-family:'Outfit',sans-serif">← Retour</button></div>
+  </div>
+</div>
+
 <!-- PLANNING MODAL -->
 <div id="planning-modal" class="modal" onclick="if(event.target===this)closePlanning()">
   <div class="modal-box" style="max-width:640px;max-height:90vh;overflow-y:auto">
@@ -1812,5 +1856,120 @@
     </div>
   </div>
 </div>
+
+<!-- CLT-06: Quote comparison modal -->
+<div id="compare-modal" style="display:none;position:fixed;inset:0;z-index:1200;align-items:center;justify-content:center;background:rgba(15,29,54,.5)">
+  <div style="background:var(--white);border-radius:18px;padding:1.6rem 1.8rem;width:95%;max-width:700px;max-height:90vh;overflow-y:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.2rem">
+      <div style="font-size:16px;font-weight:700;color:var(--ink)">⚖️ Comparaison des devis</div>
+      <button onclick="document.getElementById('compare-modal').style.display='none'" style="background:none;border:none;cursor:pointer;font-size:20px;color:var(--muted)">×</button>
+    </div>
+    <div style="display:flex;gap:.5rem;margin-bottom:1rem;flex-wrap:wrap">
+      <span style="font-size:12px;color:var(--muted)">Trier par :</span>
+      <button onclick="renderCompareTable('prix')" style="font-size:11px;padding:4px 12px;border-radius:100px;border:.5px solid var(--border);background:white;cursor:pointer;font-family:Outfit,sans-serif">💰 Prix</button>
+      <button onclick="renderCompareTable('delai')" style="font-size:11px;padding:4px 12px;border-radius:100px;border:.5px solid var(--border);background:white;cursor:pointer;font-family:Outfit,sans-serif">⏱ Délai</button>
+      <button onclick="renderCompareTable('note')" style="font-size:11px;padding:4px 12px;border-radius:100px;border:.5px solid var(--border);background:white;cursor:pointer;font-family:Outfit,sans-serif">⭐ Note</button>
+    </div>
+    <div id="compare-table-wrap"></div>
+  </div>
+</div>
+
+<!-- UXT-09: Guided onboarding tour (native, no deps) -->
+<div id="onboarding-overlay" style="display:none;position:fixed;inset:0;z-index:2000;pointer-events:none"></div>
+<div id="onboarding-card" style="display:none;position:fixed;z-index:2001;background:var(--white);border-radius:16px;padding:1.4rem 1.6rem;width:320px;box-shadow:0 8px 40px rgba(15,29,54,.25);border:.5px solid var(--clay)">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.8rem">
+    <span id="ob-step-label" style="font-size:10px;font-weight:700;color:var(--clay);letter-spacing:.08em;text-transform:uppercase">ÉTAPE 1/4</span>
+    <button onclick="skipOnboarding()" style="background:none;border:none;cursor:pointer;font-size:16px;color:var(--muted);line-height:1">×</button>
+  </div>
+  <div id="ob-icon" style="font-size:2rem;margin-bottom:.6rem"></div>
+  <div id="ob-title" style="font-size:15px;font-weight:700;color:var(--ink);margin-bottom:.4rem"></div>
+  <div id="ob-desc" style="font-size:13px;color:var(--muted);line-height:1.55;margin-bottom:1rem"></div>
+  <div style="display:flex;gap:.6rem">
+    <button id="ob-skip" onclick="skipOnboarding()" style="flex:1;padding:8px;border:.5px solid var(--border);background:transparent;border-radius:100px;font-size:12px;color:var(--muted);cursor:pointer;font-family:Outfit,sans-serif">Passer</button>
+    <button id="ob-next" onclick="obNext()" style="flex:2;padding:8px 16px;background:var(--clay);color:white;border:none;border-radius:100px;font-size:13px;font-weight:600;cursor:pointer;font-family:Outfit,sans-serif">Suivant →</button>
+  </div>
+  <!-- Step dots -->
+  <div id="ob-dots" style="display:flex;justify-content:center;gap:5px;margin-top:.8rem"></div>
+</div>
+
+<script>
+// UXT-09: onboarding tour logic
+(function() {
+  const TOURS = {
+    client: [
+      { icon:'🏗️', title:'Créez votre premier projet', desc:'Allez dans "Mes projets" et cliquez sur "+ Nouveau projet" pour commencer le suivi de votre chantier.', panel:'projets' },
+      { icon:'📸', title:'Ajoutez des photos GPS', desc:'Dans le panneau "Photos", prenez des photos depuis votre chantier avec géolocalisation automatique.', panel:'photos' },
+      { icon:'💰', title:'Enregistrez vos dépenses', desc:'Tracez chaque dépense par catégorie pour garder le contrôle de votre budget en temps réel.', panel:'depenses' },
+      { icon:'👷', title:'Trouvez un professionnel', desc:'La carte interactive vous permet de localiser des architectes, entrepreneurs et artisans certifiés près de chez vous.', panel:'pros' },
+    ],
+    pro: [
+      { icon:'👤', title:'Complétez votre profil', desc:'Renseignez vos spécialités, votre zone d\'intervention et vos certifications pour être visible des clients.', panel:'profil' },
+      { icon:'📋', title:'Consultez les demandes', desc:'Parcourez les briefs de projets publiés par les clients et répondez à ceux qui correspondent à votre expertise.', panel:'devis' },
+      { icon:'💬', title:'Activez la messagerie', desc:'Répondez rapidement aux messages des clients pour augmenter votre taux de conversion.', panel:'messages' },
+      { icon:'⭐', title:'Collectez des avis', desc:'Après chaque projet terminé, demandez un avis à votre client pour renforcer votre réputation.', panel:'communaute' },
+    ],
+    promoteur: [
+      { icon:'🏢', title:'Publiez un programme', desc:'Créez votre premier programme immobilier avec photos, plan et descriptif détaillé.', panel:'projets' },
+      { icon:'📋', title:'Gérez les demandes', desc:'Recevez et traitez les demandes de devis des clients directement depuis le tableau de bord.', panel:'devis' },
+      { icon:'💰', title:'Suivez votre budget', desc:'Le tableau de dépenses vous donne une vue temps réel de vos coûts par projet.', panel:'depenses' },
+      { icon:'👥', title:'Constituez votre équipe', desc:'Invitez des prestataires et sous-traitants dans votre espace de travail.', panel:'pros' },
+    ],
+    architecte: [
+      { icon:'📐', title:'Complétez votre profil', desc:'Ajoutez votre numéro OAM, vos réalisations et votre zone d\'intervention.', panel:'profil' },
+      { icon:'📋', title:'Répondez aux briefs', desc:'Consultez les demandes de maîtrise d\'œuvre publiées par les clients.', panel:'devis' },
+      { icon:'📊', title:'Présentez vos projets', desc:'Partagez vos réalisations dans la communauté pour développer votre notoriété.', panel:'communaute' },
+      { icon:'💬', title:'Communiquez efficacement', desc:'Utilisez la messagerie intégrée pour centraliser vos échanges clients.', panel:'messages' },
+    ],
+  };
+
+  let _obSteps = [], _obIdx = 0;
+
+  window.startOnboarding = function(role) {
+    const key = role === 'architecte' ? 'architecte' : role === 'promoteur' ? 'promoteur' : role === 'entrepreneur' || role === 'artisan' ? 'pro' : 'client';
+    _obSteps = TOURS[key] || TOURS.client;
+    _obIdx = 0;
+    _showObStep();
+  };
+
+  function _showObStep() {
+    const card = document.getElementById('onboarding-card');
+    const overlay = document.getElementById('onboarding-overlay');
+    if (!card || !_obSteps.length) return;
+    const s = _obSteps[_obIdx];
+    document.getElementById('ob-step-label').textContent = 'ÉTAPE ' + (_obIdx+1) + '/' + _obSteps.length;
+    document.getElementById('ob-icon').textContent = s.icon;
+    document.getElementById('ob-title').textContent = s.title;
+    document.getElementById('ob-desc').textContent = s.desc;
+    document.getElementById('ob-next').textContent = _obIdx < _obSteps.length-1 ? 'Suivant →' : 'Terminer ✓';
+    // dots
+    const dots = document.getElementById('ob-dots');
+    if (dots) dots.innerHTML = _obSteps.map((_,i) =>
+      '<span style="width:7px;height:7px;border-radius:50%;background:' + (i===_obIdx?'var(--clay)':'var(--border)') + ';display:inline-block;transition:background .2s"></span>'
+    ).join('');
+    // position: top-right of viewport
+    card.style.display = 'block';
+    card.style.top = '80px';
+    card.style.right = '24px';
+    if (overlay) overlay.style.display = 'block';
+  }
+
+  window.obNext = function() {
+    const s = _obSteps[_obIdx];
+    if (s && s.panel && typeof showDashPanel === 'function') showDashPanel(s.panel, null);
+    _obIdx++;
+    if (_obIdx >= _obSteps.length) { skipOnboarding(); return; }
+    _showObStep();
+  };
+
+  window.skipOnboarding = function() {
+    const card = document.getElementById('onboarding-card');
+    const overlay = document.getElementById('onboarding-overlay');
+    if (card) card.style.display = 'none';
+    if (overlay) overlay.style.display = 'none';
+    localStorage.setItem('sl_onboarded', '1');
+  };
+})();
+</script>
+
 </body>
 </html>

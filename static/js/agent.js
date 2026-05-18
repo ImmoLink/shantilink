@@ -174,7 +174,7 @@
 
     fetch('/api/agent/analyze', {
       method: 'POST',
-      headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('bna_token') || '') },
+      headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('sl_token') || '') },
       body: fd
     })
     .then(function (r) { return r.json(); })
@@ -214,7 +214,7 @@
     var bubble = botDiv.querySelector('.ag-bubble');
     bubble.innerHTML = '<span class="ag-typing"><span></span><span></span><span></span></span>';
 
-    var token = localStorage.getItem('bna_token') || '';
+    var token = localStorage.getItem('sl_token') || '';
     var messages = _ag.history.slice(-20); // last 20 turns for context
 
     fetch('/api/agent/chat', {
@@ -363,7 +363,7 @@
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + (localStorage.getItem('bna_token') || '')
+        'Authorization': 'Bearer ' + (localStorage.getItem('sl_token') || '')
       },
       body: JSON.stringify({ action: p.action, parameters: p.parameters, user_message: lastUserMsg })
     })

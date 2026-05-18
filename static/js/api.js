@@ -2,9 +2,9 @@
 const API = {
   base: '/api',
 
-  getToken() { return localStorage.getItem('bna_token'); },
-  setToken(t) { localStorage.setItem('bna_token', t); },
-  clearToken() { localStorage.removeItem('bna_token'); localStorage.removeItem('bna_user'); },
+  getToken() { return localStorage.getItem('sl_token'); },
+  setToken(t) { localStorage.setItem('sl_token', t); },
+  clearToken() { localStorage.removeItem('sl_token'); localStorage.removeItem('sl_user'); },
 
   async req(method, path, body = null) {
     const headers = { 'Content-Type': 'application/json' };
@@ -103,6 +103,17 @@ const API = {
   getMyBriefs()         { return this.get('/briefs/mine'); },
   createBrief(d)        { return this.post('/briefs', d); },
   respondBrief(id,d)    { return this.post('/briefs/' + id + '/respond', d); },
+  respondBriefForm(id,fd) { // ARC-04: multipart with file
+    return fetch(this._base + '/briefs/' + id + '/respond-rich', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + (this.getToken()||'') },
+      body: fd
+    }).then(async r => {
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.detail || 'Erreur envoi');
+      return j;
+    });
+  },
   closeBrief(id)        { return this.patch('/briefs/' + id + '/close', {}); },
   deleteBrief(id)       { return this.del('/briefs/' + id); },
 
