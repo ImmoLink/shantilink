@@ -1962,8 +1962,9 @@ window.switchRapTab = function(tab) {
 };
 
 window.generatePDFForProject = async function(pid) {
-  const p = DB.projects.find(x => x.id === pid);
-  if (!p) return;
+  // Normalize id type — button may pass string or number
+  const p = DB.projects.find(x => String(x.id) === String(pid));
+  if (!p) { toast('Projet introuvable', 'error'); return; }
   if (!window.jspdf) { toast('Librairie PDF non chargee — rechargez la page', 'error'); return; }
   toast('Ouverture du rapport PDF...', 'success');
   try {
@@ -2221,11 +2222,17 @@ window.generatePDFForProject = async function(pid) {
       doc.text('Page ' + pg + ' / ' + np, W-M, H-5, { align:'right' });
     }
 
-    // Open in new browser tab
+    // Telecharger le PDF (evite le blocage popup des navigateurs)
     const blob = doc.output('blob');
     const url = URL.createObjectURL(blob);
-    window.open(url, '_blank');
-    toast('Rapport "' + p.nom + '" ouvert !', 'success');
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'rapport-' + p.nom.replace(/[^a-zA-Z0-9À-ɏ]/g, '-') + '.pdf';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+    toast('Rapport "' + p.nom + '" telecharge !', 'success');
   } catch(err) {
     console.error('PDF error', err);
     toast('Erreur PDF : ' + (err.message || String(err)), 'error');
