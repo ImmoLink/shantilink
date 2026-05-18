@@ -1,4 +1,4 @@
-"""BnaLink — test complet de toutes les routes API"""
+﻿"""ShantiLink — test complet de toutes les routes API"""
 import urllib.request, json, sys
 
 base = 'http://127.0.0.1:8765'
@@ -27,7 +27,7 @@ def check(label, condition, detail=''):
         fail += 1
 
 print('\n══════════════════════════════════════════')
-print('  BnaLink API — Tests complets')
+print('  ShantiLink API — Tests complets')
 print('══════════════════════════════════════════\n')
 
 # ── 1. Routes publiques ────────────────────────────────────────────────────────
@@ -46,11 +46,11 @@ check('GET /api/professionals?ville=Casablanca', s == 200, f"{len(d)} pros Casab
 
 # ── 2. Authentification ────────────────────────────────────────────────────────
 print('\n2. Authentification')
-EMAIL = 'audit_test_2025@bnalink.ma'
+EMAIL = 'audit_test_2025@shantilink.ma'
 
 # Nettoyage si déjà existant
 import sqlite3, os
-db_path = os.path.join(os.path.dirname(__file__), 'app', 'bnalink.db')
+db_path = os.path.join(os.path.dirname(__file__), 'app', 'shantilink.db')
 try:
     conn = sqlite3.connect(db_path)
     conn.execute("DELETE FROM users WHERE email=?", (EMAIL,))

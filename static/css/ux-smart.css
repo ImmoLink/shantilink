@@ -446,3 +446,137 @@
   border: none;
   color: #fff;
 }
+
+
+/* ── RESPONSIVE MOBILE (UXT-03/04 — audit) ────────────────────────────── */
+@media (max-width: 768px) {
+  /* UXT-03: Panel messages — 1 colonne sous 768px */
+  #panel-messages [style*="grid-template-columns:1fr 2fr"] {
+    grid-template-columns: 1fr !important;
+    height: auto !important;
+    min-height: 300px;
+  }
+  #conv-list {
+    max-height: 220px;
+    border-right: none !important;
+    border-bottom: .5px solid var(--border, #E8E3DC);
+  }
+  #msg-thread {
+    height: 360px !important;
+  }
+}
+
+/* ── RTL / ARABIC FIXES (UXT-05 — audit) ──────────────────────────────── */
+html[dir="rtl"] {
+  /* Global text direction */
+  direction: rtl;
+  text-align: right;
+}
+
+/* Sidebar — flip to right side in RTL */
+html[dir="rtl"] .sidebar {
+  order: 1; /* push sidebar after main content in grid */
+}
+html[dir="rtl"] .dash-wrap {
+  direction: rtl;
+}
+
+/* Sidebar links — icon + label reversed */
+html[dir="rtl"] .sblink {
+  flex-direction: row-reverse;
+  text-align: right;
+}
+html[dir="rtl"] .sb-sec {
+  text-align: right;
+  padding-right: .5rem;
+  padding-left: 0;
+  letter-spacing: 0;
+}
+
+/* Arrow indicators flip */
+html[dir="rtl"] .sblink::after,
+html[dir="rtl"] .dh-caret {
+  transform: scaleX(-1);
+}
+
+/* Dashboard panels */
+html[dir="rtl"] .dh { flex-direction: row-reverse; }
+html[dir="rtl"] .kpi-item { text-align: right; }
+html[dir="rtl"] .form-group label { text-align: right; }
+
+/* Input fields */
+html[dir="rtl"] input[type="text"],
+html[dir="rtl"] input[type="email"],
+html[dir="rtl"] input[type="password"],
+html[dir="rtl"] input[type="number"],
+html[dir="rtl"] textarea,
+html[dir="rtl"] select {
+  text-align: right;
+  direction: rtl;
+}
+
+/* Tables */
+html[dir="rtl"] table { direction: rtl; }
+html[dir="rtl"] th, html[dir="rtl"] td { text-align: right; }
+
+/* Mobile sidebar — slide from right in RTL */
+@media (max-width: 700px) {
+  html[dir="rtl"] .sidebar {
+    left: auto;
+    right: -280px;
+    transition: right .25s cubic-bezier(.4,0,.2,1);
+    box-shadow: -4px 0 32px rgba(0,0,0,.35);
+  }
+  html[dir="rtl"] .sidebar.mob-open {
+    right: 0;
+    left: auto;
+  }
+}
+
+/* Professional cards — layout fix */
+html[dir="rtl"] .pro-card {
+  flex-direction: row-reverse;
+  text-align: right;
+}
+
+/* Quick tiles */
+html[dir="rtl"] .quick-tiles {
+  direction: rtl;
+}
+
+/* Toast notifications */
+html[dir="rtl"] .toast-container {
+  right: auto;
+  left: 20px;
+}
+
+/* Chat messages — sent/received still correct since based on class */
+html[dir="rtl"] .msg-bubble.sent {
+  margin-left: 0;
+  margin-right: auto;
+}
+html[dir="rtl"] .msg-bubble.received {
+  margin-right: 0;
+  margin-left: auto;
+}
+
+@media (max-width: 640px) {
+  /* UXT-04: Tableau dépenses — 1 colonne */
+  .expenses-table table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+  /* UXT-04: Grilles 3 colonnes communauté/parrainage — cards verticales */
+  [style*="grid-template-columns:repeat(3"] {
+    grid-template-columns: 1fr !important;
+  }
+  .pro-card-grid,
+  [class*="comm-directory"],
+  [id*="comm-directory"] {
+    grid-template-columns: 1fr !important;
+  }
+  /* Nav bar compacte */
+  .dash-nav { padding: .4rem .6rem !important; }
+  .dash-panel { padding: 1rem !important; }
+}

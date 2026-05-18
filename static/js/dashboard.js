@@ -1,5 +1,12 @@
 ﻿// ShantiLink – Dashboard logic (all panels, CRUD, map, PDF)
 
+// SEC-12: HTML escape helper — always use for user-supplied content in innerHTML
+function esc(s) {
+  if (s == null) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+                  .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
 let DB = { projects: [], expenses: [], photos: [], activities: [] };
 let prosMap = null, prosMarkers = [], allPros = [], filteredPros = [];
 let currentConv = null;
@@ -92,7 +99,7 @@ window.toggleMobileNav = function() {
     const isOpen = dd.style.display === 'flex';
     dd.style.display = isOpen ? 'none' : 'flex';
     // Sync boutons Mon espace / S'inscrire selon état auth
-    const logged = !!localStorage.getItem('bna_token');
+    const logged = !!localStorage.getItem('sl_token');
     const mobDash = document.getElementById('mob-dash-btn');
     const mobReg  = document.getElementById('mob-reg-btn');
     const mobLog  = document.getElementById('mob-login-btn');
@@ -122,6 +129,9 @@ window.showDashPanel = function(name, btn) {
   // If no btn passed, try to find it by the sb-* id pattern inside the button
   const activBtn = btn || document.querySelector('.sblink [id="sb-' + name + '"]')?.closest('.sblink');
   if (activBtn) activBtn.classList.add('on');
+  // UXT-02: deep-linkable panel URL
+  const panelHash = '#/dashboard/' + name;
+  if (location.hash !== panelHash) history.replaceState(null, '', panelHash);
   // Close mobile drawer after selecting a section
   closeMobileSidebar();
   if (name === 'pros') initMap();
@@ -162,7 +172,7 @@ function renderSimBanner() {
   const simEl = document.getElementById('ov-sim-banner');
   if (!simEl) return;
   let sim = null;
-  try { sim = JSON.parse(localStorage.getItem('bna_sim')); } catch(e) {}
+  try { sim = JSON.parse(localStorage.getItem('sl_sim')); } catch(e) {}
   if (!sim) { simEl.style.display = 'none'; return; }
   simEl.style.display = 'block';
   simEl.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:.8rem">'
@@ -191,7 +201,7 @@ function simRow(label, val) {
 }
 window.createProjectFromSim = function() {
   let sim = null;
-  try { sim = JSON.parse(localStorage.getItem('bna_sim')); } catch(e) {}
+  try { sim = JSON.parse(localStorage.getItem('sl_sim')); } catch(e) {}
   if (!sim) return;
   showDashPanel('projets', null);
   toggleForm('add-proj-form');
@@ -242,7 +252,7 @@ function renderOverview() {
         const icon = /[Pp]hoto/.test(a.msg) ? '📸' : /[Pp]rojet/.test(a.msg) ? '🏗️' : /[Dd][ée]pense/.test(a.msg) ? '💰' : /message/.test(a.msg) ? '💬' : '⚡';
         return '<div style="display:flex;gap:.6rem;align-items:flex-start;font-size:12px;padding:.4rem 0;border-bottom:.5px solid var(--border)">'
           + '<span style="flex-shrink:0">' + icon + '</span>'
-          + '<div style="flex:1;color:var(--ink)">' + a.msg + '</div>'
+          + '<div style="flex:1;color:var(--ink)">' + esc(a.msg) + '</div>'
           + '<div style="font-size:10px;color:var(--muted);white-space:nowrap;flex-shrink:0">' + dt + '</div></div>';
       }).join('');
     }
@@ -258,8 +268,8 @@ function renderOverview() {
         const pc = p.pct || 0;
         return '<div onclick="showProjectDetail(\'' + p.id + '\')" style="display:flex;align-items:center;gap:.8rem;padding:.65rem .8rem;border-radius:10px;cursor:pointer;transition:background .15s" onmouseover="this.style.background=\'var(--sand)\'" onmouseout="this.style.background=\'transparent\'">'
           + '<div style="flex:1;min-width:0">'
-          + '<div style="font-size:13px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + p.nom + '</div>'
-          + '<div style="font-size:10px;color:var(--muted);margin-bottom:.3rem">' + (p.type||'') + (p.ville ? ' — ' + p.ville : '') + ' — ' + fmt(p.budget||0) + '</div>'
+          + '<div style="font-size:13px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(p.nom) + '</div>'
+          + '<div style="font-size:10px;color:var(--muted);margin-bottom:.3rem">' + esc(p.type||'') + (p.ville ? ' — ' + esc(p.ville) : '') + ' — ' + fmt(p.budget||0) + '</div>'
           + '<div style="height:5px;background:var(--border);border-radius:3px;overflow:hidden"><div style="height:100%;width:' + pc + '%;background:' + pctColor(pc) + ';border-radius:3px;transition:width .4s"></div></div>'
           + '</div>'
           + '<div style="font-size:13px;font-weight:700;color:' + pctColor(pc) + ';flex-shrink:0;min-width:36px;text-align:right">' + pc + '%</div>'
@@ -612,11 +622,20 @@ window.savePct = async function(pid, val) {
   const p = DB.projects.find(x => x.id === pid);
   if (!p) return;
   try {
-    await API.updatePct(pid, pct);
+    const res = await API.updatePct(pid, pct);
     p.pct = pct;
     renderOverview();
     const msg = pct >= 100 ? '🎉 ' + t('proj_finished_toast','Projet terminé !') : t('proj_progress','Avancement') + ' : ' + pct + '%';
     toast(msg, pct >= 100 ? 'success' : 'success');
+    // PRO-09: prompt for review when project just reached 100%
+    if (res && res.just_completed) {
+      setTimeout(() => {
+        if (confirm('🎉 Projet terminé ! Souhaitez-vous laisser un avis sur votre prestataire ?')) {
+          showDashPanel('communaute', null);
+          setTimeout(() => { if (typeof openReviewModal === 'function') openReviewModal(null, null); }, 300);
+        }
+      }, 1500);
+    }
   } catch (e) { toast(e.message, 'error'); }
 };
 
@@ -1433,10 +1452,10 @@ function renderDepenses(showAll) {
         if (d.date >= weekAgo) semaine += d.montant;
       }
       const proj = d.project_id ? DB.projects.find(p => p.id === d.project_id) : null;
-      const projLabel = proj ? '<span style="font-size:9px;background:var(--clay-p);color:var(--clay);padding:2px 6px;border-radius:100px">' + proj.nom + '</span>' : '';
+      const projLabel = proj ? '<span style="font-size:9px;background:var(--clay-p);color:var(--clay);padding:2px 6px;border-radius:100px">' + esc(proj.nom) + '</span>' : '';
       const rowStyle = isDeleted ? 'opacity:.45;background:var(--sand-l)' : '';
       return '<tr style="' + rowStyle + '">'
-        + '<td>' + d.description + (isDeleted ? ' <span style="font-size:9px;color:var(--red)">(supprimé)</span>' : '') + '</td>'
+        + '<td>' + esc(d.description) + (isDeleted ? ' <span style="font-size:9px;color:var(--red)">(supprimé)</span>' : '') + '</td>'
         + '<td>' + projLabel + '</td>'
         + '<td>' + catBadge(d.categorie) + '</td>'
         + '<td style="font-weight:600">' + fmt(d.montant) + '</td>'
@@ -1602,8 +1621,8 @@ function renderPhotos() {
     return '<div style="background:var(--white);border:.5px solid var(--border);border-radius:12px;overflow:hidden">'
       + imgBlock
       + '<div style="padding:.7rem">'
-      + '<div style="font-size:12px;font-weight:600;margin-bottom:2px">' + p.description + '</div>'
-      + '<div style="font-size:10px;color:var(--muted)">' + p.phase + ' — ' + (p.date || '') + '</div>'
+      + '<div style="font-size:12px;font-weight:600;margin-bottom:2px">' + esc(p.description) + '</div>'
+      + '<div style="font-size:10px;color:var(--muted)">' + esc(p.phase) + ' — ' + esc(p.date || '') + '</div>'
       + (p.gps ? '<div style="font-size:9px;color:var(--clay);margin-top:2px">📍 <a href="https://www.openstreetmap.org/?mlat=' + encodeURIComponent(p.gps.split(',')[0]) + '&mlon=' + encodeURIComponent((p.gps.split(',')[1]||'').trim()) + '&zoom=17" target="_blank" style="color:var(--clay);text-decoration:underline">' + p.gps + '</a></div>' : '<div style="font-size:9px;color:var(--muted);margin-top:2px">📍 Position non disponible</div>')
       + '<button onclick="delPhoto(\'' + p.id + '\')" style="margin-top:.4rem;font-size:10px;padding:2px 9px;background:var(--red-b);color:var(--red);border:none;border-radius:100px;cursor:pointer;font-family:Outfit,sans-serif">' + t('delete_btn','Supprimer') + '</button>'
       + '</div></div>';
@@ -2251,6 +2270,25 @@ window.generatePDFForProject = async function(pid) {
   }
 };
 
+// CLT-08: Weekly report email
+window.sendWeeklyReport = async function() {
+  const btn = document.getElementById('btn-weekly-report');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Envoi…'; }
+  try {
+    const res = await fetch('/api/reports/weekly/email', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + (API.getToken() || '') }
+    });
+    const data = await res.json();
+    if (data.ok) {
+      toast('Rapport hebdomadaire envoyé à votre email !', 'success');
+    } else {
+      toast(data.message || 'Service email non disponible', 'error');
+    }
+  } catch(e) { toast(e.message, 'error'); }
+  finally { if (btn) { btn.disabled = false; btn.textContent = '📧 Rapport hebdo'; } }
+};
+
 window.exportRapportExcel = function() {
   const rows = [['Projet','Ville','Type','Budget','Avancement','Dépenses']];
   DB.projects.forEach(p => {
@@ -2299,21 +2337,24 @@ function renderProsList(pros) {
   const _prosRoleLabels = { entrepreneur: 'Entrepreneur / Maçon', architecte: 'Architecte', electricien: 'Électricien', plombier: 'Plombier', bureau: "Bureau d'études", comptable: 'Comptable BTP', notaire: 'Notaire' };
   const list = document.getElementById('pros-list');
   if (!list) return;
-  if (pros.length === 0) { list.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--muted)">Aucun professionnel pour ces critères.</div>'; return; }
+  if (pros.length === 0) {
+    list.innerHTML = '<div style="text-align:center;padding:2.5rem 1rem"><div style="font-size:2rem;margin-bottom:.8rem">📍</div><div style="font-weight:600;color:var(--text);margin-bottom:.4rem">Aucun professionnel dans cette zone</div><div style="font-size:13px;color:var(--muted);margin-bottom:1rem">Essayez d\'élargir votre recherche ou de changer de filtre</div><button onclick="document.getElementById(\'pro-type-filter\').value=\'\';document.getElementById(\'pro-ville-filter\').value=\'\';window.filterPros()" style="font-size:12px;padding:8px 20px;background:var(--clay);color:white;border:none;border-radius:100px;cursor:pointer;font-family:Outfit,sans-serif">Élargir la recherche</button></div>';
+    return;
+  }
   list.innerHTML = pros.map(p => {
     const stars = [1,2,3,4,5].map(i => i <= Math.floor(p.note) ? '★' : '☆').join('');
     const verified = p.verified ? '<span class="pro-verified">Vérifié ✓</span>' : '';
-    return '<div class="pro-card"><div class="pro-av">' + p.emoji + '</div>'
-      + '<div class="pro-info"><div class="pro-name">' + p.nom + '</div>'
-      + '<div class="pro-role">' + (_prosRoleLabels[p.role] || p.role) + '</div>'
-      + '<div class="pro-ville">📍 ' + p.ville + '</div>'
-      + '<div class="pro-stars">' + stars + ' ' + p.note + '/5 (' + p.avis + ' avis)</div>'
-      + '<div style="font-size:11px;color:var(--muted);margin-top:3px">' + (p.description || '').substring(0, 80) + '...</div>'
-      + '<div style="font-size:11px;color:var(--clay);margin-top:3px">' + (p.tel || '') + '</div>'
+    return '<div class="pro-card"><div class="pro-av">' + esc(p.emoji) + '</div>'
+      + '<div class="pro-info"><div class="pro-name">' + esc(p.nom) + '</div>'
+      + '<div class="pro-role">' + esc(_prosRoleLabels[p.role] || p.role) + '</div>'
+      + '<div class="pro-ville">📍 ' + esc(p.ville) + '</div>'
+      + '<div class="pro-stars">' + stars + ' ' + esc(String(p.note)) + '/5 (' + esc(String(p.avis)) + ' avis)</div>'
+      + '<div style="font-size:11px;color:var(--muted);margin-top:3px">' + esc((p.description || '').substring(0, 80)) + '...</div>'
+      + '<div style="font-size:11px;color:var(--clay);margin-top:3px">' + esc(p.tel || '') + '</div>'
       + '</div>' + verified
       + '<div style="display:flex;gap:.4rem;flex-wrap:wrap">'
       + '<button class="pro-contact-btn" onclick="openProModal(' + p.id + ')">Contacter</button>'
-      + '<button onclick="openReviewModal(' + p.id + ',\'' + p.nom.replace(/'/g,"\\'") + '\')" style="font-size:11px;padding:6px 12px;border:.5px solid var(--border);background:white;border-radius:100px;cursor:pointer;font-family:Outfit,sans-serif;color:var(--muted)">⭐ Avis</button>'
+      + '<button onclick="openReviewModal(' + p.id + ',\'' + esc(p.nom).replace(/'/g,'&#39;') + '\')" style="font-size:11px;padding:6px 12px;border:.5px solid var(--border);background:white;border-radius:100px;cursor:pointer;font-family:Outfit,sans-serif;color:var(--muted)">⭐ Avis</button>'
       + '</div></div>';
   }).join('');
 }
@@ -2365,17 +2406,17 @@ async function loadConversations() {
       return;
     }
     convList.innerHTML = chats.map(c => {
-      const name = (c.prenom || '') + ' ' + (c.nom || '');
+      const name = esc((c.prenom || '') + ' ' + (c.nom || ''));
       const unreadBadge = c.unread > 0
         ? '<span style="background:var(--clay);color:white;border-radius:100px;font-size:10px;padding:1px 6px;margin-left:auto">' + c.unread + '</span>'
         : '';
-      return '<div class="msg-item" style="cursor:pointer;padding:.6rem .8rem;border-radius:10px;margin-bottom:.3rem;' + (c.unread > 0 ? 'background:#FFF7F5;' : '') + '" onclick="openConv(\'' + c.other_id + '\', \'' + name.trim() + '\')">'
+      return '<div class="msg-item" style="cursor:pointer;padding:.6rem .8rem;border-radius:10px;margin-bottom:.3rem;' + (c.unread > 0 ? 'background:#FFF7F5;' : '') + '" onclick="openConv(\'' + esc(c.other_id) + '\', \'' + name.trim().replace(/'/g,'&#39;') + '\')">'
         + '<div style="display:flex;align-items:center;gap:.4rem">'
-        + '<div style="width:32px;height:32px;border-radius:50%;background:var(--ink);color:white;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0">' + (c.prenom || '?')[0].toUpperCase() + '</div>'
+        + '<div style="width:32px;height:32px;border-radius:50%;background:var(--ink);color:white;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0">' + esc((c.prenom || '?')[0].toUpperCase()) + '</div>'
         + '<div style="min-width:0;flex:1">'
         + '<div style="font-size:13px;font-weight:600;display:flex;align-items:center">' + name.trim() + unreadBadge + '</div>'
-        + '<div style="font-size:11px;color:var(--muted)">' + (c.role || '') + (c.ville ? ' · ' + c.ville : '') + '</div>'
-        + (c.last_msg ? '<div style="font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px">' + c.last_msg + '</div>' : '')
+        + '<div style="font-size:11px;color:var(--muted)">' + esc(c.role || '') + (c.ville ? ' · ' + esc(c.ville) : '') + '</div>'
+        + (c.last_msg ? '<div style="font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px">' + esc(c.last_msg) + '</div>' : '')
         + '</div></div></div>';
     }).join('');
   } catch (e) { toast(e.message, 'error'); }
@@ -2401,16 +2442,14 @@ function renderMessages(msgs) {
     el.innerHTML = '<div style="text-align:center;color:var(--muted);font-size:13px;padding:2rem">Envoyez un premier message.</div>';
     return;
   }
-  const myId = (JSON.parse(localStorage.getItem('bna_user') || '{}')).id;
+  const myId = (JSON.parse(localStorage.getItem('sl_user') || '{}')).id;
   el.innerHTML = msgs.map(m =>
     '<div class="msg-bubble ' + (m.sender_id === myId ? 'sent' : 'received') + '">' + escHtml(m.content) + '</div>'
   ).join('');
   el.scrollTop = el.scrollHeight;
 }
 
-function escHtml(s) {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
+function escHtml(s) { return esc(s); } // alias — use esc() for new code
 
 window.sendMsg = async function() {
   if (!currentConv) return;
@@ -2435,7 +2474,7 @@ window.searchUsersForChat = function(q) {
     try {
       const users = await API.searchUsers(q);
       if (!users.length) { res.style.display = 'none'; return; }
-      const myId = (JSON.parse(localStorage.getItem('bna_user') || '{}')).id;
+      const myId = (JSON.parse(localStorage.getItem('sl_user') || '{}')).id;
       const filtered = users.filter(u => u.id !== myId);
       if (!filtered.length) { res.style.display = 'none'; return; }
       res.style.display = 'block';
@@ -2443,7 +2482,7 @@ window.searchUsersForChat = function(q) {
         '<div style="padding:.5rem .8rem;cursor:pointer;font-size:13px;border-bottom:.5px solid var(--border)" '
         + 'onmousedown="startChatWith(\'' + u.id + '\', \'' + escHtml((u.prenom||'') + ' ' + (u.nom||'')).trim() + '\')">'
         + '<strong>' + escHtml((u.prenom||'') + ' ' + (u.nom||'')) + '</strong>'
-        + '<span style="color:var(--muted);font-size:11px;margin-left:.4rem">' + (u.role||'') + (u.ville ? ' · ' + u.ville : '') + '</span>'
+        + '<span style="color:var(--muted);font-size:11px;margin-left:.4rem">' + esc(u.role||'') + (u.ville ? ' · ' + esc(u.ville) : '') + '</span>'
         + '</div>'
       ).join('');
     } catch(e) {}
@@ -2483,7 +2522,7 @@ window.saveProfile = async function() {
   try {
     const updated = await API.updateProfile({ prenom, nom, ville, tel });
     currentUser = { ...currentUser, ...updated };
-    localStorage.setItem('bna_user', JSON.stringify(currentUser));
+    localStorage.setItem('sl_user', JSON.stringify(currentUser));
     loadProfilePanel();
     const g = document.getElementById('dash-greet'); if (g) g.textContent = 'Bonjour, ' + currentUser.prenom + ' !';
     toast('Profil mis à jour !', 'success');
@@ -2772,7 +2811,7 @@ const SIM_BREAKDOWN = [
 ];
 
 function renderSimPanel() {
-  const saved = (() => { try { return JSON.parse(localStorage.getItem('bna_sim')) || {}; } catch(e) { return {}; } })();
+  const saved = (() => { try { return JSON.parse(localStorage.getItem('sl_sim')) || {}; } catch(e) { return {}; } })();
   const res = document.getElementById('sim-result-box');
   if (res) res.innerHTML = '';
 
@@ -2834,7 +2873,7 @@ window.runSimDash = function() {
 
   // Save for banner + project creation
   const simData = { ville: region, type, surface, etages, finition, materiaux: mat, sousSol, piscine, tot, lo, hi, date };
-  localStorage.setItem('bna_sim', JSON.stringify(simData));
+  localStorage.setItem('sl_sim', JSON.stringify(simData));
 
   const res = document.getElementById('sim-result-box');
   if (!res) return;
@@ -2959,7 +2998,10 @@ window.loadMyBriefs = async function() {
           </div>
         </div>
         ${(b.responses||[]).length ? `<div style="margin-top:.8rem;padding-top:.8rem;border-top:.5px solid var(--border)">
-          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:.5rem">Réponses reçues</div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem">
+            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)">${(b.responses||[]).length} réponse${(b.responses||[]).length>1?'s':''}</div>
+            ${(b.responses||[]).length >= 2 ? `<button onclick="compareQuotes('${b.id}')" style="font-size:11px;padding:4px 12px;background:var(--clay-p);color:var(--clay);border:.5px solid var(--clay);border-radius:100px;cursor:pointer;font-family:Outfit,sans-serif;font-weight:600">⚖️ Comparer</button>` : ''}
+          </div>
           ${(b.responses||[]).map(r=>`
             <div style="background:var(--sand);border-radius:10px;padding:.7rem .9rem;margin-bottom:.5rem">
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.3rem">
@@ -2973,6 +3015,60 @@ window.loadMyBriefs = async function() {
         </div>` : ''}
       </div>`).join('');
   } catch(e) { el.innerHTML = `<div style="color:var(--muted);padding:1rem;text-align:center;font-size:13px">${e.message}</div>`; }
+};
+
+// CLT-06: Quote comparison view
+let _compareResponses = [];
+window.compareQuotes = function(briefId) {
+  // Find the brief in the current user's briefs (already loaded)
+  const wrap = document.getElementById('compare-modal');
+  if (!wrap) return;
+  // Collect responses from the rendered DOM data via API refetch
+  API.getMyBriefs().then(briefs => {
+    const brief = briefs.find(b => b.id === briefId);
+    if (!brief || !brief.responses || !brief.responses.length) return;
+    _compareResponses = brief.responses;
+    renderCompareTable('prix');
+    wrap.style.display = 'flex';
+  }).catch(() => {});
+};
+
+window.renderCompareTable = function(sortBy) {
+  const wrap = document.getElementById('compare-table-wrap');
+  if (!wrap || !_compareResponses.length) return;
+  const sorted = [..._compareResponses].sort((a, b) => {
+    if (sortBy === 'prix') return (a.prix || Infinity) - (b.prix || Infinity);
+    if (sortBy === 'note') return (b.note || 0) - (a.note || 0);
+    if (sortBy === 'delai') {
+      // parse delai as number of days if possible
+      const da = parseInt(a.delai || '9999'), db = parseInt(b.delai || '9999');
+      return da - db;
+    }
+    return 0;
+  });
+  const best = sorted[0];
+  wrap.innerHTML = '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">'
+    + '<thead><tr style="background:var(--clay-pp);text-align:left">'
+    + '<th style="padding:.6rem .8rem">Professionnel</th>'
+    + '<th style="padding:.6rem .6rem">Prix</th>'
+    + '<th style="padding:.6rem .6rem">Délai</th>'
+    + '<th style="padding:.6rem .6rem">Note</th>'
+    + '<th style="padding:.6rem .6rem">Message</th>'
+    + '<th style="padding:.6rem .6rem">Contact</th>'
+    + '</tr></thead><tbody>'
+    + sorted.map((r, i) => {
+      const isBest = r === best;
+      const rowBg = isBest ? 'background:#f0fdf4' : (i%2===0?'background:white':'background:var(--sand)');
+      return '<tr style="border-bottom:.5px solid var(--border);' + rowBg + '">'
+        + '<td style="padding:.6rem .8rem;font-weight:600">' + esc(r.prenom) + ' ' + esc(r.nom) + (isBest ? ' <span style="font-size:9px;font-weight:700;background:#bbf7d0;color:#166534;padding:1px 6px;border-radius:100px">Meilleur</span>' : '') + '</td>'
+        + '<td style="padding:.6rem .6rem;font-weight:600;color:var(--clay)">' + (r.prix ? r.prix.toLocaleString('fr-FR') + ' DH' : '—') + '</td>'
+        + '<td style="padding:.6rem .6rem">' + esc(r.delai || '—') + '</td>'
+        + '<td style="padding:.6rem .6rem">' + (r.note ? '★'.repeat(Math.round(r.note)) + ' ' + r.note : '—') + '</td>'
+        + '<td style="padding:.6rem .6rem;font-size:12px;color:var(--muted);max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(r.message || '—') + '</td>'
+        + '<td style="padding:.6rem .6rem">' + (r.tel ? '<a href="https://wa.me/' + r.tel.replace(/\D/g,'') + '" target="_blank" style="font-size:11px;color:#25D366;font-weight:600;text-decoration:none">💬 WA</a>' : '—') + '</td>'
+        + '</tr>';
+    }).join('')
+    + '</tbody></table></div>';
 };
 
 window.showAddBriefForm = function() {
@@ -3008,7 +3104,26 @@ window.openRespondBrief = function(briefId, titre) {
   document.getElementById('resp-msg').value='';
   document.getElementById('resp-prix').value='';
   document.getElementById('resp-delai').value='';
+  const rows = document.getElementById('resp-phase-rows');
+  if (rows) rows.innerHTML = '';
+  const cond = document.getElementById('resp-conditions');
+  if (cond) cond.value = '';
+  const att = document.getElementById('resp-attachment');
+  if (att) att.value = '';
   el.style.display = 'flex';
+};
+
+window.addRespPhaseRow = function() {
+  const rows = document.getElementById('resp-phase-rows');
+  if (!rows) return;
+  const idx = rows.children.length;
+  const div = document.createElement('div');
+  div.style.cssText = 'display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:.4rem;align-items:center';
+  div.innerHTML = '<input type="text" placeholder="Fondations, Gros œuvre…" style="padding:5px 8px;border:.5px solid var(--border);border-radius:7px;font-size:12px;font-family:Outfit,sans-serif"/>'
+    + '<input type="number" placeholder="DH" style="padding:5px 8px;border:.5px solid var(--border);border-radius:7px;font-size:12px;font-family:Outfit,sans-serif"/>'
+    + '<input type="text" placeholder="Durée" style="padding:5px 8px;border:.5px solid var(--border);border-radius:7px;font-size:12px;font-family:Outfit,sans-serif"/>'
+    + '<button type="button" onclick="this.parentElement.remove()" style="background:none;border:none;cursor:pointer;font-size:14px;color:var(--muted)">✕</button>';
+  rows.appendChild(div);
 };
 
 window.closeRespondBriefModal = function() {
@@ -3022,11 +3137,33 @@ window.submitBriefResponse = async function() {
   const message = document.getElementById('resp-msg').value.trim();
   const prix = parseInt(document.getElementById('resp-prix').value)||0;
   const delai = document.getElementById('resp-delai').value.trim();
+  const conditions = (document.getElementById('resp-conditions')?.value || '').trim();
+  // Collect phase rows (ARC-04)
+  const phaseRows = document.getElementById('resp-phase-rows');
+  const phases = phaseRows ? Array.from(phaseRows.children).map(row => {
+    const inputs = row.querySelectorAll('input');
+    return { label: inputs[0]?.value.trim(), prix: parseInt(inputs[1]?.value)||0, duree: inputs[2]?.value.trim() };
+  }).filter(p => p.label) : [];
   if (!message) { toast('Message requis', 'error'); return; }
   const btn = document.getElementById('resp-submit-btn');
   btn.disabled=true; btn.textContent='Envoi…';
   try {
-    await API.respondBrief(briefId, {message, prix, delai});
+    // ARC-04: use FormData if file attached
+    const fileInput = document.getElementById('resp-attachment');
+    const file = fileInput && fileInput.files[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) { toast('Fichier trop volumineux (max 5 Mo)', 'error'); return; }
+      const fd = new FormData();
+      fd.append('message', message);
+      fd.append('prix', String(prix));
+      fd.append('delai', delai);
+      fd.append('conditions', conditions);
+      if (phases.length) fd.append('phases', JSON.stringify(phases));
+      fd.append('attachment', file);
+      await API.respondBriefForm(briefId, fd);
+    } else {
+      await API.respondBrief(briefId, { message, prix, delai, conditions, phases: phases.length ? phases : undefined });
+    }
     toast('Réponse envoyée !', 'success');
     closeRespondBriefModal();
   } catch(e) { toast(e.message, 'error'); }
@@ -3197,9 +3334,9 @@ window.renderAdminPanel = async function() {
         return '<tr id="arow-'+u.id+'">'
           + '<td style="padding:.6rem .8rem">'
             + '<div style="display:flex;align-items:center;gap:.6rem">'
-            + '<div style="width:32px;height:32px;border-radius:50%;background:'+rc+';display:flex;align-items:center;justify-content:center;color:white;font-size:11px;font-weight:700;flex-shrink:0">'+initials+'</div>'
-            + '<div><div style="font-weight:600;font-size:12px">'+u.prenom+' '+(u.nom||'')+'</div>'
-            + '<div style="font-size:10px;color:var(--muted)">'+u.email+'</div></div>'
+            + '<div style="width:32px;height:32px;border-radius:50%;background:'+rc+';display:flex;align-items:center;justify-content:center;color:white;font-size:11px;font-weight:700;flex-shrink:0">'+esc(initials)+'</div>'
+            + '<div><div style="font-weight:600;font-size:12px">'+esc(u.prenom)+' '+esc(u.nom||'')+'</div>'
+            + '<div style="font-size:10px;color:var(--muted)">'+esc(u.email)+'</div></div>'
             + '</div>'
           + '</td>'
           + '<td style="padding:.4rem .6rem">'+planBadge(u.plan||'starter')+'</td>'
@@ -3208,7 +3345,7 @@ window.renderAdminPanel = async function() {
             + roles.map(r=>'<option value="'+r+'" style="color:'+(roleColor[r]||'#64748B')+'"'+(u.role===r?' selected':'')+'>'+r+'</option>').join('')
             + '</select>'
           + '</td>'
-          + '<td style="padding:.4rem .6rem;font-size:11px;color:var(--muted)">'+(u.ville||'—')+'</td>'
+          + '<td style="padding:.4rem .6rem;font-size:11px;color:var(--muted)">'+esc(u.ville||'—')+'</td>'
           + '<td style="padding:.4rem .6rem;text-align:center"><span style="background:var(--clay-pp);border-radius:100px;padding:2px 8px;font-size:11px;font-weight:600">'+(u.nb_projects||0)+'</span></td>'
           + '<td style="padding:.4rem .6rem;font-size:11px;color:var(--ink);font-weight:500">'+dep+'</td>'
           + '<td style="padding:.4rem .6rem;font-size:10px;color:var(--muted)">'+(u.created_at?u.created_at.slice(0,10):'—')+'</td>'
@@ -3377,7 +3514,7 @@ const ONBOARDING_GUIDES = {
 };
 
 const _onboardingShown = new Set(
-  JSON.parse(localStorage.getItem('bna_onboarding_done') || '[]')
+  JSON.parse(localStorage.getItem('sl_onboarding_done') || '[]')
 );
 
 window.maybeShowOnboarding = function(panel) {
@@ -3390,9 +3527,9 @@ window.maybeShowOnboarding = function(panel) {
 function _runOnboarding(panel, steps, idx) {
   if (idx >= steps.length) {
     _onboardingShown.add(panel);
-    const done = JSON.parse(localStorage.getItem('bna_onboarding_done') || '[]');
+    const done = JSON.parse(localStorage.getItem('sl_onboarding_done') || '[]');
     done.push(panel);
-    localStorage.setItem('bna_onboarding_done', JSON.stringify(done));
+    localStorage.setItem('sl_onboarding_done', JSON.stringify(done));
     return;
   }
   const step = steps[idx];

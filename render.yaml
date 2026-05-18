@@ -3,11 +3,26 @@ services:
     name: shantilink
     env: python
     region: frankfurt
-    plan: free
+    plan: starter
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
     envVars:
+      - key: ENV
+        value: prod
       - key: SHANTILINK_SECRET
         generateValue: true
       - key: ANTHROPIC_API_KEY
         sync: false
+      - key: DATABASE_URL
+        fromDatabase:
+          name: shantilink-db
+          property: connectionString
+      - key: ALLOWED_ORIGINS
+        sync: false
+
+databases:
+  - name: shantilink-db
+    plan: starter
+    databaseName: shantilink
+    user: shantilink

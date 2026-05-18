@@ -7,6 +7,13 @@ import re, uuid, os, hashlib, hmac, base64, json, time, random, shutil, asyncio
 from datetime import datetime
 from typing import Optional, List, Dict, Any
 from sqlalchemy import create_engine, text
+try:
+    from loguru import logger
+    logger.add("logs/shantilink.log", rotation="10 MB", retention="30 days", level="INFO", enqueue=True)
+except ImportError:
+    import logging as _logging
+    logger = _logging.getLogger("shantilink")
+    _logging.basicConfig(level=_logging.INFO)
 
 # ── Cloudinary (optionnel — uniquement si env vars définies) ──────────────────
 try:
@@ -29,7 +36,7 @@ except ImportError:
 
 # ── Anthropic agent config ────────────────────────────────────────────────────
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
-AGENT_MODEL = "claude-sonnet-4-6"
+AGENT_MODEL = "claude-sonnet-4-5"
 AGENT_RATE_LIMIT = 30   # max actions per user per hour
 
 # ── Freemium plan system ───────────────────────────────────────────────────────
@@ -41,8 +48,11 @@ PLAN_LIMITS = {
 PLAN_PRICES = {"starter": 0, "pro": 199, "business": 499}
 
 # ── Config ────────────────────────────────────────────────────────────────────
+_ENV = os.environ.get("ENV", "dev")
 SECRET_KEY = os.environ.get("SHANTILINK_SECRET", "shantilink-dev-secret-2025-xK9m")
-TOKEN_HOURS = 72
+if _ENV == "prod" and not os.environ.get("SHANTILINK_SECRET"):
+    raise RuntimeError("SHANTILINK_SECRET must be set in production. Set ENV=dev to bypass.")
+TOKEN_HOURS = 24
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
 UPLOADS_DIR = os.path.join(STATIC_DIR, "uploads")
 os.makedirs(UPLOADS_DIR, exist_ok=True)
@@ -69,6 +79,7 @@ def get_db():
     conn = engine.connect()
     if _is_sqlite:
         conn.execute(text("PRAGMA foreign_keys = ON"))
+        conn.execute(text("PRAGMA journal_mode = WAL"))
     return conn
 
 def sql_params(sql: str, params=()):
@@ -98,8 +109,10 @@ def _run_migration(sql: str):
         with engine.connect() as mc:
             mc.execute(text(sql))
             mc.commit()
-    except Exception:
-        pass
+    except Exception as e:
+        msg = str(e).lower()
+        if "duplicate column" not in msg and "already exists" not in msg:
+            print(f"[migration] {sql[:80]!r} → {e}")
 
 def init_db():
     # ── Create tables (each in own transaction for safety) ───────────────────
@@ -147,6 +160,8 @@ def init_db():
             user_message TEXT DEFAULT '', created_at TEXT)""",
         """CREATE TABLE IF NOT EXISTS agent_rate_limit (
             user_id TEXT PRIMARY KEY, count INTEGER DEFAULT 0, window_start TEXT DEFAULT '')""",
+        """CREATE TABLE IF NOT EXISTS revoked_tokens (
+            token_hash TEXT PRIMARY KEY, revoked_at TEXT NOT NULL)""",
         """CREATE TABLE IF NOT EXISTS project_briefs (
             id TEXT PRIMARY KEY, user_id TEXT NOT NULL, titre TEXT NOT NULL,
             description TEXT DEFAULT '', ville TEXT DEFAULT '',
@@ -192,8 +207,25 @@ def init_db():
         "ALTER TABLE community_posts ADD COLUMN est_epingle INTEGER DEFAULT 0",
         "ALTER TABLE community_posts ADD COLUMN media_url TEXT DEFAULT ''",
         "ALTER TABLE community_posts ADD COLUMN media_urls TEXT DEFAULT '[]'",
+        "ALTER TABLE project_briefs ADD COLUMN brief_type TEXT DEFAULT 'demand'",
+        # ARC-04: rich brief responses
+        "ALTER TABLE brief_responses ADD COLUMN conditions TEXT DEFAULT ''",
+        "ALTER TABLE brief_responses ADD COLUMN phases TEXT DEFAULT NULL",
+        "ALTER TABLE brief_responses ADD COLUMN attachment_url TEXT DEFAULT ''",
     ]:
         _run_migration(migration)
+
+    # ── Indexes (idempotents) ─────────────────────────────────────────────────
+    for idx in [
+        "CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)",
+        "CREATE INDEX IF NOT EXISTS idx_users_role_ville ON users(role, ville)",
+        "CREATE INDEX IF NOT EXISTS idx_projects_user_id ON projects(user_id)",
+        "CREATE INDEX IF NOT EXISTS idx_expenses_user_project ON expenses(user_id, project_id)",
+        "CREATE INDEX IF NOT EXISTS idx_photos_user_id ON photos(user_id)",
+        "CREATE INDEX IF NOT EXISTS idx_messages_user_pro ON messages(user_id, professional_id)",
+        "CREATE INDEX IF NOT EXISTS idx_posts_created ON community_posts(created_at)",
+    ]:
+        _run_migration(idx)
 
     # ── Backfill referral codes ───────────────────────────────────────────────
     try:
@@ -376,24 +408,84 @@ def init_db():
         conn.close()
 
 # ── Auth helpers ──────────────────────────────────────────────────────────────
+try:
+    from argon2 import PasswordHasher as _PH
+    from argon2.exceptions import VerifyMismatchError as _VME, VerificationError as _VE
+    _ph = _PH(time_cost=3, memory_cost=65536, parallelism=2)
+    _ARGON2_OK = True
+except ImportError:
+    _ARGON2_OK = False
+
 def hash_password(password: str) -> str:
+    if _ARGON2_OK:
+        return _ph.hash(password)
     salt = os.urandom(32).hex()
     key = hashlib.pbkdf2_hmac("sha256", password.encode(), bytes.fromhex(salt), 100_000).hex()
-    return f"{salt}:{key}"
+    return f"pbkdf2:{salt}:{key}"
 
 def verify_password(password: str, stored: str) -> bool:
+    """Returns (is_valid, needs_rehash). Legacy PBKDF2 hashes are accepted but flagged."""
     try:
-        salt_hex, key_hex = stored.split(":", 1)
+        if _ARGON2_OK and stored.startswith("$argon2"):
+            try:
+                return _ph.verify(stored, password)
+            except (_VME, _VE):
+                return False
+        # Legacy PBKDF2 path (prefix "pbkdf2:" or old bare "salt:key")
+        parts = stored.split(":")
+        if parts[0] == "pbkdf2":
+            salt_hex, key_hex = parts[1], parts[2]
+        else:
+            salt_hex, key_hex = parts[0], parts[1]
         key = hashlib.pbkdf2_hmac("sha256", password.encode(), bytes.fromhex(salt_hex), 100_000).hex()
         return hmac.compare_digest(key, key_hex)
     except Exception:
         return False
+
+def _needs_rehash(stored: str) -> bool:
+    """True when stored hash is legacy PBKDF2 and Argon2 is available."""
+    return _ARGON2_OK and not stored.startswith("$argon2")
+
+# ── CMP-03: GPS encryption (AES-GCM) ─────────────────────────────────────────
+try:
+    from cryptography.hazmat.primitives.ciphers.aead import AESGCM as _AESGCM
+    _GPS_RAW_KEY = os.environ.get("GPS_ENCRYPT_KEY", "")
+    if _GPS_RAW_KEY:
+        _gps_key = hashlib.sha256(_GPS_RAW_KEY.encode()).digest()
+    else:
+        # Derive from SECRET_KEY — ensures encryption is consistent per deployment
+        _gps_key = hashlib.sha256(("gps:" + SECRET_KEY).encode()).digest()
+    _GPS_ENC = True
+except ImportError:
+    _GPS_ENC = False
+
+def encrypt_gps(gps: str) -> str:
+    """Encrypt GPS string with AES-256-GCM. Returns base64-encoded nonce+ciphertext."""
+    if not gps or not _GPS_ENC:
+        return gps
+    nonce = os.urandom(12)
+    ct = _AESGCM(_gps_key).encrypt(nonce, gps.encode(), None)
+    return "enc:" + base64.urlsafe_b64encode(nonce + ct).decode()
+
+def decrypt_gps(stored: str) -> str:
+    """Decrypt AES-GCM encrypted GPS. Returns plain GPS or original if not encrypted."""
+    if not stored or not stored.startswith("enc:") or not _GPS_ENC:
+        return stored
+    try:
+        raw = base64.urlsafe_b64decode(stored[4:])
+        nonce, ct = raw[:12], raw[12:]
+        return _AESGCM(_gps_key).decrypt(nonce, ct, None).decode()
+    except Exception:
+        return stored  # fallback — return raw if decrypt fails
 
 def create_token(user_id: str, email: str) -> str:
     payload = {"sub": user_id, "email": email, "exp": time.time() + TOKEN_HOURS * 3600}
     payload_b64 = base64.urlsafe_b64encode(json.dumps(payload).encode()).decode().rstrip("=")
     sig = hmac.new(SECRET_KEY.encode(), payload_b64.encode(), hashlib.sha256).hexdigest()
     return f"{payload_b64}.{sig}"
+
+def _token_hash(token: str) -> str:
+    return hashlib.sha256(token.encode()).hexdigest()
 
 def verify_token(token: str) -> dict:
     try:
@@ -405,8 +497,19 @@ def verify_token(token: str) -> dict:
         payload = json.loads(base64.urlsafe_b64decode(payload_b64 + padding).decode())
         if payload["exp"] < time.time():
             raise ValueError("expired")
+        th = _token_hash(token)
+        try:
+            conn = get_db()
+            revoked = conn.execute(*sql_params("SELECT 1 FROM revoked_tokens WHERE token_hash=?", [th])).fetchone()
+            conn.close()
+            if revoked:
+                raise ValueError("revoked")
+        except HTTPException:
+            raise
+        except Exception:
+            pass
         return payload
-    except Exception:
+    except (HTTPException, ValueError) as e:
         raise HTTPException(status_code=401, detail="Token invalide ou expiré")
 
 def get_current_user(request: Request) -> dict:
@@ -485,11 +588,14 @@ class BriefIn(BaseModel):
     budget_min: Optional[int] = 0
     budget_max: Optional[int] = 0
     deadline: Optional[str] = ""
+    brief_type: Optional[str] = "demand"  # "demand" = cherche un pro | "offer" = propose ses services
 
 class BriefResponseIn(BaseModel):
     message: str
     prix: Optional[int] = 0
     delai: Optional[str] = ""
+    conditions: Optional[str] = ""
+    phases: Optional[List[Dict[str, Any]]] = None
 
 class ReviewIn(BaseModel):
     pro_user_id: Optional[str] = ""
@@ -502,14 +608,24 @@ class ChatMessageIn(BaseModel):
     content: str
 
 # ── App ───────────────────────────────────────────────────────────────────────
-app = FastAPI(title="ShantiLink API", version="1.0.0", docs_url="/api/docs")
+_docs_url = None if os.environ.get("ENV") == "prod" else "/api/docs"
+app = FastAPI(title="ShantiLink API", version="1.0.0", docs_url=_docs_url)
+
+_CORS_ORIGINS_ENV = os.environ.get("ALLOWED_ORIGINS", "")
+_CORS_ORIGINS = (
+    [o.strip() for o in _CORS_ORIGINS_ENV.split(",") if o.strip()]
+    if _CORS_ORIGINS_ENV
+    else ["http://localhost:3000", "http://localhost:8000", "http://localhost:19006"]
+)
+if _ENV == "prod" and not _CORS_ORIGINS_ENV:
+    print("[WARNING] ALLOWED_ORIGINS not set in prod — CORS restricted to localhost only")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_CORS_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "Accept"],
 )
 
 @app.on_event("startup")
@@ -517,7 +633,7 @@ def startup():
     init_db()
     # If ADMIN_PASSWORD env var is set, force-update the admin account password on every boot
     admin_pwd = os.environ.get("ADMIN_PASSWORD", "")
-    admin_email = os.environ.get("ADMIN_EMAIL", "admin@shantilink.ma")
+    admin_email = os.environ.get("ADMIN_EMAIL", "admin@shantilink.ma").lower()
     if admin_pwd:
         try:
             conn = get_db()
@@ -536,6 +652,30 @@ def startup():
             print(f"[startup] Admin account set for {admin_email}")
         except Exception as e:
             print(f"[startup] Admin password sync failed: {e}")
+
+@app.middleware("http")
+async def security_headers(request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "geolocation=(), microphone=()"
+    if _ENV == "prod":
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; "
+            "script-src 'self' 'unsafe-inline' https://unpkg.com https://cdnjs.cloudflare.com; "
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com; "
+            "font-src 'self' https://fonts.gstatic.com; "
+            "img-src 'self' data: https://*.openstreetmap.org https://res.cloudinary.com; "
+            "connect-src 'self'; "
+            "frame-ancestors 'none'"
+        )
+    return response
+
+@app.get("/ping")
+def ping():
+    return {"ok": True}
 
 @app.get("/health")
 def health():
@@ -561,8 +701,14 @@ def get_me(user: dict = Depends(get_current_user)):
 # ── Auth ──────────────────────────────────────────────────────────────────────
 @app.post("/api/auth/register", status_code=201)
 def register(data: RegisterIn):
-    if len(data.password) < 6:
-        raise HTTPException(400, "Mot de passe minimum 6 caractères")
+    if len(data.password) < 10:
+        raise HTTPException(400, "Mot de passe minimum 10 caractères")
+    if not re.search(r'[A-Z]', data.password):
+        raise HTTPException(400, "Le mot de passe doit contenir au moins une majuscule")
+    if not re.search(r'[0-9]', data.password):
+        raise HTTPException(400, "Le mot de passe doit contenir au moins un chiffre")
+    if not re.search(r'[^A-Za-z0-9]', data.password):
+        raise HTTPException(400, "Le mot de passe doit contenir au moins un caractère spécial")
     if "@" not in data.email or "." not in data.email.split("@")[-1]:
         raise HTTPException(400, "Email invalide")
     conn = get_db()
@@ -587,16 +733,24 @@ def register(data: RegisterIn):
                     "INSERT INTO referrals (id,referrer_id,referred_email,referred_user_id,status,created_at) VALUES (?,?,?,?,?,?)",
                     ["r"+uid(), referrer[0], data.email.lower(), user_id, "completed", now_iso()]
                 ))
-        # Award founder badge to first 100 users
-        founder_count = conn.execute(text("SELECT COUNT(*) FROM founder_badges")).fetchone()[0]
+        # Award founder badge — atomic: INSERT only if < 100 badges exist
         founder_badge = None
-        if founder_count < 100:
-            badge_num = founder_count + 1
-            conn.execute(*sql_params(
-                "INSERT INTO founder_badges (user_id, badge_number, created_at) VALUES (?,?,?)",
-                [user_id, badge_num, now_iso()]
-            ))
-            founder_badge = badge_num
+        try:
+            if _is_sqlite:
+                badge_num_row = conn.execute(text(
+                    "INSERT INTO founder_badges (user_id, badge_number, created_at) "
+                    "SELECT :uid, COUNT(*)+1, :at FROM founder_badges HAVING COUNT(*) < 100"
+                ), {"uid": user_id, "at": now_iso()})
+            else:
+                badge_num_row = conn.execute(text(
+                    "INSERT INTO founder_badges (user_id, badge_number, created_at) "
+                    "SELECT :uid, COUNT(*)+1, :at FROM founder_badges HAVING COUNT(*) < 100"
+                ), {"uid": user_id, "at": now_iso()})
+            if badge_num_row.rowcount > 0:
+                fb = conn.execute(*sql_params("SELECT badge_number FROM founder_badges WHERE user_id=?", [user_id])).fetchone()
+                founder_badge = fb[0] if fb else None
+        except Exception:
+            pass
         log_activity(conn, user_id, f"Compte créé")
         conn.commit()
         token = create_token(user_id, data.email.lower())
@@ -610,8 +764,41 @@ def register(data: RegisterIn):
     finally:
         conn.close()
 
+@app.post("/api/auth/logout")
+def logout(request: Request, user: dict = Depends(get_current_user)):
+    auth = request.headers.get("Authorization", "")
+    token = auth[7:] if auth.startswith("Bearer ") else ""
+    if token:
+        th = _token_hash(token)
+        conn = get_db()
+        try:
+            conn.execute(*sql_params("INSERT OR IGNORE INTO revoked_tokens (token_hash, revoked_at) VALUES (?,?)", [th, now_iso()]))
+            conn.execute(text("DELETE FROM revoked_tokens WHERE revoked_at < :cutoff"), {"cutoff": datetime.utcfromtimestamp(time.time() - 48*3600).isoformat()})
+            conn.commit()
+        finally:
+            conn.close()
+    return {"ok": True}
+
+_login_attempts: dict = {}
+
+def _check_login_rate(ip: str):
+    now = time.time()
+    window = _login_attempts.get(ip, {"count": 0, "window": now, "blocked_until": 0})
+    if window["blocked_until"] > now:
+        wait = int(window["blocked_until"] - now)
+        raise HTTPException(429, f"Trop de tentatives. Réessayez dans {wait}s.")
+    if now - window["window"] > 60:
+        window = {"count": 1, "window": now, "blocked_until": 0}
+    else:
+        window["count"] += 1
+        if window["count"] > 5:
+            window["blocked_until"] = now + 60
+            raise HTTPException(429, "Trop de tentatives. Réessayez dans 60s.")
+    _login_attempts[ip] = window
+
 @app.post("/api/auth/login")
-def login(data: LoginIn):
+def login(data: LoginIn, request: Request):
+    _check_login_rate(request.client.host if request.client else "unknown")
     conn = get_db()
     try:
         row = conn.execute(*sql_params("SELECT * FROM users WHERE email=?", [data.email.lower()])).fetchone()
@@ -620,6 +807,10 @@ def login(data: LoginIn):
         m = dict(row._mapping)
         if not verify_password(data.password, m["password_hash"]):
             raise HTTPException(401, "Email ou mot de passe incorrect")
+        if _needs_rehash(m["password_hash"]):
+            new_hash = hash_password(data.password)
+            conn.execute(*sql_params("UPDATE users SET password_hash=? WHERE id=?", [new_hash, m["id"]]))
+            conn.commit()
         status = m.get("status", "active") or "active"
         if status == "suspended":
             raise HTTPException(403, "Votre compte a été suspendu. Contactez le support.")
@@ -636,13 +827,18 @@ def login(data: LoginIn):
 
 # ── Projects ──────────────────────────────────────────────────────────────────
 @app.get("/api/projects")
-def get_projects(user: dict = Depends(get_current_user)):
+def get_projects(user: dict = Depends(get_current_user), limit: int = 50, offset: int = 0):
     conn = get_db()
     try:
+        total = conn.execute(*sql_params("SELECT COUNT(*) FROM projects WHERE user_id=?", [user["sub"]])).fetchone()[0]
         rows = conn.execute(
-            *sql_params("SELECT * FROM projects WHERE user_id=? ORDER BY created_at DESC", [user["sub"]])
+            *sql_params("SELECT * FROM projects WHERE user_id=? ORDER BY created_at DESC LIMIT ? OFFSET ?", [user["sub"], limit, offset])
         ).fetchall()
-        return [dict(r._mapping) for r in rows]
+        from fastapi.responses import JSONResponse as _JR
+        result = [dict(r._mapping) for r in rows]
+        resp = _JR(content=result)
+        resp.headers["X-Total-Count"] = str(total)
+        return resp
     finally:
         conn.close()
 
@@ -692,9 +888,17 @@ def update_pct(pid: str, data: PctIn, user: dict = Depends(get_current_user)):
         if not p:
             raise HTTPException(404, "Projet non trouvé")
         pct = max(0, min(100, data.pct))
+        prev = conn.execute(*sql_params("SELECT pct FROM projects WHERE id=?", [pid])).fetchone()
+        prev_pct = dict(prev._mapping)["pct"] if prev else 0
         conn.execute(*sql_params("UPDATE projects SET pct=? WHERE id=?", [pct, pid]))
+        # PRO-09: trigger review solicitation notification when project reaches 100%
+        completed = pct >= 100 and (prev_pct or 0) < 100
+        if completed:
+            log_activity(conn, user["sub"], f"Projet terminé à 100% — pensez à demander un avis à votre prestataire !")
+            # Mark project as completed for frontend prompt
+            conn.execute(*sql_params("UPDATE projects SET status=? WHERE id=? AND (status IS NULL OR status='')", ["completed", pid]))
         conn.commit()
-        return {"ok": True, "pct": pct}
+        return {"ok": True, "pct": pct, "just_completed": completed}
     finally:
         conn.close()
 
@@ -718,10 +922,14 @@ def update_phases(pid: str, data: PhasesIn, user: dict = Depends(get_current_use
 def delete_project(pid: str, user: dict = Depends(get_current_user)):
     conn = get_db()
     try:
-        conn.execute(*sql_params("UPDATE expenses SET deleted=1 WHERE project_id=? AND user_id=?", [pid, user["sub"]]))
-        r = conn.execute(*sql_params("DELETE FROM projects WHERE id=? AND user_id=?", [pid, user["sub"]]))
-        if r.rowcount == 0:
+        existing = conn.execute(*sql_params("SELECT id FROM projects WHERE id=? AND user_id=?", [pid, user["sub"]])).fetchone()
+        if not existing:
             raise HTTPException(404, "Projet non trouvé")
+        conn.execute(*sql_params("UPDATE expenses SET deleted=1 WHERE project_id=? AND user_id=?", [pid, user["sub"]]))
+        conn.execute(*sql_params("DELETE FROM photos WHERE user_id=? AND id IN (SELECT id FROM photos WHERE user_id=?)", [user["sub"], user["sub"]]))
+        conn.execute(*sql_params("DELETE FROM project_briefs WHERE project_id=?", [pid]))
+        conn.execute(*sql_params("DELETE FROM brief_responses WHERE brief_id IN (SELECT id FROM project_briefs WHERE project_id=?)", [pid]))
+        conn.execute(*sql_params("DELETE FROM projects WHERE id=? AND user_id=?", [pid, user["sub"]]))
         log_activity(conn, user["sub"], f"Projet supprimé")
         conn.commit()
         return {"ok": True}
@@ -730,13 +938,17 @@ def delete_project(pid: str, user: dict = Depends(get_current_user)):
 
 # ── Expenses ──────────────────────────────────────────────────────────────────
 @app.get("/api/expenses")
-def get_expenses(user: dict = Depends(get_current_user)):
+def get_expenses(user: dict = Depends(get_current_user), limit: int = 50, offset: int = 0):
     conn = get_db()
     try:
+        total = conn.execute(*sql_params("SELECT COUNT(*) FROM expenses WHERE user_id=? AND deleted=0", [user["sub"]])).fetchone()[0]
         rows = conn.execute(
-            *sql_params("SELECT * FROM expenses WHERE user_id=? ORDER BY date DESC, id DESC", [user["sub"]])
+            *sql_params("SELECT * FROM expenses WHERE user_id=? AND deleted=0 ORDER BY date DESC, id DESC LIMIT ? OFFSET ?", [user["sub"], limit, offset])
         ).fetchall()
-        return [dict(r._mapping) for r in rows]
+        from fastapi.responses import JSONResponse as _JR
+        resp = _JR(content=[dict(r._mapping) for r in rows])
+        resp.headers["X-Total-Count"] = str(total)
+        return resp
     finally:
         conn.close()
 
@@ -773,13 +985,24 @@ def delete_expense(eid: str, user: dict = Depends(get_current_user)):
 
 # ── Photos ────────────────────────────────────────────────────────────────────
 @app.get("/api/photos")
-def get_photos(user: dict = Depends(get_current_user)):
+def get_photos(request: Request, limit: int = 50, offset: int = 0, user: dict = Depends(get_current_user)):
     conn = get_db()
     try:
+        total = conn.execute(
+            *sql_params("SELECT COUNT(*) FROM photos WHERE user_id=?", [user["sub"]])
+        ).scalar()
         rows = conn.execute(
-            *sql_params("SELECT * FROM photos WHERE user_id=? ORDER BY date DESC, id DESC", [user["sub"]])
+            *sql_params("SELECT * FROM photos WHERE user_id=? ORDER BY date DESC, id DESC LIMIT ? OFFSET ?",
+                        [user["sub"], limit, offset])
         ).fetchall()
-        return [dict(r._mapping) for r in rows]
+        photos = []
+        for r in rows:
+            d = dict(r._mapping)
+            d["gps"] = decrypt_gps(d.get("gps") or "")  # CMP-03: decrypt GPS
+            photos.append(d)
+        response = JSONResponse(photos)
+        response.headers["X-Total-Count"] = str(total)
+        return response
     finally:
         conn.close()
 
@@ -801,17 +1024,32 @@ async def create_photo(
         image_url = ""
         if image and image.filename:
             ext = os.path.splitext(image.filename)[-1].lower() or ".jpg"
-            allowed = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".heic"}
-            if ext not in allowed:
+            allowed_ext = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".heic"}
+            allowed_ct = {"image/jpeg", "image/png", "image/gif", "image/webp", "image/heic"}
+            if ext not in allowed_ext:
                 raise HTTPException(400, "Format non supporté. Utilisez JPG, PNG ou WEBP.")
+            ct = (image.content_type or "").lower()
+            if ct and ct not in allowed_ct:
+                raise HTTPException(400, "Type de fichier invalide.")
+            contents = await image.read()
+            if len(contents) > 10 * 1024 * 1024:
+                raise HTTPException(413, "Image trop volumineuse (max 10 MB)")
+            try:
+                from PIL import Image as _PIL
+                import io as _io
+                img = _PIL.open(_io.BytesIO(contents))
+                img.verify()
+            except Exception:
+                raise HTTPException(400, "Fichier image corrompu ou invalide.")
             filename = phid + ext
             dest = os.path.join(UPLOADS_DIR, filename)
             with open(dest, "wb") as f:
-                shutil.copyfileobj(image.file, f)
+                f.write(contents)
             image_url = "/static/uploads/" + filename
+        gps_stored = encrypt_gps(gps)
         conn.execute(*sql_params(
             "INSERT INTO photos (id,user_id,description,date,phase,emoji,gps,image_url) VALUES (?,?,?,?,?,?,?,?)",
-            [phid, user["sub"], description, date_val, phase, emoji, gps, image_url]
+            [phid, user["sub"], description, date_val, phase, emoji, gps_stored, image_url]
         ))
         log_activity(conn, user["sub"], f"Photo GPS archivée : {description}")
         conn.commit()
@@ -832,12 +1070,21 @@ def delete_photo(phid: str, user: dict = Depends(get_current_user)):
         conn.close()
 
 # ── Professionals ─────────────────────────────────────────────────────────────
+def _mask_tel(tel: str) -> str:
+    """CMP-04: Masquer partiellement le numéro pour les non-connectés."""
+    if not tel or len(tel) < 8:
+        return tel
+    return tel[:6] + "•• •• " + tel[-2:]
+
 @app.get("/api/professionals")
 def get_professionals(
+    request: Request,
     role: Optional[str] = None,
     ville: Optional[str] = None,
     search: Optional[str] = None
 ):
+    auth = request.headers.get("Authorization", "")
+    is_authenticated = bool(auth.startswith("Bearer ") and auth[7:])
     conn = get_db()
     try:
         q = "SELECT * FROM professionals WHERE 1=1"
@@ -849,7 +1096,13 @@ def get_professionals(
         if search:
             q += " AND (nom LIKE ? OR description LIKE ?)"; params += [f"%{search}%", f"%{search}%"]
         rows = conn.execute(*sql_params(q, params)).fetchall()
-        return [dict(r._mapping) for r in rows]
+        result = []
+        for r in rows:
+            d = dict(r._mapping)
+            if not is_authenticated:
+                d["tel"] = _mask_tel(d.get("tel", ""))
+            result.append(d)
+        return result
     finally:
         conn.close()
 
@@ -1040,9 +1293,10 @@ def community_directory(q: str = "", role: str = "", ville: str = "", limit: int
 
 @app.get("/api/community")
 @app.get("/api/community/posts")
-def get_community_posts(limit: int = 20):
+def get_community_posts(request: Request, limit: int = 20, offset: int = 0):
     conn = get_db()
     try:
+        total = conn.execute(*sql_params("SELECT COUNT(*) FROM community_posts", [])).scalar()
         rows = conn.execute(*sql_params("""
             SELECT cp.id, cp.content, cp.titre, cp.category, cp.tags, cp.est_epingle,
                    cp.media_url, cp.media_urls, cp.likes, cp.created_at,
@@ -1050,21 +1304,21 @@ def get_community_posts(limit: int = 20):
             FROM community_posts cp
             JOIN users u ON u.id = cp.user_id
             ORDER BY cp.est_epingle DESC, cp.created_at DESC
-            LIMIT ?
-        """, [limit])).fetchall()
+            LIMIT ? OFFSET ?
+        """, [limit, offset])).fetchall()
         result = []
         for r in rows:
             d = dict(r._mapping)
-            # Normalise media_urls en liste Python
             try:
                 d["media_urls"] = json.loads(d.get("media_urls") or "[]")
             except Exception:
                 d["media_urls"] = []
-            # Rétrocompat : si media_url singulier et pas de media_urls, l'inclure
             if d.get("media_url") and not d["media_urls"]:
                 d["media_urls"] = [d["media_url"]]
             result.append(d)
-        return result
+        response = JSONResponse(result)
+        response.headers["X-Total-Count"] = str(total)
+        return response
     finally:
         conn.close()
 
@@ -1448,7 +1702,9 @@ async def agent_chat(data: AgentChatIn, user: dict = Depends(get_current_user)):
                 api_messages.append({"role": "user", "content": tool_results})
 
         except Exception as e:
-            yield f"data: {json.dumps({'type': 'error', 'text': f'Erreur agent: {str(e)[:200]}'})}\n\n"
+            safe_msg = str(e)[:300].replace(ANTHROPIC_API_KEY or "NOKEY", "***")
+            print(f"[agent_chat] error user={user.get('sub','?')}: {safe_msg}")
+            yield f"data: {json.dumps({'type': 'error', 'text': 'Erreur lors de la génération. Réessayez dans quelques secondes.'})}\n\n"
 
         yield f"data: {json.dumps({'type': 'done'})}\n\n"
 
@@ -1610,12 +1866,14 @@ def create_brief(data: BriefIn, user: dict = Depends(get_current_user)):
     conn = get_db()
     try:
         bid = "b" + uid()
+        brief_type = data.brief_type if data.brief_type in ("demand", "offer") else "demand"
         conn.execute(*sql_params(
-            "INSERT INTO project_briefs (id,user_id,titre,description,ville,categorie,budget_min,budget_max,deadline,status,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+            "INSERT INTO project_briefs (id,user_id,titre,description,ville,categorie,budget_min,budget_max,deadline,status,brief_type,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
             [bid, user["sub"], data.titre, data.description, data.ville, data.categorie,
-             data.budget_min, data.budget_max, data.deadline, "open", now_iso()]
+             data.budget_min, data.budget_max, data.deadline, "open", brief_type, now_iso()]
         ))
-        log_activity(conn, user["sub"], f"Demande de devis publiée : {data.titre}")
+        action = "Appel d'offres publié" if brief_type == "offer" else "Demande de devis publiée"
+        log_activity(conn, user["sub"], f"{action} : {data.titre}")
         conn.commit()
         row = conn.execute(*sql_params("SELECT * FROM project_briefs WHERE id=?", [bid])).fetchone()
         return dict(row._mapping)
@@ -1674,13 +1932,74 @@ def respond_brief(brief_id: str, data: BriefResponseIn, user: dict = Depends(get
         if existing:
             raise HTTPException(409, "Vous avez déjà répondu à cette demande")
         rid = "br" + uid()
+        phases_json = json.dumps(data.phases) if data.phases else None
         conn.execute(*sql_params(
-            "INSERT INTO brief_responses (id,brief_id,pro_user_id,message,prix,delai,status,created_at) VALUES (?,?,?,?,?,?,?,?)",
-            [rid, brief_id, user["sub"], data.message, data.prix, data.delai, "pending", now_iso()]
+            "INSERT INTO brief_responses (id,brief_id,pro_user_id,message,prix,delai,conditions,phases,status,created_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
+            [rid, brief_id, user["sub"], data.message, data.prix, data.delai, data.conditions or "", phases_json, "pending", now_iso()]
         ))
         log_activity(conn, user["sub"], f"Réponse envoyée pour la demande : {brief['titre']}")
         conn.commit()
         return {"ok": True, "id": rid}
+    finally:
+        conn.close()
+
+@app.post("/api/briefs/{brief_id}/respond-rich", status_code=201)
+async def respond_brief_rich(
+    request: Request,
+    brief_id: str,
+    message: str = Form(...),
+    prix: int = Form(0),
+    delai: str = Form(""),
+    conditions: str = Form(""),
+    phases: str = Form(""),
+    attachment: Optional[UploadFile] = File(None),
+    user: dict = Depends(get_current_user),
+):
+    """ARC-04: Rich brief response with optional PDF/file attachment and phase breakdown."""
+    conn = get_db()
+    try:
+        _br = conn.execute(*sql_params("SELECT * FROM project_briefs WHERE id=?", [brief_id])).fetchone()
+        if not _br:
+            raise HTTPException(404, "Demande non trouvée")
+        brief = dict(_br._mapping)
+        if brief["status"] != "open":
+            raise HTTPException(400, "Cette demande est clôturée")
+        existing = conn.execute(
+            *sql_params("SELECT id FROM brief_responses WHERE brief_id=? AND pro_user_id=?", [brief_id, user["sub"]])
+        ).fetchone()
+        if existing:
+            raise HTTPException(409, "Vous avez déjà répondu à cette demande")
+        attachment_url = ""
+        if attachment and attachment.filename:
+            allowed_att = {".pdf", ".jpg", ".jpeg", ".png", ".docx"}
+            ext = os.path.splitext(attachment.filename)[-1].lower()
+            if ext not in allowed_att:
+                raise HTTPException(400, "Format de pièce jointe non supporté")
+            raw = await attachment.read()
+            if len(raw) > 5 * 1024 * 1024:
+                raise HTTPException(400, "Fichier trop volumineux (max 5 Mo)")
+            att_name = "att_" + uid() + ext
+            att_path = os.path.join(UPLOADS_DIR, att_name)
+            with open(att_path, "wb") as f:
+                f.write(raw)
+            attachment_url = "/static/uploads/" + att_name
+            if _CLOUDINARY_OK and ext != ".pdf":
+                try:
+                    import cloudinary.uploader as _cu
+                    res = _cu.upload(att_path, folder="shantilink/attachments")
+                    attachment_url = res.get("secure_url", attachment_url)
+                    os.remove(att_path)
+                except Exception as e:
+                    logger.warning(f"Cloudinary attachment upload failed: {e}")
+        rid = "br" + uid()
+        phases_val = phases.strip() or None
+        conn.execute(*sql_params(
+            "INSERT INTO brief_responses (id,brief_id,pro_user_id,message,prix,delai,conditions,phases,attachment_url,status,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+            [rid, brief_id, user["sub"], message, prix, delai, conditions, phases_val, attachment_url, "pending", now_iso()]
+        ))
+        log_activity(conn, user["sub"], f"Réponse détaillée envoyée pour la demande : {brief['titre']}")
+        conn.commit()
+        return {"ok": True, "id": rid, "attachment_url": attachment_url}
     finally:
         conn.close()
 
@@ -1712,6 +2031,27 @@ def close_brief(brief_id: str, user: dict = Depends(get_current_user)):
         conn.execute(*sql_params("UPDATE project_briefs SET status='closed' WHERE id=?", [brief_id]))
         conn.commit()
         return {"ok": True}
+    finally:
+        conn.close()
+
+@app.patch("/api/briefs/{brief_id}/responses/{resp_id}/status")
+def update_brief_response_status(brief_id: str, resp_id: str, body: dict, user: dict = Depends(get_current_user)):
+    """PRO-04: Workflow statut réponse devis (sent→seen→quoted→accepted/rejected)."""
+    new_status = body.get("status", "")
+    allowed = {"sent", "seen", "quoted", "accepted", "rejected"}
+    if new_status not in allowed:
+        raise HTTPException(400, f"Statut invalide. Valeurs acceptées : {', '.join(allowed)}")
+    conn = get_db()
+    try:
+        resp = conn.execute(*sql_params("SELECT br.*, pb.user_id as owner_id FROM brief_responses br JOIN project_briefs pb ON br.brief_id=pb.id WHERE br.id=? AND br.brief_id=?", [resp_id, brief_id])).fetchone()
+        if not resp:
+            raise HTTPException(404, "Réponse non trouvée")
+        r = dict(resp._mapping)
+        if user["sub"] != r["owner_id"] and user["sub"] != r["pro_user_id"]:
+            raise HTTPException(403, "Non autorisé")
+        conn.execute(*sql_params("UPDATE brief_responses SET status=? WHERE id=?", [new_status, resp_id]))
+        conn.commit()
+        return {"ok": True, "status": new_status}
     finally:
         conn.close()
 
@@ -2239,16 +2579,111 @@ async def delete_post_media(public_id: str, user: dict = Depends(get_current_use
         except Exception:
             pass  # silencieux si déjà supprimé
     else:
-        # Local : supprime le fichier
+        # Local : supprime le fichier — vérifie que le nom encode l'user_id
         fname = os.path.basename(public_id)
-        path  = os.path.join(UPLOADS_DIR, fname)
+        if user["sub"] not in fname and user.get("role") != "admin":
+            raise HTTPException(403, "Non autorisé")
+        path = os.path.join(UPLOADS_DIR, fname)
+        path = os.path.realpath(path)
+        if not path.startswith(os.path.realpath(UPLOADS_DIR)):
+            raise HTTPException(400, "Chemin invalide")
         if os.path.exists(path):
             os.remove(path)
     return {"ok": True}
 
 
+# ── CLT-08: Weekly report ─────────────────────────────────────────────────────
+@app.get("/api/reports/weekly")
+def get_weekly_report(user: dict = Depends(get_current_user)):
+    """Generate a weekly summary report for the authenticated user."""
+    conn = get_db()
+    try:
+        from datetime import timedelta
+        week_ago = (datetime.utcnow() - timedelta(days=7)).isoformat()
+        uid_v = user["sub"]
+        # Projects summary
+        projects = [dict(r._mapping) for r in conn.execute(
+            *sql_params("SELECT id, nom, pct, budget FROM projects WHERE user_id=? ORDER BY created_at DESC", [uid_v])
+        ).fetchall()]
+        # This week's expenses
+        expenses = [dict(r._mapping) for r in conn.execute(
+            *sql_params("SELECT description, montant, categorie, date FROM expenses WHERE user_id=? AND deleted=0 AND created_at>=? ORDER BY date DESC", [uid_v, week_ago])
+        ).fetchall()]
+        total_week = sum(e["montant"] for e in expenses)
+        # Photos taken this week
+        photo_count = conn.execute(
+            *sql_params("SELECT COUNT(*) FROM photos WHERE user_id=? AND created_at>=?", [uid_v, week_ago])
+        ).scalar() or 0
+        # New messages
+        msg_count = conn.execute(
+            *sql_params("SELECT COUNT(*) FROM user_chats WHERE recipient_id=? AND created_at>=?", [uid_v, week_ago])
+        ).scalar() or 0
+        return {
+            "week_start": week_ago[:10],
+            "week_end": datetime.utcnow().date().isoformat(),
+            "projects": projects,
+            "expenses_count": len(expenses),
+            "expenses_total": total_week,
+            "expenses": expenses,
+            "photos_added": photo_count,
+            "new_messages": msg_count,
+        }
+    finally:
+        conn.close()
+
+@app.post("/api/reports/weekly/email")
+async def send_weekly_report_email(user: dict = Depends(get_current_user)):
+    """CLT-08: Send weekly report by email. Requires SMTP configuration via env vars."""
+    smtp_host = os.environ.get("SMTP_HOST", "")
+    smtp_user = os.environ.get("SMTP_USER", "")
+    smtp_pass = os.environ.get("SMTP_PASS", "")
+    if not smtp_host or not smtp_user:
+        return {"ok": False, "message": "Service email non configuré sur ce serveur. Configurez SMTP_HOST, SMTP_USER, SMTP_PASS."}
+    try:
+        import smtplib
+        from email.mime.text import MIMEText
+        from email.mime.multipart import MIMEMultipart
+        # Build report
+        conn = get_db()
+        try:
+            from datetime import timedelta
+            week_ago = (datetime.utcnow() - timedelta(days=7)).isoformat()
+            uid_v = user["sub"]
+            u_row = conn.execute(*sql_params("SELECT email, prenom FROM users WHERE id=?", [uid_v])).fetchone()
+            if not u_row:
+                raise HTTPException(404, "Utilisateur non trouvé")
+            u = dict(u_row._mapping)
+            expenses = conn.execute(
+                *sql_params("SELECT description, montant, categorie FROM expenses WHERE user_id=? AND deleted=0 AND created_at>=?", [uid_v, week_ago])
+            ).fetchall()
+            total = sum(e[1] for e in expenses)
+        finally:
+            conn.close()
+        subject = f"ShantiLink — Votre rapport hebdomadaire"
+        body = f"""Bonjour {u['prenom']},\n\nVoici votre résumé de la semaine :\n\n"""
+        body += f"💰 Total dépenses : {total:,.0f} DH\n"
+        body += f"📋 {len(expenses)} dépense(s) enregistrée(s)\n\n"
+        body += "Retrouvez le détail complet sur votre tableau de bord ShantiLink.\n\nL'équipe ShantiLink"
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"] = smtp_user
+        msg["To"] = u["email"]
+        msg.attach(MIMEText(body, "plain", "utf-8"))
+        smtp_port = int(os.environ.get("SMTP_PORT", "587"))
+        with smtplib.SMTP(smtp_host, smtp_port) as server:
+            server.starttls()
+            server.login(smtp_user, smtp_pass)
+            server.send_message(msg)
+        logger.info(f"Weekly report sent to {u['email']}")
+        return {"ok": True, "message": "Rapport envoyé à " + u["email"]}
+    except Exception as e:
+        logger.error(f"Failed to send weekly report email: {e}")
+        raise HTTPException(500, "Échec de l'envoi du rapport")
+
 @app.post("/bootstrap/admin")
 def bootstrap_admin(body: dict):
+    if _ENV == "prod":
+        raise HTTPException(404, "Not found")
     secret = os.environ.get("BOOTSTRAP_SECRET", "")
     if not secret or body.get("secret") != secret:
         raise HTTPException(403, "Clé invalide")
@@ -2257,7 +2692,11 @@ def bootstrap_admin(body: dict):
         existing = conn.execute(text("SELECT id FROM users WHERE role='admin' LIMIT 1")).fetchone()
         if existing:
             raise HTTPException(400, "Admin déjà existant")
-        pwd = body.get("password", "Admin2024!")
+        pwd = body.get("password", "")
+        if not pwd or len(pwd) < 12:
+            raise HTTPException(400, "Mot de passe admin minimum 12 caractères")
+        if pwd in ("Admin2024!", "admin", "password", "Admin123"):
+            raise HTTPException(400, "Mot de passe par défaut refusé")
         uid_val = "admin-" + uid()
         hashed = hash_password(pwd)
         code = "SLADMIN"
@@ -2272,11 +2711,13 @@ def bootstrap_admin(body: dict):
 
 @app.post("/bootstrap/reset-admin")
 def bootstrap_reset_admin(body: dict):
+    if _ENV == "prod":
+        raise HTTPException(404, "Not found")
     secret = os.environ.get("BOOTSTRAP_SECRET", "")
     if not secret or body.get("secret") != secret:
         raise HTTPException(403, "Clé invalide")
     pwd = body.get("password")
-    if not pwd or len(pwd) < 6:
+    if not pwd or len(pwd) < 12:
         raise HTTPException(400, "Mot de passe trop court (min 6 caractères)")
     conn = get_db()
     try:
@@ -2295,8 +2736,18 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 @app.get("/")
 async def root():
-    landing = os.path.join(STATIC_DIR, "landing.html")
-    target = landing if os.path.exists(landing) else os.path.join(STATIC_DIR, "index.html")
+    # pg-landing (index.html) est la landing principale — landing.html est conservé à /landing
+    target = os.path.join(STATIC_DIR, "index.html")
+    resp = FileResponse(target)
+    resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    return resp
+
+@app.get("/landing")
+async def old_landing():
+    target = os.path.join(STATIC_DIR, "landing.html")
+    if not os.path.exists(target):
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse("/")
     resp = FileResponse(target)
     resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
     return resp

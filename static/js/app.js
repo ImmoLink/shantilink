@@ -4,7 +4,53 @@
 let currentUser = null;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-function fmt(n) { return Math.round(n || 0).toLocaleString('fr-FR') + ' DH'; }
+
+// UXT-07: EUR/MAD currency switch with daily exchange rate
+window._currency = localStorage.getItem('sl_currency') || 'MAD';
+window._eurRate  = parseFloat(localStorage.getItem('sl_eur_rate') || '0');
+const _EUR_RATE_KEY  = 'sl_eur_rate';
+const _EUR_RATE_DATE = 'sl_eur_rate_date';
+
+async function _fetchEurRate() {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const cached = localStorage.getItem(_EUR_RATE_DATE);
+    if (cached === today && window._eurRate > 0) return;
+    // Open exchange rates (no API key needed for MAD/EUR)
+    const r = await fetch('https://open.er-api.com/v6/latest/EUR');
+    if (!r.ok) throw new Error();
+    const data = await r.json();
+    const rate = data.rates && data.rates.MAD;
+    if (rate && rate > 0) {
+      window._eurRate = rate;
+      localStorage.setItem(_EUR_RATE_KEY, String(rate));
+      localStorage.setItem(_EUR_RATE_DATE, today);
+    }
+  } catch(e) {
+    // fallback: 1 EUR ≈ 10.8 MAD (approximation)
+    if (!window._eurRate) window._eurRate = 10.8;
+  }
+}
+
+function fmt(n) {
+  const v = Math.round(n || 0);
+  if (window._currency === 'EUR' && window._eurRate > 0) {
+    const eur = v / window._eurRate;
+    return eur.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' €';
+  }
+  return v.toLocaleString('fr-FR') + ' DH';
+}
+
+window.setCurrency = function(cur) {
+  window._currency = cur;
+  localStorage.setItem('sl_currency', cur);
+  // Re-render visible data
+  if (typeof renderDashboardOverview === 'function') renderDashboardOverview();
+  if (typeof renderDepenses === 'function') renderDepenses();
+  if (typeof renderProjets === 'function') renderProjets();
+  const btn = document.getElementById('currency-toggle');
+  if (btn) btn.textContent = cur === 'EUR' ? '€ EUR → DH' : 'DH → € EUR';
+};
 
 function getWeek(d) {
   d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
@@ -43,6 +89,10 @@ window.goPage = function(id, _skipHistory) {
   const cleanId = id.startsWith('pg-') ? id : 'pg-' + id;
   const el = document.getElementById(cleanId);
   if (el) { el.classList.add('on'); window.scrollTo(0, 0); }
+  // UXT-02: sync URL hash
+  const pageSlug = id.replace(/^pg-/, '');
+  const newHash = '#/' + pageSlug;
+  if (location.hash !== newHash) history.replaceState(null, '', newHash);
   if (id === 'dashboard' || id === 'pg-dashboard') {
     if (currentUser) {
       loadDashboard();
@@ -115,7 +165,7 @@ window.setProfile = function(type) {
 window.closeWelcome = function() {
   const m = document.getElementById('welcome-modal');
   if (m) m.style.display = 'none';
-  localStorage.setItem('bna_welcomed', '1');
+  localStorage.setItem('sl_welcomed', '1');
 };
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
@@ -123,7 +173,7 @@ window.switchTab = function(t) {
   document.querySelectorAll('.atab').forEach(b => b.classList.remove('on'));
   document.querySelectorAll('.apanel').forEach(p => p.classList.remove('on'));
   if (t === 'register') {
-    const savedRef = localStorage.getItem('bna_ref_code') || '';
+    const savedRef = localStorage.getItem('sl_ref_code') || '';
     const refRow = document.getElementById('ref-code-row');
     const refInput = document.getElementById('r-ref-code');
     if (savedRef && refRow && refInput) {
@@ -152,18 +202,23 @@ window.doRegister = async function() {
 
   if (!prenom) { errEl.textContent = 'Le prénom est requis.'; errEl.style.display = 'block'; return; }
   if (!email)  { errEl.textContent = 'L\'email est requis.'; errEl.style.display = 'block'; return; }
-  if (pwd.length < 6) { errEl.textContent = 'Mot de passe minimum 6 caractères.'; errEl.style.display = 'block'; return; }
+  if (pwd.length < 10) { errEl.textContent = 'Mot de passe minimum 10 caractères.'; errEl.style.display = 'block'; return; }
+  if (!/[A-Z]/.test(pwd)) { errEl.textContent = 'Le mot de passe doit contenir au moins une majuscule.'; errEl.style.display = 'block'; return; }
+  if (!/[0-9]/.test(pwd)) { errEl.textContent = 'Le mot de passe doit contenir au moins un chiffre.'; errEl.style.display = 'block'; return; }
+  if (!/[^A-Za-z0-9]/.test(pwd)) { errEl.textContent = 'Le mot de passe doit contenir au moins un caractère spécial.'; errEl.style.display = 'block'; return; }
+  const consent = document.getElementById('r-consent');
+  if (consent && !consent.checked) { errEl.textContent = 'Veuillez accepter les CGU et la Politique de confidentialité.'; errEl.style.display = 'block'; return; }
 
   btn.disabled = true;
   btn.innerHTML = '<span class="loading"></span>Création en cours...';
   try {
     const refInput = document.getElementById('r-ref-code');
-    const refCode = (refInput && refInput.value.trim()) || localStorage.getItem('bna_ref_code') || '';
+    const refCode = (refInput && refInput.value.trim()) || localStorage.getItem('sl_ref_code') || '';
     const res = await API.register({ prenom, nom, email, password: pwd, role, ville, ref_code: refCode });
-    if (refCode) localStorage.removeItem('bna_ref_code');
+    if (refCode) localStorage.removeItem('sl_ref_code');
     API.setToken(res.token);
     currentUser = res.user;
-    localStorage.setItem('bna_user', JSON.stringify(currentUser));
+    localStorage.setItem('sl_user', JSON.stringify(currentUser));
     if (typeof resetDashboardState === 'function') resetDashboardState();
     document.getElementById('reg-ok').style.display = 'block';
     setTimeout(() => {
@@ -171,14 +226,18 @@ window.doRegister = async function() {
       initWorkspace(res.user.role);
       document.getElementById('new-user-banner').style.display = 'block';
       if (res.user.founder_badge) showFounderBadgeToast(res.user.founder_badge);
-      const afterAuth = localStorage.getItem('bna_after_auth');
-      localStorage.removeItem('bna_after_auth');
+      const afterAuth = localStorage.getItem('sl_after_auth');
+      localStorage.removeItem('sl_after_auth');
       goPage('dashboard');
       if (typeof agentInit === 'function') { agentInit(); agentShow(); }
       if (afterAuth === 'simulateur') {
         setTimeout(() => { if (typeof showDashPanel === 'function') showDashPanel('simulateur', null); }, 200);
       }
       toast('Bienvenue ' + prenom + ' ! Votre espace est prêt.', 'success');
+      // UXT-09: start onboarding for new users
+      if (!localStorage.getItem('sl_onboarded') && typeof startOnboarding === 'function') {
+        setTimeout(() => startOnboarding(res.user.role), 2000);
+      }
     }, 1200);
   } catch (e) {
     errEl.textContent = e.message;
@@ -199,12 +258,12 @@ window.doLogin = async function() {
     const res = await API.login({ email, password: pwd });
     API.setToken(res.token);
     currentUser = res.user;
-    localStorage.setItem('bna_user', JSON.stringify(currentUser));
+    localStorage.setItem('sl_user', JSON.stringify(currentUser));
     if (typeof resetDashboardState === 'function') resetDashboardState();
     updateNav();
     initWorkspace(res.user.role);
-    const afterAuth = localStorage.getItem('bna_after_auth');
-    localStorage.removeItem('bna_after_auth');
+    const afterAuth = localStorage.getItem('sl_after_auth');
+    localStorage.removeItem('sl_after_auth');
     goPage('dashboard');
     if (typeof agentInit === 'function') { agentInit(); agentShow(); }
     if (afterAuth === 'simulateur') {
@@ -272,6 +331,13 @@ window.initWorkspace = function(role) {
 
   const adminBtn = document.getElementById('sb-admin-btn');
   if (adminBtn) adminBtn.style.display = role === 'admin' ? 'flex' : 'none';
+
+  // PRO-02: Sidebar dynamique par rôle — pros voient "Mes chantiers" pas "Mes projets"
+  const sbProjects = document.getElementById('sb-projects');
+  if (sbProjects) {
+    const isProRole = ['pro', 'architecte', 'electricien', 'plombier', 'bureau', 'notaire', 'comptable', 'autre'].includes(role);
+    sbProjects.textContent = isProRole ? 'Mes chantiers en cours' : 'Mes projets';
+  }
 };
 
 // ── Budget simulator ──────────────────────────────────────────────────────────
@@ -321,7 +387,7 @@ window.calcBudget = function() {
 };
 
 window.goSimDash = function() {
-  if (window._lastSim) localStorage.setItem('bna_sim', JSON.stringify(window._lastSim));
+  if (window._lastSim) localStorage.setItem('sl_sim', JSON.stringify(window._lastSim));
   if (currentUser) {
     goPage('dashboard');
     // Navigate to simulator panel and show saved result
@@ -330,7 +396,7 @@ window.goSimDash = function() {
     }, 100);
   } else {
     // Flag so after register we redirect to simulator
-    localStorage.setItem('bna_after_auth', 'simulateur');
+    localStorage.setItem('sl_after_auth', 'simulateur');
     goPage('auth'); switchTab('register');
   }
 };
@@ -585,7 +651,7 @@ const TRANSLATIONS = {
     about_cta_sub: "Rejoignez les premiers utilisateurs — 3 mois gratuits, influence directe sur le produit.", about_cta_btn: 'Rejoindre la bêta →',
     about_back: '← Retour',
     // Legal
-    legal_title: 'Mentions légales', legal_editor_title: 'Éditeur', legal_editor_val: 'ShantiLink — contact@ShantiLink.ma',
+    legal_title: 'Mentions légales', legal_editor_title: 'Éditeur', legal_editor_val: 'ShantiLink — contact@shantilink.ma',
     legal_host_title: 'Hébergement', legal_host_val: 'Serveur local Python / Uvicorn. Déploiement cloud prévu.',
     legal_data_title: 'Données personnelles', legal_data_val: "Conformément au RGPD, vous disposez d'un droit d'accès, de rectification et de suppression de vos données en nous contactant par email.",
     legal_back: '← Retour',
@@ -776,7 +842,7 @@ const TRANSLATIONS = {
     about_h3_2: 'Who is behind ShantiLink', about_p3: "ShantiLink is founded by a team of engineers and developers with over 10 years of combined experience in software development, data engineering and digital platform design.",
     about_cta_sub: "Join the first users — 3 months free, direct influence on the product.", about_cta_btn: 'Join the beta →',
     about_back: '← Back',
-    legal_title: 'Legal Notice', legal_editor_title: 'Publisher', legal_editor_val: 'ShantiLink — contact@ShantiLink.ma',
+    legal_title: 'Legal Notice', legal_editor_title: 'Publisher', legal_editor_val: 'ShantiLink — contact@shantilink.ma',
     legal_host_title: 'Hosting', legal_host_val: 'Local Python / Uvicorn server. Cloud deployment planned.',
     legal_data_title: 'Personal data', legal_data_val: "In accordance with GDPR, you have the right to access, rectify and delete your data by contacting us by email.",
     legal_back: '← Back',
@@ -994,7 +1060,7 @@ const TRANSLATIONS = {
     about_cta_sub: 'انضم إلى أوائل المستخدمين — 3 أشهر مجانية، تأثير مباشر على المنتج.', about_cta_btn: 'انضم للإصدار التجريبي ←',
     about_back: '← رجوع',
     // Legal
-    legal_title: 'الإشعارات القانونية', legal_editor_title: 'الناشر', legal_editor_val: 'ShantiLink — contact@ShantiLink.ma',
+    legal_title: 'الإشعارات القانونية', legal_editor_title: 'الناشر', legal_editor_val: 'ShantiLink — contact@shantilink.ma',
     legal_host_title: 'الاستضافة', legal_host_val: 'خادم Python / Uvicorn محلي. نشر سحابي مخطط.',
     legal_data_title: 'البيانات الشخصية', legal_data_val: 'وفقاً للـ RGPD، يحق لك الوصول إلى بياناتك وتصحيحها وحذفها بالتواصل معنا عبر البريد الإلكتروني.',
     legal_back: '← رجوع',
@@ -1009,7 +1075,7 @@ const TRANSLATIONS = {
 
 // ── Translation helper ────────────────────────────────────────────────────────
 window.t = function(key, fallback) {
-  const lang = window._currentLang || localStorage.getItem('bna_lang') || 'fr';
+  const lang = window._currentLang || localStorage.getItem('sl_lang') || 'fr';
   const T = TRANSLATIONS[lang] || TRANSLATIONS.fr;
   if (T[key] !== undefined) return T[key];
   if (fallback !== undefined) return fallback;
@@ -1022,7 +1088,7 @@ window.setLang = function(l, btn) {
   if (btn) btn.classList.add('on');
   document.documentElement.setAttribute('lang', l);
   document.documentElement.setAttribute('dir', l === 'ar' ? 'rtl' : 'ltr');
-  localStorage.setItem('bna_lang', l);
+  localStorage.setItem('sl_lang', l);
 
   const T = TRANSLATIONS[l] || TRANSLATIONS.fr;
 
@@ -1166,7 +1232,7 @@ function _proCard(u, compact) {
       <div class="pro-city-v2">${u.ville ? '📍 '+u.ville : ''}</div>
       ${isVerified ? '<div class="pro-badge-v2">✓ Vérifié ShantiLink</div>' : ''}
       ${bio ? `<div class="pro-bio-v2">${bio}</div>` : ''}
-      <button class="pro-contact-btn" onclick="goPage('auth');switchTab('login')">Contacter →</button>
+      <button class="pro-contact-btn" onclick="if(window.currentUser){showDashPanel('messages',null);if(typeof openUserChat==='function')openUserChat('${u.id}','${displayName.replace(/'/g,"\\'")}');}else{localStorage.setItem('sl_after_auth','messages');goPage('auth');switchTab('login');}">Contacter →</button>
     </div>
   </div>`;
 }
@@ -1664,7 +1730,7 @@ async function loadPlatformStats() {
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 window.addEventListener('load', () => {
-  const stored = localStorage.getItem('bna_user');
+  const stored = localStorage.getItem('sl_user');
   if (stored && API.getToken()) {
     try { currentUser = JSON.parse(stored); } catch (e) { API.clearToken(); }
   }
@@ -1685,13 +1751,13 @@ window.addEventListener('load', () => {
   const urlParams = new URLSearchParams(window.location.search);
   const refCode = urlParams.get('ref');
   if (refCode) {
-    localStorage.setItem('bna_ref_code', refCode);
+    localStorage.setItem('sl_ref_code', refCode);
     if (!currentUser) {
       setTimeout(() => { goPage('auth'); switchTab('register'); }, 300);
     }
   }
 
-  if (!currentUser && !localStorage.getItem('bna_welcomed')) {
+  if (!currentUser && !localStorage.getItem('sl_welcomed')) {
     setTimeout(() => {
       const m = document.getElementById('welcome-modal');
       if (m) m.style.display = 'flex';
@@ -1705,9 +1771,44 @@ window.addEventListener('load', () => {
 
   calcBudget();
   setTimeout(loadPlatformStats, 500);
+  // UXT-07: fetch EUR/MAD rate in background
+  _fetchEurRate();
+  // Restore currency toggle label
+  const ctBtn = document.getElementById('currency-toggle');
+  if (ctBtn) ctBtn.textContent = window._currency === 'EUR' ? '€ EUR → DH' : 'DH → € EUR';
+
+  // UXT-02: hash-based routing — restore state from URL on load
+  (function _applyInitialHash() {
+    const hash = location.hash; // e.g. #/dashboard/projets or #/community
+    if (!hash || hash === '#/') return;
+    const parts = hash.replace(/^#\//, '').split('/');
+    const page = parts[0];
+    const panel = parts[1];
+    if (page === 'dashboard' && currentUser) {
+      goPage('dashboard', true);
+      if (panel) setTimeout(() => { if (typeof showDashPanel === 'function') showDashPanel(panel, null); }, 200);
+    } else if (page && page !== 'landing') {
+      goPage(page, true);
+    }
+  })();
+
+  // UXT-02: listen for browser back/forward
+  window.addEventListener('hashchange', function() {
+    const hash = location.hash;
+    if (!hash || hash === '#/') { goPage('landing', true); return; }
+    const parts = hash.replace(/^#\//, '').split('/');
+    const page = parts[0];
+    const panel = parts[1];
+    if (page === 'dashboard' && currentUser) {
+      goPage('dashboard', true);
+      if (panel) setTimeout(() => { if (typeof showDashPanel === 'function') showDashPanel(panel, null); }, 150);
+    } else if (page) {
+      goPage(page, true);
+    }
+  });
 
   // restore saved language
-  const savedLang = localStorage.getItem('bna_lang') || 'fr';
+  const savedLang = localStorage.getItem('sl_lang') || 'fr';
   window._currentLang = savedLang;
   if (savedLang !== 'fr') {
     const btn = document.querySelector('.lbtn[onclick*="setLang(\'' + savedLang + '\'"]');
