@@ -341,6 +341,24 @@ def init_db():
         created_at TEXT
     )""")
 
+    # COM-01: post comments
+    _run_migration("""CREATE TABLE IF NOT EXISTS post_comments (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        post_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        content TEXT NOT NULL,
+        created_at TEXT
+    )""")
+
+    # COM-02: post likes (toggle, unique par user)
+    _run_migration("""CREATE TABLE IF NOT EXISTS post_likes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        post_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        created_at TEXT,
+        UNIQUE(post_id, user_id)
+    )""")
+
     # ── Indexes (idempotents) ─────────────────────────────────────────────────
     for idx in [
         "CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)",
@@ -1182,15 +1200,35 @@ class PhasesIn(BaseModel):
     phases: str  # JSON string
 
 @app.patch("/api/projects/{pid}/phases")
-def update_phases(pid: str, data: PhasesIn, user: dict = Depends(get_current_user)):
+def update_phases(pid: str, data: dict = Body(...), user: dict = Depends(get_current_user)):
     conn = get_db()
     try:
         p = conn.execute(*sql_params("SELECT id FROM projects WHERE id=? AND user_id=?", [pid, user["sub"]])).fetchone()
         if not p:
             raise HTTPException(404, "Projet non trouvé")
-        conn.execute(*sql_params("UPDATE projects SET phases=? WHERE id=?", [data.phases, pid]))
+        # Accepter soit un dict {phases: [...]} soit {phases: "json string"}
+        phases_raw = data.get("phases", [])
+        if isinstance(phases_raw, str):
+            try:
+                phases_list = json.loads(phases_raw)
+            except Exception:
+                phases_list = []
+            phases_json = phases_raw
+        else:
+            phases_list = phases_raw if isinstance(phases_raw, list) else []
+            phases_json = json.dumps(phases_list, ensure_ascii=False)
+        # Calculer l'avancement automatiquement
+        if phases_list:
+            done = sum(1 for ph in phases_list if ph.get("status") == "done" or ph.get("done") is True)
+            pct = round(done / len(phases_list) * 100)
+        else:
+            pct = data.get("pct", None)
+        if pct is not None:
+            conn.execute(*sql_params("UPDATE projects SET phases=?, pct=? WHERE id=? AND user_id=?", [phases_json, pct, pid, user["sub"]]))
+        else:
+            conn.execute(*sql_params("UPDATE projects SET phases=? WHERE id=? AND user_id=?", [phases_json, pid, user["sub"]]))
         conn.commit()
-        return {"ok": True}
+        return {"ok": True, "pct": pct}
     finally:
         conn.close()
 
@@ -1228,23 +1266,35 @@ def generate_share_link(pid: str, user: dict = Depends(get_current_user)):
         conn.close()
 
 @app.get("/api/shared/{share_token}")
+@app.get("/api/projects/shared/{share_token}")
 def get_shared_project(share_token: str):
-    """CLT-03: Public read-only view of a shared project (no auth required)."""
+    """Accès public en lecture seule au projet via son token de partage."""
     conn = get_db()
     try:
-        p = conn.execute(*sql_params("SELECT id,nom,type,ville,pct,budget,phases,created_at FROM projects WHERE share_token=? AND share_token!=''", [share_token])).fetchone()
-        if not p:
+        row = conn.execute(text(
+            "SELECT id, nom, description, ville, type, budget, pct, phases, created_at FROM projects WHERE share_token=:t AND share_token!=''"
+        ), {"t": share_token}).fetchone()
+        if not row:
             raise HTTPException(404, "Lien de partage invalide ou expiré")
-        proj = dict(p._mapping)
-        expenses = [dict(r._mapping) for r in conn.execute(
-            *sql_params("SELECT categorie, montant, date FROM expenses WHERE project_id=? AND deleted=0 ORDER BY date DESC LIMIT 20", [proj["id"]])
-        ).fetchall()]
-        photos = [dict(r._mapping) for r in conn.execute(
-            *sql_params("SELECT description, phase, date, image_url FROM photos WHERE user_id=(SELECT user_id FROM projects WHERE id=?) ORDER BY date DESC LIMIT 12", [proj["id"]])
-        ).fetchall()]
-        return {"project": proj, "expenses": expenses, "photos": photos}
+        d = dict(row._mapping)
+        # Charger les dépenses agrégées (sans montants détaillés)
+        expenses = conn.execute(text(
+            "SELECT categorie, SUM(montant) as total FROM expenses WHERE project_id=:pid AND deleted=0 GROUP BY categorie"
+        ), {"pid": d["id"]}).fetchall()
+        d["expenses_summary"] = [dict(e._mapping) for e in expenses]
+        # Charger les photos (URLs seulement, pas de GPS)
+        photos = conn.execute(text(
+            "SELECT id, description, phase, image_url, date FROM photos WHERE project_id=:pid ORDER BY date DESC LIMIT 20"
+        ), {"pid": d["id"]}).fetchall()
+        d["photos"] = [dict(p._mapping) for p in photos]
+        return d
     finally:
         conn.close()
+
+@app.get("/shared/{token}")
+def shared_project_page(token: str):
+    """Page publique du projet partagé — sert index.html qui gère le routage."""
+    return FileResponse("static/index.html")
 
 # ── Expenses ──────────────────────────────────────────────────────────────────
 @app.get("/api/expenses")
@@ -1632,15 +1682,19 @@ def get_community_posts(request: Request, limit: int = 20, offset: int = 0):
     conn = get_db()
     try:
         total = conn.execute(*sql_params("SELECT COUNT(*) FROM community_posts", [])).scalar()
-        rows = conn.execute(*sql_params("""
+        rows = conn.execute(text("""
             SELECT cp.id, cp.content, cp.titre, cp.category, cp.tags, cp.est_epingle,
                    cp.media_url, cp.media_urls, cp.likes, cp.created_at,
-                   u.id as user_id, u.prenom, u.nom, u.role, u.ville
+                   u.id as user_id, u.prenom, u.nom, u.role, u.ville,
+                   COALESCE(lk.cnt, 0) as likes_count,
+                   COALESCE(cm.cnt, 0) as comments_count
             FROM community_posts cp
             JOIN users u ON u.id = cp.user_id
+            LEFT JOIN (SELECT post_id, COUNT(*) as cnt FROM post_likes GROUP BY post_id) lk ON lk.post_id=cp.id
+            LEFT JOIN (SELECT post_id, COUNT(*) as cnt FROM post_comments GROUP BY post_id) cm ON cm.post_id=cp.id
             ORDER BY cp.est_epingle DESC, cp.created_at DESC
-            LIMIT ? OFFSET ?
-        """, [limit, offset])).fetchall()
+            LIMIT :lim OFFSET :off
+        """), {"lim": limit, "off": offset}).fetchall()
         result = []
         for r in rows:
             d = dict(r._mapping)
@@ -1676,15 +1730,122 @@ def create_community_post(data: PostIn, user: dict = Depends(get_current_user)):
         conn.close()
 
 @app.post("/api/community/{post_id}/like")
-def like_community_post(post_id: str, user: dict = Depends(get_current_user)):
+@app.post("/api/posts/{post_id}/like")
+def toggle_post_like(post_id: str, user: dict = Depends(get_current_user)):
+    """Toggle like — un seul like par utilisateur."""
     conn = get_db()
     try:
-        r = conn.execute(*sql_params("UPDATE community_posts SET likes=likes+1 WHERE id=?", [post_id]))
+        existing = conn.execute(text(
+            "SELECT id FROM post_likes WHERE post_id=:pid AND user_id=:uid"
+        ), {"pid": post_id, "uid": user["sub"]}).fetchone()
+        if existing:
+            conn.execute(text("DELETE FROM post_likes WHERE post_id=:pid AND user_id=:uid"),
+                        {"pid": post_id, "uid": user["sub"]})
+            liked = False
+        else:
+            conn.execute(text(
+                "INSERT INTO post_likes (post_id, user_id, created_at) VALUES (:pid, :uid, :now)"
+            ), {"pid": post_id, "uid": user["sub"], "now": now_iso()})
+            liked = True
+        count = conn.execute(text("SELECT COUNT(*) FROM post_likes WHERE post_id=:pid"), {"pid": post_id}).fetchone()[0]
         conn.commit()
-        if r.rowcount == 0:
-            raise HTTPException(404, "Post non trouvé")
-        row = conn.execute(*sql_params("SELECT likes FROM community_posts WHERE id=?", [post_id])).fetchone()
-        return {"ok": True, "likes": row[0] if row else 0}
+        return {"liked": liked, "count": count}
+    finally:
+        conn.close()
+
+@app.get("/api/posts/{post_id}/likes")
+def get_post_likes(post_id: str, user: dict = Depends(get_current_user)):
+    conn = get_db()
+    try:
+        count = conn.execute(text("SELECT COUNT(*) FROM post_likes WHERE post_id=:pid"), {"pid": post_id}).fetchone()[0]
+        liked = conn.execute(text("SELECT 1 FROM post_likes WHERE post_id=:pid AND user_id=:uid"),
+                            {"pid": post_id, "uid": user["sub"]}).fetchone() is not None
+        return {"count": count, "liked": liked}
+    finally:
+        conn.close()
+
+@app.get("/api/posts/{post_id}/comments")
+def get_post_comments(post_id: str):
+    """Public — liste des commentaires d'un post."""
+    conn = get_db()
+    try:
+        rows = conn.execute(text("""
+            SELECT pc.id, pc.content, pc.created_at, pc.user_id,
+                   u.prenom, u.nom, u.role
+            FROM post_comments pc
+            LEFT JOIN users u ON u.id = pc.user_id
+            WHERE pc.post_id=:pid ORDER BY pc.created_at ASC
+        """), {"pid": post_id}).fetchall()
+        return [dict(r._mapping) for r in rows]
+    finally:
+        conn.close()
+
+@app.post("/api/posts/{post_id}/comments")
+def add_post_comment(post_id: str, data: dict = Body(...), user: dict = Depends(get_current_user)):
+    content = data.get("content", "").strip()
+    if not content or len(content) > 1000:
+        raise HTTPException(400, "Commentaire invalide (1-1000 caractères)")
+    conn = get_db()
+    try:
+        conn.execute(text(
+            "INSERT INTO post_comments (post_id, user_id, content, created_at) VALUES (:pid, :uid, :content, :now)"
+        ), {"pid": post_id, "uid": user["sub"], "content": content, "now": now_iso()})
+        conn.commit()
+        row = conn.execute(text("""
+            SELECT pc.id, pc.content, pc.created_at, pc.user_id, u.prenom, u.nom, u.role
+            FROM post_comments pc LEFT JOIN users u ON u.id=pc.user_id
+            WHERE pc.user_id=:uid ORDER BY pc.created_at DESC LIMIT 1
+        """), {"uid": user["sub"]}).fetchone()
+        return dict(row._mapping) if row else {"ok": True}
+    finally:
+        conn.close()
+
+@app.delete("/api/posts/{post_id}/comments/{comment_id}")
+def delete_post_comment(post_id: str, comment_id: int, user: dict = Depends(get_current_user)):
+    conn = get_db()
+    try:
+        row = conn.execute(text("SELECT user_id FROM post_comments WHERE id=:cid AND post_id=:pid"),
+                          {"cid": comment_id, "pid": post_id}).fetchone()
+        if not row:
+            raise HTTPException(404)
+        if row.user_id != user["sub"] and user.get("role") != "admin":
+            raise HTTPException(403)
+        conn.execute(text("DELETE FROM post_comments WHERE id=:cid"), {"cid": comment_id})
+        conn.commit()
+        return {"ok": True}
+    finally:
+        conn.close()
+
+@app.patch("/api/posts/{post_id}")
+def edit_post(post_id: str, data: dict = Body(...), user: dict = Depends(get_current_user)):
+    conn = get_db()
+    try:
+        row = conn.execute(text("SELECT user_id FROM community_posts WHERE id=:pid"), {"pid": post_id}).fetchone()
+        if not row:
+            raise HTTPException(404)
+        if row.user_id != user["sub"] and user.get("role") != "admin":
+            raise HTTPException(403, "Non autorisé")
+        content = data.get("content", "").strip()
+        if not content:
+            raise HTTPException(400, "Contenu requis")
+        conn.execute(text("UPDATE community_posts SET content=:c WHERE id=:pid"), {"c": content, "pid": post_id})
+        conn.commit()
+        return {"ok": True}
+    finally:
+        conn.close()
+
+@app.delete("/api/posts/{post_id}")
+def delete_post(post_id: str, user: dict = Depends(get_current_user)):
+    conn = get_db()
+    try:
+        row = conn.execute(text("SELECT user_id FROM community_posts WHERE id=:pid"), {"pid": post_id}).fetchone()
+        if not row:
+            raise HTTPException(404)
+        if row.user_id != user["sub"] and user.get("role") != "admin":
+            raise HTTPException(403, "Non autorisé")
+        conn.execute(text("DELETE FROM community_posts WHERE id=:pid"), {"pid": post_id})
+        conn.commit()
+        return {"ok": True}
     finally:
         conn.close()
 
