@@ -215,6 +215,12 @@ def init_db():
         "ALTER TABLE community_posts ADD COLUMN media_url TEXT DEFAULT ''",
         "ALTER TABLE community_posts ADD COLUMN media_urls TEXT DEFAULT '[]'",
         "ALTER TABLE project_briefs ADD COLUMN brief_type TEXT DEFAULT 'demand'",
+        # IMP-01: project_id sur photos
+        "ALTER TABLE photos ADD COLUMN project_id TEXT",
+        # IMP-02: status sur projects
+        "ALTER TABLE projects ADD COLUMN status TEXT DEFAULT 'en_cours'",
+        # IMP-03: project_id sur project_briefs
+        "ALTER TABLE project_briefs ADD COLUMN project_id TEXT",
         # ARC-04: rich brief responses
         "ALTER TABLE brief_responses ADD COLUMN conditions TEXT DEFAULT ''",
         "ALTER TABLE brief_responses ADD COLUMN phases TEXT DEFAULT NULL",
@@ -1022,8 +1028,20 @@ def logout(request: Request, user: dict = Depends(get_current_user)):
 
 _login_attempts: dict = {}
 
+def _get_client_ip(request: Request) -> str:
+    """SEC-05: Récupère l'IP réelle derrière un proxy (X-Forwarded-For)."""
+    forwarded = request.headers.get("X-Forwarded-For", "")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
 def _check_login_rate(ip: str):
     now = time.time()
+    # PERF-DES-04: Purge entrées expirées > 120s (évite le memory leak)
+    now_ts = time.time()
+    expired = [k for k, v in _login_attempts.items() if now_ts - v.get("window", now_ts) > 120 and v.get("blocked_until", 0) < now_ts]
+    for k in expired:
+        del _login_attempts[k]
     window = _login_attempts.get(ip, {"count": 0, "window": now, "blocked_until": 0})
     if window["blocked_until"] > now:
         wait = int(window["blocked_until"] - now)
@@ -1039,7 +1057,7 @@ def _check_login_rate(ip: str):
 
 @app.post("/api/auth/login")
 def login(data: LoginIn, request: Request):
-    _check_login_rate(request.client.host if request.client else "unknown")
+    _check_login_rate(_get_client_ip(request))
     conn = get_db()
     try:
         row = conn.execute(*sql_params("SELECT * FROM users WHERE email=?", [data.email.lower()])).fetchone()
@@ -1297,6 +1315,7 @@ async def create_photo(
     phase: str = Form("Fondations"),
     emoji: str = Form("🏗️"),
     gps: str = Form(""),
+    project_id: Optional[str] = Form(None),
     image: Optional[UploadFile] = File(None),
     user: dict = Depends(get_current_user),
 ):
@@ -1331,8 +1350,8 @@ async def create_photo(
             image_url = "/static/uploads/" + filename
         gps_stored = encrypt_gps(gps)
         conn.execute(*sql_params(
-            "INSERT INTO photos (id,user_id,description,date,phase,emoji,gps,image_url) VALUES (?,?,?,?,?,?,?,?)",
-            [phid, user["sub"], description, date_val, phase, emoji, gps_stored, image_url]
+            "INSERT INTO photos (id,user_id,description,date,phase,emoji,gps,image_url,project_id) VALUES (?,?,?,?,?,?,?,?,?)",
+            [phid, user["sub"], description, date_val, phase, emoji, gps_stored, image_url, project_id]
         ))
         log_activity(conn, user["sub"], f"Photo GPS archivée : {description}")
         conn.commit()
@@ -1364,7 +1383,9 @@ def get_professionals(
     request: Request,
     role: Optional[str] = None,
     ville: Optional[str] = None,
-    search: Optional[str] = None
+    search: Optional[str] = None,
+    limit: int = 50,
+    offset: int = 0,
 ):
     auth = request.headers.get("Authorization", "")
     is_authenticated = bool(auth.startswith("Bearer ") and auth[7:])
@@ -1378,6 +1399,8 @@ def get_professionals(
             q += " AND ville=?"; params.append(ville)
         if search:
             q += " AND (nom LIKE ? OR description LIKE ?)"; params += [f"%{search}%", f"%{search}%"]
+        # PERF-DES-03: pagination
+        q += " LIMIT ? OFFSET ?"; params += [limit, offset]
         rows = conn.execute(*sql_params(q, params)).fetchall()
         result = []
         for r in rows:
@@ -1554,7 +1577,7 @@ def search_users(q: str = "", limit: int = 20, user: dict = Depends(get_current_
         conn.close()
 
 @app.get("/api/community/directory")
-def community_directory(q: str = "", role: str = "", ville: str = "", limit: int = 50):
+def community_directory(q: str = "", role: str = "", ville: str = "", limit: int = 50, user: dict = Depends(get_current_user)):
     conn = get_db()
     try:
         # Query registered users with professional roles
@@ -1586,6 +1609,10 @@ def community_directory(q: str = "", role: str = "", ville: str = "", limit: int
             pq += " ORDER BY note DESC LIMIT ?"; pp.append(limit)
             rows = conn.execute(*sql_params(pq, pp)).fetchall()
             results = [dict(r._mapping) for r in rows]
+        # SEC-01: masquer tel pour les non-admins
+        for r in results:
+            if user.get("role") != "admin":
+                r.pop("tel", None)
         return results
     finally:
         conn.close()
@@ -1653,11 +1680,11 @@ def like_community_post(post_id: str, user: dict = Depends(get_current_user)):
         conn.close()
 
 @app.get("/api/community/profile/{user_id}")
-def get_community_profile(user_id: str):
+def get_community_profile(user_id: str, user: dict = Depends(get_current_user)):
     conn = get_db()
     try:
         row = conn.execute(
-            *sql_params("SELECT id,prenom,nom,role,ville,bio,photo_url,created_at FROM users WHERE id=?", [user_id])
+            *sql_params("SELECT id,prenom,nom,role,ville,tel,bio,photo_url,created_at FROM users WHERE id=?", [user_id])
         ).fetchone()
         if not row:
             raise HTTPException(404, "Profil non trouvé")
@@ -1665,6 +1692,9 @@ def get_community_profile(user_id: str):
             *sql_params("SELECT id,content,category,created_at FROM community_posts WHERE user_id=? ORDER BY created_at DESC LIMIT 5", [user_id])
         ).fetchall()
         result = dict(row._mapping)
+        # SEC-02: masquer tel pour les non-admins
+        if user.get("role") != "admin":
+            result.pop("tel", None)
         result["posts"] = [dict(p._mapping) for p in posts]
         return result
     finally:
@@ -2203,20 +2233,34 @@ def my_briefs(user: dict = Depends(get_current_user)):
         rows = conn.execute(
             *sql_params("SELECT * FROM project_briefs WHERE user_id=? ORDER BY created_at DESC", [user["sub"]])
         ).fetchall()
-        result = []
-        for r in rows:
-            brief = dict(r._mapping)
-            responses = conn.execute(
-                *sql_params("SELECT br.*, u.prenom, u.nom, u.ville, u.tel FROM brief_responses br JOIN users u ON br.pro_user_id=u.id WHERE br.brief_id=? ORDER BY br.created_at DESC", [brief["id"]])
-            ).fetchall()
-            brief["responses"] = [dict(resp._mapping) for resp in responses]
-            result.append(brief)
-        return result
+        briefs_list = [dict(r._mapping) for r in rows]
+        # PERF-DES-01: requête groupée pour éviter N+1
+        if briefs_list:
+            ids = [b["id"] for b in briefs_list]
+            placeholders = ",".join(f":bid{i}" for i in range(len(ids)))
+            params = {f"bid{i}": ids[i] for i in range(len(ids))}
+            all_responses = conn.execute(text(
+                f"SELECT br.*, u.prenom, u.nom, u.ville, u.tel FROM brief_responses br JOIN users u ON br.pro_user_id=u.id WHERE br.brief_id IN ({placeholders}) ORDER BY br.created_at DESC"
+            ), params).fetchall()
+            resp_by_brief: dict = {}
+            for r in all_responses:
+                rd = dict(r._mapping)
+                resp_by_brief.setdefault(rd["brief_id"], []).append(rd)
+            for b in briefs_list:
+                b["responses"] = resp_by_brief.get(b["id"], [])
+        else:
+            for b in briefs_list:
+                b["responses"] = []
+        return briefs_list
     finally:
         conn.close()
 
 @app.post("/api/briefs/{brief_id}/respond", status_code=201)
 def respond_brief(brief_id: str, data: BriefResponseIn, user: dict = Depends(get_current_user)):
+    # BUG-13: seuls les professionnels peuvent répondre à un brief
+    allowed_roles = {"architecte", "pro", "promoteur", "admin", "bureau"}
+    if user.get("role") not in allowed_roles:
+        raise HTTPException(403, "Seuls les professionnels peuvent répondre à un brief")
     conn = get_db()
     try:
         _br = conn.execute(*sql_params("SELECT * FROM project_briefs WHERE id=?", [brief_id])).fetchone()
@@ -2255,6 +2299,10 @@ async def respond_brief_rich(
     user: dict = Depends(get_current_user),
 ):
     """ARC-04: Rich brief response with optional PDF/file attachment and phase breakdown."""
+    # BUG-13: seuls les professionnels peuvent répondre à un brief
+    allowed_roles = {"architecte", "pro", "promoteur", "admin", "bureau"}
+    if user.get("role") not in allowed_roles:
+        raise HTTPException(403, "Seuls les professionnels peuvent répondre à un brief")
     conn = get_db()
     try:
         _br = conn.execute(*sql_params("SELECT * FROM project_briefs WHERE id=?", [brief_id])).fetchone()
@@ -2385,6 +2433,51 @@ def get_pro_reviews(pro_id: int):
         rows = conn.execute(
             *sql_params("SELECT pr.*, u.prenom, u.nom FROM pro_reviews pr JOIN users u ON pr.reviewer_id=u.id WHERE pr.pro_catalog_id=? ORDER BY pr.created_at DESC", [pro_id])
         ).fetchall()
+        return [dict(r._mapping) for r in rows]
+    finally:
+        conn.close()
+
+# ── BUG-06: Contact professionnel du catalogue ────────────────────────────────
+@app.post("/api/contact/pro/{pro_id}")
+def contact_pro_catalogue(pro_id: int, data: dict = Body(...), user: dict = Depends(get_current_user)):
+    """Contact un professionnel du catalogue (table professionals, pas users)."""
+    msg = data.get("message", "").strip()
+    if not msg:
+        raise HTTPException(400, "Message requis")
+    conn = get_db()
+    try:
+        pro = conn.execute(text("SELECT id, nom FROM professionals WHERE id=:pid"), {"pid": pro_id}).fetchone()
+        if not pro:
+            raise HTTPException(404, "Professionnel introuvable")
+        # Stocker le message dans une table pro_inquiries
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS pro_inquiries (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                pro_id INTEGER NOT NULL,
+                sender_id TEXT NOT NULL,
+                message TEXT NOT NULL,
+                created_at TEXT
+            )
+        """))
+        conn.execute(text(
+            "INSERT INTO pro_inquiries (pro_id, sender_id, message, created_at) VALUES (:pid, :uid, :msg, :now)"
+        ), {"pid": pro_id, "uid": user["sub"], "msg": msg, "now": now_iso()})
+        conn.commit()
+        return {"ok": True, "message": f"Message envoyé à {pro.nom}"}
+    finally:
+        conn.close()
+
+@app.get("/api/contact/pro/{pro_id}/messages")
+def get_pro_inquiries(pro_id: int, admin: dict = Depends(require_admin)):
+    """Admin: voir les messages reçus par un pro du catalogue."""
+    conn = get_db()
+    try:
+        rows = conn.execute(text("""
+            SELECT pi.*, u.prenom, u.nom, u.email
+            FROM pro_inquiries pi
+            LEFT JOIN users u ON u.id = pi.sender_id
+            WHERE pi.pro_id=:pid ORDER BY pi.created_at DESC
+        """), {"pid": pro_id}).fetchall()
         return [dict(r._mapping) for r in rows]
     finally:
         conn.close()
@@ -2742,13 +2835,16 @@ def admin_list_users(skip: int = 0, limit: int = 50, admin=Depends(require_admin
     finally:
         conn.close()
 
+VALID_ROLES = {"client", "architecte", "promoteur", "mre", "admin", "pro", "bureau", "notaire", "electricien", "plombier", "comptable", "autre"}
+
 @app.put("/api/admin/users/{user_id}/role")
 def admin_update_role(user_id: str, body: dict, admin=Depends(require_admin)):
     conn = get_db()
     try:
-        new_role = body.get("role", "client")
-        if new_role not in ["client","pro","admin","promoteur","architecte","comptable","bureau","notaire","electricien","plombier","autre"]:
-            raise HTTPException(400, "Rôle invalide")
+        new_role = body.get("role", "")
+        # SEC-06: validation stricte du rôle
+        if new_role not in VALID_ROLES:
+            raise HTTPException(400, f"Rôle invalide. Valeurs acceptées: {', '.join(sorted(VALID_ROLES))}")
         conn.execute(*sql_params("UPDATE users SET role=? WHERE id=?", [new_role, user_id]))
         conn.commit()
         return {"ok": True}

@@ -4,16 +4,35 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ShantiLink — Pilotez votre chantier avec confiance</title>
+<meta name="description" content="ShantiLink — Gérez vos projets de construction au Maroc. Suivez budgets, phases et professionnels BTP en temps réel.">
+<meta property="og:title" content="ShantiLink — Plateforme BTP Maroc">
+<meta property="og:description" content="Connectez clients, architectes et entrepreneurs pour vos projets immobiliers au Maroc.">
+<meta name="theme-color" content="#1A1A2E">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 42 42'><rect width='42' height='42' rx='10' fill='%23E8B84B'/><path d='M9 24 L21 12 L33 24' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round' fill='none'/><path d='M13 24 L13 32 L29 32 L29 24' stroke='white' stroke-width='2.5' stroke-linecap='round' fill='none'/><rect x='18' y='25' width='6' height='7' rx='1' fill='%231A1A1A'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
+<script>
+window._loadPdfLibs = async function() {
+  if (window.jspdf) return;
+  await Promise.all([
+    new Promise((res,rej) => { const s=document.createElement('script'); s.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'; s.onload=res; s.onerror=rej; document.head.appendChild(s); }),
+    new Promise((res,rej) => { const s=document.createElement('script'); s.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js'; s.onload=res; s.onerror=rej; document.head.appendChild(s); })
+  ]);
+};
+</script>
 <script src="https://cdn.jsdelivr.net/npm/exifr@7.1.3/dist/lite.umd.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" defer></script>
 <link rel="stylesheet" href="/static/css/styles.css?v=6">
 <link rel="stylesheet" href="/static/css/ux-smart.css?v=1">
+<style>
+.skeleton { background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 8px; }
+@keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+.skeleton-line { height: 16px; margin-bottom: 8px; }
+.skeleton-card { height: 80px; margin-bottom: 12px; }
+</style>
 </head>
 <body>
 
@@ -1820,8 +1839,8 @@
 </div>
 
 <script src="/static/js/api.js?v=4"></script>
-<script src="/static/js/app.js?v=7"></script>
-<script src="/static/js/dashboard.js?v=10"></script>
+<script src="/static/js/app.js?v=8"></script>
+<script src="/static/js/dashboard.js?v=11"></script>
 <script src="/static/js/agent.js?v=1"></script>
 <script src="/static/js/ux-smart.js?v=1"></script>
 

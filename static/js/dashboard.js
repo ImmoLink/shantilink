@@ -7,6 +7,26 @@ function esc(s) {
                   .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
+function confirmAction(msg, onConfirm) {
+  const id = 'confirm-modal-' + Date.now();
+  const el = document.createElement('div');
+  el.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center';
+  el.innerHTML = '<div style="background:white;border-radius:16px;padding:2rem;max-width:360px;width:90%;text-align:center">'
+    + '<p style="font-size:15px;margin-bottom:1.5rem">' + esc(msg) + '</p>'
+    + '<div style="display:flex;gap:.8rem;justify-content:center">'
+    + '<button onclick="this.closest(\'div[style*=fixed]\').remove()" style="padding:.7rem 1.4rem;border-radius:8px;border:1px solid #ccc;background:white;cursor:pointer">Annuler</button>'
+    + '<button id="' + id + '" style="padding:.7rem 1.4rem;border-radius:8px;border:none;background:#E63946;color:white;cursor:pointer">Confirmer</button>'
+    + '</div></div>';
+  document.body.appendChild(el);
+  document.getElementById(id).onclick = () => { el.remove(); onConfirm(); };
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  document.querySelectorAll('.modal.on, [id$="-modal"].on').forEach(m => m.classList.remove('on'));
+  document.querySelectorAll('[id*="confirm-modal"]').forEach(m => m.remove());
+});
+
 let DB = { projects: [], expenses: [], photos: [], activities: [] };
 let prosMap = null, prosMarkers = [], allPros = [], filteredPros = [];
 let currentConv = null;
@@ -214,6 +234,8 @@ window.createProjectFromSim = function() {
 };
 
 function renderOverview() {
+  const ovEl = document.getElementById('overview-content') || document.getElementById('dash-overview');
+  if (ovEl) ovEl.innerHTML = '<div class="skeleton skeleton-card"></div><div class="skeleton skeleton-card"></div><div class="skeleton skeleton-card"></div>';
   const totalBudget = DB.projects.reduce((s, p) => s + (p.budget || 0), 0);
   const totalDep    = activeExpenses().reduce((s, e) => s + (e.montant || 0), 0);
   const remaining   = Math.max(0, totalBudget - totalDep);
@@ -632,10 +654,10 @@ window.savePct = async function(pid, val) {
     // PRO-09: prompt for review when project just reached 100%
     if (res && res.just_completed) {
       setTimeout(() => {
-        if (confirm('🎉 Projet terminé ! Souhaitez-vous laisser un avis sur votre prestataire ?')) {
+        confirmAction('🎉 Projet terminé ! Souhaitez-vous laisser un avis sur votre prestataire ?', () => {
           showDashPanel('communaute', null);
           setTimeout(() => { if (typeof openReviewModal === 'function') openReviewModal(null, null); }, 300);
-        }
+        });
       }, 1500);
     }
   } catch (e) { toast(e.message, 'error'); }
@@ -1169,13 +1191,14 @@ window.deletePhase = function(pid, idx) {
   const ph = _planPhases[idx];
   if (!ph) return;
   const label = translatePhLabel(ph.label);
-  if (!confirm('Supprimer "' + label + '" ?')) return;
-  _planPhases.splice(idx, 1);
-  const p = DB.projects.find(x => x.id === pid);
-  _planUnsaved = true;
-  renderPlanningBox(pid, p, _planPhases);
-  savePhases(pid, _planPhases, calcPlanningPct(_planPhases));
-  toast('Étape supprimée.', 'success');
+  confirmAction('Supprimer "' + label + '" ?', () => {
+    _planPhases.splice(idx, 1);
+    const p = DB.projects.find(x => x.id === pid);
+    _planUnsaved = true;
+    renderPlanningBox(pid, p, _planPhases);
+    savePhases(pid, _planPhases, calcPlanningPct(_planPhases));
+    toast('Étape supprimée.', 'success');
+  });
 };
 
 window.deleteCustomPhase = window.deletePhase;
@@ -1393,14 +1416,15 @@ function savePhases(pid, phases, pct) {
   }, 600);
 }
 
-window.delProjet = async function(pid) {
-  if (!confirm('Supprimer ce projet ? Cette action est irréversible.')) return;
+window.delProjet = function(pid) {
+  confirmAction('Supprimer ce projet ? Cette action est irréversible.', async () => {
   try {
     await API.deleteProject(pid);
     DB.projects = DB.projects.filter(p => p.id !== pid);
     renderProjets(); renderOverview();
     toast('Projet supprimé.', 'success');
   } catch (e) { toast(e.message, 'error'); }
+  });
 };
 
 // ── Expenses ──────────────────────────────────────────────────────────────────
@@ -1590,15 +1614,16 @@ window.addDepense = async function() {
   } catch (e) { toast(e.message, 'error'); }
 };
 
-window.delDepense = async function(eid) {
-  if (!confirm('Supprimer cette dépense ? Elle restera dans l\'historique.')) return;
-  try {
-    await API.deleteExpense(eid);
-    const d = DB.expenses.find(x => x.id === eid);
-    if (d) d.deleted = 1;
-    renderDepenses(); renderOverview();
-    toast('Dépense supprimée de vos rapports.', 'success');
-  } catch (e) { toast(e.message, 'error'); }
+window.delDepense = function(eid) {
+  confirmAction('Supprimer cette dépense ? Elle restera dans l\'historique.', async () => {
+    try {
+      await API.deleteExpense(eid);
+      const d = DB.expenses.find(x => x.id === eid);
+      if (d) d.deleted = 1;
+      renderDepenses(); renderOverview();
+      toast('Dépense supprimée de vos rapports.', 'success');
+    } catch (e) { toast(e.message, 'error'); }
+  });
 };
 
 window.toggleHistorique = function(btn) {
@@ -1831,14 +1856,15 @@ window.addPhoto = async function() {
   }
 };
 
-window.delPhoto = async function(phid) {
-  if (!confirm('Supprimer cette photo ?')) return;
-  try {
-    await API.deletePhoto(phid);
-    DB.photos = DB.photos.filter(p => p.id !== phid);
-    renderPhotos();
-    toast('Photo supprimée.', 'success');
-  } catch (e) { toast(e.message, 'error'); }
+window.delPhoto = function(phid) {
+  confirmAction('Supprimer cette photo ?', async () => {
+    try {
+      await API.deletePhoto(phid);
+      DB.photos = DB.photos.filter(p => p.id !== phid);
+      renderPhotos();
+      toast('Photo supprimée.', 'success');
+    } catch (e) { toast(e.message, 'error'); }
+  });
 };
 
 function renderRapports() {
@@ -2362,17 +2388,21 @@ function renderProsList(pros) {
   }).join('');
 }
 
-window.filterPros = async function() {
-  const role   = document.getElementById('pro-type-filter').value;
-  const ville  = document.getElementById('pro-ville-filter').value;
-  const search = (document.getElementById('pro-search').value || '').toLowerCase();
-  filteredPros = allPros.filter(p =>
-    (!role || p.role === role) &&
-    (!ville || p.ville === ville) &&
-    (!search || p.nom.toLowerCase().includes(search) || (p.description || '').toLowerCase().includes(search))
-  );
-  renderProsMap(filteredPros);
-  renderProsList(filteredPros);
+let _filterProsTimer = null;
+window.filterPros = function() {
+  clearTimeout(_filterProsTimer);
+  _filterProsTimer = setTimeout(function() {
+    const role   = document.getElementById('pro-type-filter').value;
+    const ville  = document.getElementById('pro-ville-filter').value;
+    const search = (document.getElementById('pro-search').value || '').toLowerCase();
+    filteredPros = allPros.filter(p =>
+      (!role || p.role === role) &&
+      (!ville || p.ville === ville) &&
+      (!search || p.nom.toLowerCase().includes(search) || (p.description || '').toLowerCase().includes(search))
+    );
+    renderProsMap(filteredPros);
+    renderProsList(filteredPros);
+  }, 300);
 };
 
 let currentPro = null;
@@ -2390,7 +2420,14 @@ window.sendProContact = async function() {
   if (!msg) { toast('Écrivez un message.', 'error'); return; }
   if (!currentUser) { goPage('auth'); switchTab('login'); return; }
   try {
-    await API.sendMessage(currentPro.id, msg);
+    const response = await fetch('/api/contact/pro/' + currentPro.id, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (API.getToken()||'') },
+      credentials: 'include',
+      body: JSON.stringify({ message: msg })
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.detail || 'Erreur envoi');
     document.getElementById('modal-pro').classList.remove('on');
     document.getElementById('modal-pro-msg').value = '';
     toast('Message envoyé ! Le professionnel vous répondra sous 24h.', 'success');
@@ -2948,7 +2985,12 @@ window.loadBriefsList = async function(filters) {
     if (catEl && catEl.value) params.categorie = catEl.value;
     const briefs = await API.getBriefs(params);
     if (!briefs.length) {
-      el.innerHTML = '<div style="text-align:center;padding:3rem;color:var(--muted);font-size:13px">Aucune demande disponible dans votre zone.<br><span style="font-size:12px;opacity:.7">Revenez plus tard ou ajustez les filtres.</span></div>';
+      el.innerHTML = '<div style="text-align:center;padding:3rem 1rem">'
+        + '<div style="font-size:3rem;margin-bottom:1rem">📋</div>'
+        + '<p style="font-weight:600;margin-bottom:.5rem">Aucune demande de devis</p>'
+        + '<p style="color:var(--muted);font-size:13px;margin-bottom:1.5rem">Créez votre première demande pour recevoir des offres de professionnels</p>'
+        + '<button class="btn-primary" onclick="openNewBriefModal?.()">+ Nouvelle demande</button>'
+        + '</div>';
       return;
     }
     el.innerHTML = briefs.map(b => `
@@ -3177,16 +3219,18 @@ window.submitBriefResponse = async function() {
   finally { btn.disabled=false; btn.textContent='Envoyer'; }
 };
 
-window.closeBriefAction = async function(id) {
-  if (!confirm('Clôturer cette demande ?')) return;
-  try { await API.closeBrief(id); toast('Demande clôturée', 'success'); await loadMyBriefs(); }
-  catch(e) { toast(e.message, 'error'); }
+window.closeBriefAction = function(id) {
+  confirmAction('Clôturer cette demande ?', async () => {
+    try { await API.closeBrief(id); toast('Demande clôturée', 'success'); await loadMyBriefs(); }
+    catch(e) { toast(e.message, 'error'); }
+  });
 };
 
-window.deleteBriefAction = async function(id) {
-  if (!confirm('Supprimer cette demande ?')) return;
-  try { await API.deleteBrief(id); toast('Demande supprimée', 'success'); await loadMyBriefs(); }
-  catch(e) { toast(e.message, 'error'); }
+window.deleteBriefAction = function(id) {
+  confirmAction('Supprimer cette demande ?', async () => {
+    try { await API.deleteBrief(id); toast('Demande supprimée', 'success'); await loadMyBriefs(); }
+    catch(e) { toast(e.message, 'error'); }
+  });
 };
 
 // ── Referral Panel ──────────────────────────────────────────────────────────────
@@ -3309,6 +3353,14 @@ function escHtml(s) {
 // ── ADMIN PANEL ───────────────────────────────────────────────────────────────
 let _adminUsers = [];
 let _adminSearch = '';
+let _adminSearchTimer = null;
+window._adminSearchDebounced = function(val) {
+  clearTimeout(_adminSearchTimer);
+  _adminSearch = val;
+  _adminSearchTimer = setTimeout(function() {
+    if (typeof _adminRenderRows === 'function') _adminRenderRows();
+  }, 300);
+};
 
 window.renderAdminPanel = async function() {
   const panel = document.getElementById('panel-admin');
@@ -3403,7 +3455,7 @@ window.renderAdminPanel = async function() {
 
       // Search bar
       + '<div style="display:flex;gap:.6rem;align-items:center;margin-bottom:.8rem">'
-      + '<input id="admin-search-input" type="text" placeholder="Rechercher par nom, email, ville, role..." oninput="_adminSearch=this.value;_adminRenderRows()" style="flex:1;padding:.5rem .9rem;border:.5px solid var(--border);border-radius:100px;font-family:Outfit,sans-serif;font-size:12px;outline:none"/>'
+      + '<input id="admin-search-input" type="text" placeholder="Rechercher par nom, email, ville, role..." oninput="_adminSearchDebounced(this.value)" style="flex:1;padding:.5rem .9rem;border:.5px solid var(--border);border-radius:100px;font-family:Outfit,sans-serif;font-size:12px;outline:none"/>'
       + '<span id="admin-user-count" style="font-size:11px;color:var(--muted);white-space:nowrap">'+users.length+' / '+users.length+' utilisateurs</span>'
       + '</div>'
 
@@ -3460,15 +3512,16 @@ window.adminSetRole = async function(uid, role) {
   } catch(e) { toast(e.message,'error'); }
 };
 
-window.adminDeleteUser = async function(uid) {
+window.adminDeleteUser = function(uid) {
   const u = _adminUsers.find(x => x.id === uid);
-  if (!confirm('Supprimer ' + (u ? u.prenom + ' ' + (u.nom||'') + ' (' + u.email + ')' : 'cet utilisateur') + ' definitivement ?')) return;
-  try {
-    await API.del('/admin/users/'+uid);
-    _adminUsers = _adminUsers.filter(x => x.id !== uid);
-    if (typeof _adminRenderRows === 'function') _adminRenderRows();
-    toast('Utilisateur supprime', 'success');
-  } catch(e) { toast(e.message,'error'); }
+  confirmAction('Supprimer ' + (u ? u.prenom + ' ' + (u.nom||'') + ' (' + u.email + ')' : 'cet utilisateur') + ' definitivement ?', async () => {
+    try {
+      await API.del('/admin/users/'+uid);
+      _adminUsers = _adminUsers.filter(x => x.id !== uid);
+      if (typeof _adminRenderRows === 'function') _adminRenderRows();
+      toast('Utilisateur supprime', 'success');
+    } catch(e) { toast(e.message,'error'); }
+  });
 };
 
 window.adminCertifyOA = async function(action) {
@@ -3861,13 +3914,14 @@ window.uploadDocumentFile = async function(pid) {
   } catch(e) { toast(e.message, 'error'); }
 };
 
-window.deleteDocumentFile = async function(did, pid) {
-  if (!confirm('Supprimer ce document ?')) return;
-  try {
-    await API.deleteDocument(did);
-    toast('Document supprimé', 'success');
-    await refreshDocsList(pid);
-  } catch(e) { toast(e.message, 'error'); }
+window.deleteDocumentFile = function(did, pid) {
+  confirmAction('Supprimer ce document ?', async () => {
+    try {
+      await API.deleteDocument(did);
+      toast('Document supprimé', 'success');
+      await refreshDocsList(pid);
+    } catch(e) { toast(e.message, 'error'); }
+  });
 };
 
 // ── PRM-01: Panel équipe promoteur ────────────────────────────────────────────
@@ -3917,13 +3971,14 @@ window.inviteTeamMember = async function() {
   } catch(e) { toast(e.message, 'error'); }
 };
 
-window.removeTeamMember = async function(tid) {
-  if (!confirm('Retirer ce membre ?')) return;
-  try {
-    await API.removeTeamMember(tid);
-    toast('Membre retiré', 'success');
-    renderTeamPanel();
-  } catch(e) { toast(e.message, 'error'); }
+window.removeTeamMember = function(tid) {
+  confirmAction('Retirer ce membre ?', async () => {
+    try {
+      await API.removeTeamMember(tid);
+      toast('Membre retiré', 'success');
+      renderTeamPanel();
+    } catch(e) { toast(e.message, 'error'); }
+  });
 };
 
 // ── PRM-02: Programmes ────────────────────────────────────────────────────────
@@ -3990,13 +4045,14 @@ window.createProgramme = async function() {
   } catch(e) { toast(e.message, 'error'); }
 };
 
-window.deleteProgramme = async function(pid) {
-  if (!confirm('Supprimer ce programme ?')) return;
-  try {
-    await API.deleteProgramme(pid);
-    toast('Programme supprimé', 'success');
-    renderProgrammesPanel();
-  } catch(e) { toast(e.message, 'error'); }
+window.deleteProgramme = function(pid) {
+  confirmAction('Supprimer ce programme ?', async () => {
+    try {
+      await API.deleteProgramme(pid);
+      toast('Programme supprimé', 'success');
+      renderProgrammesPanel();
+    } catch(e) { toast(e.message, 'error'); }
+  });
 };
 
 // ── PRM-04: Dashboard ROI promoteur ───────────────────────────────────────────
@@ -4214,14 +4270,15 @@ window.createApiKey = async function() {
   }
 };
 
-window.revokeApiKey = async function(kid) {
-  if (!confirm('Révoquer cette clé API ? Elle ne fonctionnera plus immédiatement.')) return;
-  try {
-    await API.del('/keys/' + kid);
-    renderApiPanel();
-  } catch(e) {
-    alert('Erreur: ' + e.message);
-  }
+window.revokeApiKey = function(kid) {
+  confirmAction('Révoquer cette clé API ? Elle ne fonctionnera plus immédiatement.', async () => {
+    try {
+      await API.del('/keys/' + kid);
+      renderApiPanel();
+    } catch(e) {
+      toast('Erreur: ' + e.message, 'error');
+    }
+  });
 };
 
 // ── Hook: init notifications when dashboard loads ─────────────────────────────

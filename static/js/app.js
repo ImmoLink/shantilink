@@ -13,9 +13,16 @@ const _EUR_RATE_DATE = 'sl_eur_rate_date';
 
 async function _fetchEurRate() {
   try {
+    // 1h timestamp cache
+    const cached = localStorage.getItem('sl_eur_rate');
+    const cachedAt = parseInt(localStorage.getItem('sl_eur_rate_ts') || '0');
+    if (cached && Date.now() - cachedAt < 3600000) {
+      window._eurRate = parseFloat(cached);
+      return;
+    }
     const today = new Date().toISOString().split('T')[0];
-    const cached = localStorage.getItem(_EUR_RATE_DATE);
-    if (cached === today && window._eurRate > 0) return;
+    const cachedDate = localStorage.getItem(_EUR_RATE_DATE);
+    if (cachedDate === today && window._eurRate > 0) return;
     // Open exchange rates (no API key needed for MAD/EUR)
     const r = await fetch('https://open.er-api.com/v6/latest/EUR');
     if (!r.ok) throw new Error();
@@ -24,6 +31,8 @@ async function _fetchEurRate() {
     if (rate && rate > 0) {
       window._eurRate = rate;
       localStorage.setItem(_EUR_RATE_KEY, String(rate));
+      localStorage.setItem('sl_eur_rate', String(rate));
+      localStorage.setItem('sl_eur_rate_ts', String(Date.now()));
       localStorage.setItem(_EUR_RATE_DATE, today);
     }
   } catch(e) {
@@ -42,14 +51,16 @@ function fmt(n) {
 }
 
 window.setCurrency = function(cur) {
+  const c = cur.toLowerCase();
   window._currency = cur;
   localStorage.setItem('sl_currency', cur);
   // Re-render visible data
-  if (typeof renderDashboardOverview === 'function') renderDashboardOverview();
+  if (typeof renderOverview === 'function') renderOverview();
   if (typeof renderDepenses === 'function') renderDepenses();
   if (typeof renderProjets === 'function') renderProjets();
   const btn = document.getElementById('currency-toggle');
   if (btn) btn.textContent = cur === 'EUR' ? '€ EUR → DH' : 'DH → € EUR';
+  toast('Devise : ' + (c === 'eur' ? 'EUR' : 'MAD'), 'info');
 };
 
 function getWeek(d) {
@@ -189,6 +200,24 @@ window.switchTab = function(t) {
   if (panel) panel.classList.add('on');
 };
 
+function getPasswordStrength(p) {
+  let s = 0;
+  if (p.length >= 8) s++;
+  if (p.length >= 12) s++;
+  if (/[A-Z]/.test(p)) s++;
+  if (/[0-9]/.test(p)) s++;
+  if (/[^A-Za-z0-9]/.test(p)) s++;
+  return s; // 0-5
+}
+window.renderPwStrength = function(inputId, barId) {
+  const pw = document.getElementById(inputId)?.value || '';
+  const s = getPasswordStrength(pw);
+  const colors = ['#E63946','#E63946','#F4A261','#2A9D8F','#2A9D8F'];
+  const labels = ['Très faible','Faible','Moyen','Fort','Très fort'];
+  const bar = document.getElementById(barId);
+  if (bar) { bar.style.width = (s*20)+'%'; bar.style.background = colors[Math.min(s,4)]; bar.title = labels[Math.min(s,4)]; }
+};
+
 window.doRegister = async function() {
   const prenom = document.getElementById('rp').value.trim();
   const nom    = document.getElementById('rn').value.trim();
@@ -202,6 +231,7 @@ window.doRegister = async function() {
 
   if (!prenom) { errEl.textContent = 'Le prénom est requis.'; errEl.style.display = 'block'; return; }
   if (!email)  { errEl.textContent = 'L\'email est requis.'; errEl.style.display = 'block'; return; }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { toast('Adresse email invalide', 'error'); return; }
   if (pwd.length < 10) { errEl.textContent = 'Mot de passe minimum 10 caractères.'; errEl.style.display = 'block'; return; }
   if (!/[A-Z]/.test(pwd)) { errEl.textContent = 'Le mot de passe doit contenir au moins une majuscule.'; errEl.style.display = 'block'; return; }
   if (!/[0-9]/.test(pwd)) { errEl.textContent = 'Le mot de passe doit contenir au moins un chiffre.'; errEl.style.display = 'block'; return; }
@@ -254,6 +284,7 @@ window.doLogin = async function() {
   errEl.style.display = 'none';
 
   if (!email || !pwd) { errEl.textContent = 'Email et mot de passe requis.'; errEl.style.display = 'block'; return; }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { toast('Adresse email invalide', 'error'); return; }
   try {
     const res = await API.login({ email, password: pwd });
     API.setToken(res.token);
@@ -338,9 +369,9 @@ window.initWorkspace = function(role) {
     if (btn) btn.style.display = role === 'promoteur' ? 'flex' : 'none';
   });
 
-  // API-01: API button visible for pro/architecte/promoteur
+  // API-01: API button visible for architecte/promoteur/admin
   const apiBtn = document.getElementById('sb-api-btn');
-  if (apiBtn) apiBtn.style.display = ['pro', 'architecte', 'promoteur'].includes(role) ? 'flex' : 'none';
+  if (apiBtn) apiBtn.style.display = ['architecte', 'promoteur', 'admin'].includes(role) ? 'flex' : 'none';
 
   // PRO-01: render company profile section after workspace init
   if (typeof window.renderCompanyProfile === 'function') window.renderCompanyProfile();
@@ -1101,6 +1132,7 @@ window.setLang = function(l, btn) {
   window._currentLang = l;
   document.querySelectorAll('.lbtn').forEach(x => x.classList.remove('on'));
   if (btn) btn.classList.add('on');
+  document.documentElement.lang = l === 'ar' ? 'ar' : (l === 'en' ? 'en' : 'fr');
   document.documentElement.setAttribute('lang', l);
   document.documentElement.setAttribute('dir', l === 'ar' ? 'rtl' : 'ltr');
   localStorage.setItem('sl_lang', l);
