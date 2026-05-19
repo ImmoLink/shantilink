@@ -104,9 +104,16 @@ def uid():
     return uuid.uuid4().hex[:14]
 
 def _run_migration(sql: str):
-    """Run a single DDL statement in its own connection/transaction (safe to fail)."""
+    """Run a single DDL statement adapted for the current DB dialect (SQLite or PostgreSQL)."""
     try:
         with engine.connect() as mc:
+            if engine.dialect.name == "postgresql":
+                # AUTOINCREMENT n'existe pas en PostgreSQL → SERIAL
+                sql = sql.replace("INTEGER PRIMARY KEY AUTOINCREMENT", "SERIAL PRIMARY KEY")
+                sql = sql.replace(" AUTOINCREMENT", "")
+                # datetime('now') est SQLite-only → CURRENT_TIMESTAMP (SQL standard)
+                sql = sql.replace("DEFAULT (datetime('now'))", "DEFAULT CURRENT_TIMESTAMP")
+                sql = sql.replace("DEFAULT datetime('now')", "DEFAULT CURRENT_TIMESTAMP")
             mc.execute(text(sql))
             mc.commit()
     except Exception as e:
@@ -2992,8 +2999,8 @@ async def send_weekly_report_email(user: dict = Depends(get_current_user)):
 # ── FNC-01: Notifications in-app ──────────────────────────────────────────────
 def push_notification(conn, user_id: str, ntype: str, title: str, body_text: str = None, link: str = None):
     conn.execute(text(
-        "INSERT INTO notifications (user_id,type,title,body,link,read,created_at) VALUES (:uid,:type,:title,:body,:link,0,datetime('now'))"
-    ), {"uid": user_id, "type": ntype, "title": title, "body": body_text, "link": link})
+        "INSERT INTO notifications (user_id,type,title,body,link,read,created_at) VALUES (:uid,:type,:title,:body,:link,0,:now)"
+    ), {"uid": user_id, "type": ntype, "title": title, "body": body_text, "link": link, "now": now_iso()})
 
 @app.get("/api/notifications")
 def get_notifications(user: dict = Depends(get_current_user)):
@@ -3055,8 +3062,8 @@ async def upload_document(pid: str, file: UploadFile = File(...), category: str 
     conn = get_db()
     try:
         conn.execute(text(
-            "INSERT INTO documents (project_id,uploaded_by,filename,url,category,created_at) VALUES (:pid,:uid,:fn,:url,:cat,datetime('now'))"
-        ), {"pid": pid, "uid": user["sub"], "fn": file.filename or "document", "url": url, "cat": category})
+            "INSERT INTO documents (project_id,uploaded_by,filename,url,category,created_at) VALUES (:pid,:uid,:fn,:url,:cat,:now)"
+        ), {"pid": pid, "uid": user["sub"], "fn": file.filename or "document", "url": url, "cat": category, "now": now_iso()})
         conn.commit()
         return {"ok": True, "url": url, "filename": file.filename, "category": category}
     finally:
@@ -3101,8 +3108,8 @@ def invite_team_member(data: dict = Body(...), user: dict = Depends(get_current_
     conn = get_db()
     try:
         conn.execute(text(
-            "INSERT INTO promoter_team (promoter_id,member_email,role,invited_at) VALUES (:uid,:email,:role,datetime('now'))"
-        ), {"uid": user["sub"], "email": email, "role": role})
+            "INSERT INTO promoter_team (promoter_id,member_email,role,invited_at) VALUES (:uid,:email,:role,:now)"
+        ), {"uid": user["sub"], "email": email, "role": role, "now": now_iso()})
         conn.commit()
         return {"ok": True}
     finally:
@@ -3144,8 +3151,8 @@ def create_programme(data: dict = Body(...), user: dict = Depends(get_current_us
     conn = get_db()
     try:
         result = conn.execute(text(
-            "INSERT INTO programmes (promoter_id,name,description,created_at) VALUES (:uid,:name,:desc,datetime('now'))"
-        ), {"uid": user["sub"], "name": name, "desc": data.get("description", "")})
+            "INSERT INTO programmes (promoter_id,name,description,created_at) VALUES (:uid,:name,:desc,:now)"
+        ), {"uid": user["sub"], "name": name, "desc": data.get("description", ""), "now": now_iso()})
         conn.commit()
         return {"ok": True, "id": result.lastrowid}
     finally:
