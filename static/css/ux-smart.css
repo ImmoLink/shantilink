@@ -580,3 +580,88 @@ html[dir="rtl"] .msg-bubble.received {
   .dash-nav { padding: .4rem .6rem !important; }
   .dash-panel { padding: 1rem !important; }
 }
+
+/* Utility */
+.hidden { display: none !important; }
+
+/* ── RTL ARABIC EXTENDED FIXES ─────────────────────────────────────────── */
+html[dir="rtl"] {
+  font-family: 'Noto Sans Arabic', 'Segoe UI', sans-serif;
+}
+
+html[dir="rtl"] .main-content,
+html[dir="rtl"] .dash-content {
+  margin-right: var(--sidebar-w, 240px);
+  margin-left: 0;
+}
+
+html[dir="rtl"] .card,
+html[dir="rtl"] .dcard {
+  text-align: right;
+}
+
+html[dir="rtl"] .toast {
+  left: 1rem;
+  right: auto;
+}
+
+html[dir="rtl"] .modal-box,
+html[dir="rtl"] .modal-content {
+  text-align: right;
+}
+
+html[dir="rtl"] .btn-row,
+html[dir="rtl"] .action-row {
+  flex-direction: row-reverse;
+}
+
+html[dir="rtl"] .msg-bubble.sent {
+  margin-left: 0;
+  margin-right: auto;
+  border-radius: 18px 4px 18px 18px;
+}
+
+html[dir="rtl"] .msg-bubble.received {
+  margin-right: 0;
+  margin-left: auto;
+  border-radius: 4px 18px 18px 18px;
+}
+
+html[dir="rtl"] .sidebar {
+  right: 0;
+  left: auto;
+  border-right: none;
+  border-left: 1px solid var(--border);
+}
+
+/* ── Community mobile layout ────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .community-layout {
+    flex-direction: column !important;
+  }
+  .community-posts {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  .community-sidebar {
+    display: none;
+  }
+  .community-sidebar.show {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    background: var(--surface, #fff);
+    overflow-y: auto;
+    padding: 1rem;
+  }
+  html[dir="rtl"] .sidebar {
+    right: -100%;
+    left: auto;
+    transform: translateX(100%);
+  }
+  html[dir="rtl"] .sidebar.mob-open {
+    right: 0;
+    transform: translateX(0);
+  }
+}

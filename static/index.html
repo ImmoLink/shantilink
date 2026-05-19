@@ -12,6 +12,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
 <script>
@@ -79,11 +80,11 @@ window._loadPdfLibs = async function() {
     <a onclick="goPage('pg-about')" data-i18n="nav_about">À propos</a>
   </div>
   <div class="nav-r">
-    <div class="ltog">
-      <button class="lbtn on" onclick="setLang('fr',this)">FR</button>
-      <button class="lbtn" onclick="setLang('en',this)">EN</button>
-      <button class="lbtn" onclick="setLang('ar',this)" style="font-family:Arial,sans-serif">عربي</button>
-    </div>
+    <select id="lang-select" onchange="setLang(this.value)" style="padding:.4rem .8rem;border-radius:8px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.08);font-size:13px;cursor:pointer;color:white;font-family:'Outfit',sans-serif">
+      <option value="fr" style="color:#000">🇫🇷 Français</option>
+      <option value="en" style="color:#000">🇬🇧 English</option>
+      <option value="ar" style="color:#000">🇲🇦 العربية</option>
+    </select>
     <button class="nghost" id="nav-login-btn" data-i18n="nav_login" onclick="goPage('auth');switchTab('login')">Connexion</button>
     <button class="nbtn" id="nav-dash-btn" data-i18n="nav_dashboard" onclick="goPage('dashboard')" style="display:none">Mon espace</button>
     <button class="nbtn" id="nav-reg-btn" data-i18n="nav_register" onclick="goPage('auth');switchTab('register')">S'inscrire</button>
@@ -101,10 +102,12 @@ window._loadPdfLibs = async function() {
     <button id="mob-dash-btn" onclick="goPage('dashboard');closeMobileNav()" style="display:none;flex:1;padding:10px;background:var(--gold, #E8B84B);color:var(--ink,#1A1A2E);border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Outfit',sans-serif" data-i18n="nav_dashboard">Mon espace</button>
     <button id="mob-reg-btn" onclick="goPage('auth');switchTab('register');closeMobileNav()" style="flex:1;padding:10px;background:#E8B84B;color:#1A1A2E;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Outfit',sans-serif" data-i18n="nav_register">S'inscrire</button>
   </div>
-  <div style="margin-top:.8rem;padding-top:.6rem;border-top:1px solid rgba(255,255,255,.07);display:flex;gap:.5rem">
-    <button onclick="setLang('fr',this);closeMobileNav()" style="flex:1;padding:8px;background:rgba(255,255,255,.12);color:white;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Outfit',sans-serif">FR</button>
-    <button onclick="setLang('en',this);closeMobileNav()" style="flex:1;padding:8px;background:rgba(255,255,255,.06);color:rgba(255,255,255,.6);border:none;border-radius:8px;font-size:13px;cursor:pointer;font-family:'Outfit',sans-serif">EN</button>
-    <button onclick="setLang('ar',this);closeMobileNav()" style="flex:1;padding:8px;background:rgba(255,255,255,.06);color:rgba(255,255,255,.6);border:none;border-radius:8px;font-size:13px;cursor:pointer;font-family:Arial,sans-serif">عربي</button>
+  <div style="margin-top:.8rem;padding-top:.6rem;border-top:1px solid rgba(255,255,255,.07)">
+    <select id="lang-select-mob" onchange="setLang(this.value);closeMobileNav()" style="width:100%;padding:.5rem .8rem;border-radius:8px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.08);font-size:13px;cursor:pointer;color:white;font-family:'Outfit',sans-serif">
+      <option value="fr" style="color:#000">🇫🇷 Français</option>
+      <option value="en" style="color:#000">🇬🇧 English</option>
+      <option value="ar" style="color:#000">🇲🇦 العربية</option>
+    </select>
   </div>
 </div>
 
@@ -1230,7 +1233,10 @@ window._loadPdfLibs = async function() {
       <div id="panel-communaute" class="dash-panel">
         <div class="dh">
           <div><div class="dh-title">Communauté</div><div class="dh-sub">Annuaire des professionnels et fil d'actualité</div></div>
-          <button class="submit-btn" style="margin:0;font-size:12px;padding:8px 16px" onclick="openCommComposer()">+ Publier une update</button>
+          <div style="display:flex;gap:.5rem;align-items:center">
+            <button id="toggle-community-sidebar" style="display:none;font-size:12px;padding:8px 14px;background:var(--clay-pp);color:var(--clay);border:.5px solid var(--clay);border-radius:100px;cursor:pointer;font-family:Outfit,sans-serif;font-weight:600" onclick="document.querySelector('.community-sidebar')?.classList.toggle('show')">👥 Membres</button>
+            <button class="submit-btn" style="margin:0;font-size:12px;padding:8px 16px" onclick="openCommComposer()">+ Publier une update</button>
+          </div>
         </div>
 
         <!-- Post composer (hidden by default) -->
@@ -1242,14 +1248,14 @@ window._loadPdfLibs = async function() {
           </div>
         </div>
 
-        <div style="display:grid;grid-template-columns:1fr 320px;gap:1.5rem;align-items:start">
+        <div class="community-layout" style="display:grid;grid-template-columns:1fr 320px;gap:1.5rem;align-items:start">
           <!-- Feed -->
-          <div>
+          <div class="community-posts">
             <div style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.8rem">Fil d'actualité</div>
             <div id="dash-comm-posts" style="display:flex;flex-direction:column;gap:.8rem"></div>
           </div>
           <!-- Directory sidebar -->
-          <div>
+          <div class="community-sidebar">
             <div style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.8rem">Profils en vedette</div>
             <div style="display:flex;gap:.5rem;margin-bottom:.8rem">
               <input id="dash-comm-search" placeholder="Rechercher..." onkeyup="loadDashComm()" style="flex:1;padding:.45rem .7rem;border:.5px solid var(--border);border-radius:8px;font-family:'Outfit',sans-serif;font-size:12px"/>
@@ -1838,9 +1844,9 @@ window._loadPdfLibs = async function() {
   </div>
 </div>
 
-<script src="/static/js/api.js?v=4"></script>
-<script src="/static/js/app.js?v=8"></script>
-<script src="/static/js/dashboard.js?v=11"></script>
+<script src="/static/js/api.js?v=5"></script>
+<script src="/static/js/app.js?v=9"></script>
+<script src="/static/js/dashboard.js?v=12"></script>
 <script src="/static/js/agent.js?v=1"></script>
 <script src="/static/js/ux-smart.js?v=1"></script>
 

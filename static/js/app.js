@@ -1116,6 +1116,67 @@ const TRANSLATIONS = {
     cgu_h2: '2. الخدمة', cgu_p2: 'ShantiLink في مرحلة تجريبية تتيح متابعة مشاريع البناء في المغرب والتواصل بين مختلف المتدخلين في قطاع العقارات والبناء.',
     cgu_h3: '3. البيانات الشخصية', cgu_p3: 'وفقاً للـ RGPD، تحمي ShantiLink بياناتك. لا تُباع أبداً. تشفير JWT للمصادقة. قاعدة بيانات SQLite آمنة.',
     cgu_back: '← رجوع',
+    // Navigation extras
+    'Tableau de bord': 'لوحة التحكم',
+    'Mes projets': 'مشاريعي',
+    'Dépenses': 'المصاريف',
+    'Photos': 'الصور',
+    'Planning': 'التخطيط',
+    'Messages': 'الرسائل',
+    'Communauté': 'المجتمع',
+    'Professionnels': 'المهنيون',
+    'Demandes de devis': 'طلبات العروض',
+    'Profil': 'الملف الشخصي',
+    'Déconnexion': 'تسجيل الخروج',
+    // Actions
+    'Créer un projet': 'إنشاء مشروع',
+    'Enregistrer': 'حفظ',
+    'Annuler': 'إلغاء',
+    'Supprimer': 'حذف',
+    'Modifier': 'تعديل',
+    'Envoyer': 'إرسال',
+    'Rechercher': 'بحث',
+    // Statuts
+    'En cours': 'جاري',
+    'Terminé': 'مكتمل',
+    'En attente': 'في الانتظار',
+    'Nouveau': 'جديد',
+    // Formulaires
+    'Email': 'البريد الإلكتروني',
+    'Mot de passe': 'كلمة المرور',
+    'Prénom': 'الاسم الأول',
+    'Nom': 'الاسم الأخير',
+    'Ville': 'المدينة',
+    'Téléphone': 'الهاتف',
+    'Description': 'الوصف',
+    'Budget': 'الميزانية',
+    // Messages
+    'Message envoyé': 'تم إرسال الرسالة',
+    'Erreur': 'خطأ',
+    'Chargement...': 'جاري التحميل...',
+    'Aucun résultat': 'لا توجد نتائج',
+    // Communauté
+    'Publier': 'نشر',
+    'Commenter': 'تعليق',
+    'J\'aime': 'إعجاب',
+    'Partager': 'مشاركة',
+    'Modifier le post': 'تعديل المنشور',
+    'Supprimer le post': 'حذف المنشور',
+    // Planning
+    'Ajouter une étape': 'إضافة مرحلة',
+    'Étape': 'المرحلة',
+    'Début': 'البداية',
+    'Fin': 'النهاية',
+    'Statut': 'الحالة',
+    'Avancement': 'التقدم',
+    // Professionnels
+    'Contacter': 'تواصل',
+    'Avis': 'التقييمات',
+    'Vérifié': 'موثق',
+    // Landing page extras
+    'Connexion': 'تسجيل الدخول',
+    'Inscription': 'إنشاء حساب',
+    'Commencer': 'ابدأ الآن',
   },
 };
 
@@ -1132,7 +1193,19 @@ window.setLang = function(l, btn) {
   window._currentLang = l;
   document.querySelectorAll('.lbtn').forEach(x => x.classList.remove('on'));
   if (btn) btn.classList.add('on');
-  document.documentElement.lang = l === 'ar' ? 'ar' : (l === 'en' ? 'en' : 'fr');
+  // Sync dropdown selects
+  const sel = document.getElementById('lang-select');
+  if (sel) sel.value = l;
+  const selMob = document.getElementById('lang-select-mob');
+  if (selMob) selMob.value = l;
+  // RTL / LTR
+  if (l === 'ar') {
+    document.documentElement.dir = 'rtl';
+    document.documentElement.lang = 'ar';
+  } else {
+    document.documentElement.dir = 'ltr';
+    document.documentElement.lang = l;
+  }
   document.documentElement.setAttribute('lang', l);
   document.documentElement.setAttribute('dir', l === 'ar' ? 'rtl' : 'ltr');
   localStorage.setItem('sl_lang', l);
@@ -1343,13 +1416,13 @@ window.openMediaModal = function(url, type) {
 };
 
 function _renderCommPost(p) {
-  const esc = typeof escHtml === 'function' ? escHtml : (s) => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const _esc = typeof escHtml === 'function' ? escHtml : (s) => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   const ago = typeof timeAgo === 'function' ? timeAgo(p.created_at) : (p.created_at||'').slice(0,10);
   const pinHTML = p.est_epingle
     ? '<span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:100px;background:var(--gold,#E8B84B);color:var(--ink,#0F1D36);margin-left:6px">📌 Épinglé</span>'
     : '';
   const titreHTML = p.titre
-    ? '<div style="font-size:14px;font-weight:700;color:var(--ink);margin-bottom:.3rem">' + esc(p.titre) + '</div>'
+    ? '<div style="font-size:14px;font-weight:700;color:var(--ink);margin-bottom:.3rem">' + _esc(p.titre) + '</div>'
     : '';
   // Normalise media_urls : utilise media_urls si dispo, sinon fall back sur media_url singulier
   const mediaArr = (Array.isArray(p.media_urls) && p.media_urls.length > 0)
@@ -1361,25 +1434,55 @@ function _renderCommPost(p) {
   const tagsHTML = p.tags
     ? '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:.4rem">'
         + p.tags.split(',').map(tag => tag.trim()).filter(Boolean).map(tag =>
-            '<span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:100px;background:var(--clay-p);color:var(--clay)">' + esc(tag) + '</span>'
+            '<span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:100px;background:var(--clay-p);color:var(--clay)">' + _esc(tag) + '</span>'
           ).join('')
         + '</div>'
     : '';
-  return '<div class="comm-post">'
+  // Like button
+  const likeBtn = '<button onclick="toggleLike(\'' + _esc(p.id) + '\', this)" '
+    + 'data-liked="' + (p.user_liked ? '1' : '0') + '" '
+    + 'style="background:none;border:none;cursor:pointer;font-size:13px;color:' + (p.user_liked ? 'var(--clay)' : 'var(--muted)') + ';padding:4px 10px;border:1px solid var(--border);border-radius:100px;font-family:Outfit,sans-serif">'
+    + (p.user_liked ? '❤️' : '🤍') + ' <span class="like-count-' + _esc(p.id) + '">' + (p.likes_count || 0) + '</span></button>';
+  // Comment button
+  const commentBtn = '<button onclick="toggleComments(\'' + _esc(p.id) + '\')" '
+    + 'style="background:none;border:none;cursor:pointer;font-size:13px;color:var(--muted);padding:4px 10px;border:1px solid var(--border);border-radius:100px;font-family:Outfit,sans-serif;margin-left:.4rem">'
+    + '💬 <span class="comment-count-' + _esc(p.id) + '">' + (p.comments_count || 0) + '</span></button>';
+  // Owner actions
+  const myId = (JSON.parse(localStorage.getItem('sl_user') || '{}')).id;
+  const isOwner = p.user_id === myId || (window.currentUser && window.currentUser.role === 'admin');
+  const ownerActions = isOwner
+    ? '<div style="margin-left:auto;display:flex;gap:.3rem">'
+      + '<button onclick="editPost(\'' + _esc(p.id) + '\', this)" style="background:none;border:none;cursor:pointer;font-size:12px;color:var(--muted);padding:4px 8px">✏️ Modifier</button>'
+      + '<button onclick="deletePostItem(\'' + _esc(p.id) + '\')" style="background:none;border:none;cursor:pointer;font-size:12px;color:var(--red,#E63946);padding:4px 8px">🗑️ Supprimer</button>'
+      + '</div>'
+    : '';
+  // Comments section
+  const commentsSection = '<div id="comments-' + _esc(p.id) + '" style="margin-top:.8rem;border-top:1px solid var(--border);padding-top:.8rem;display:none">'
+    + '<div id="comments-list-' + _esc(p.id) + '"></div>'
+    + '<div style="display:flex;gap:.5rem;margin-top:.5rem">'
+    + '<input id="comment-input-' + _esc(p.id) + '" placeholder="Ajouter un commentaire..." '
+    + 'style="flex:1;padding:.5rem .8rem;border-radius:8px;border:1px solid var(--border);font-size:13px;font-family:Outfit,sans-serif">'
+    + '<button onclick="submitComment(\'' + _esc(p.id) + '\')" style="padding:.5rem .8rem;font-size:13px;background:var(--clay);color:white;border:none;border-radius:8px;cursor:pointer;font-family:Outfit,sans-serif;font-weight:600">Envoyer</button>'
+    + '</div></div>';
+
+  return '<div class="comm-post" data-post-id="' + _esc(p.id) + '">'
     + '<div class="comm-post-header">'
-    + '<div class="comm-post-av">' + esc((p.prenom||'?')[0].toUpperCase()) + '</div>'
+    + '<div class="comm-post-av">' + _esc((p.prenom||'?')[0].toUpperCase()) + '</div>'
     + '<div style="flex:1">'
-    + '<div style="font-size:13px;font-weight:600;color:var(--ink)">' + esc(p.prenom||'') + ' ' + esc(p.nom||'') + pinHTML + '</div>'
+    + '<div style="font-size:13px;font-weight:600;color:var(--ink)">' + _esc(p.prenom||'') + ' ' + _esc(p.nom||'') + pinHTML + '</div>'
     + '<div style="font-size:11px;color:var(--muted)">' + ((typeof ROLE_LABELS !== 'undefined' && ROLE_LABELS[p.role]) || p.role || '') + ' · ' + ago + '</div>'
     + '</div>'
+    + ownerActions
     + '</div>'
     + titreHTML
-    + '<p style="font-size:13px;color:var(--ink);line-height:1.65;margin:.5rem 0 0;white-space:pre-line">' + esc(p.content||'') + '</p>'
+    + '<div class="post-content"><p style="font-size:13px;color:var(--ink);line-height:1.65;margin:.5rem 0 0;white-space:pre-line">' + _esc(p.content||'') + '</p></div>'
     + mediaHTML
     + tagsHTML
-    + '<div style="margin-top:.6rem">'
-    + '<button onclick="likePost(this)" data-likes="0" style="font-size:11px;padding:4px 12px;background:transparent;border:1px solid var(--border);border-radius:100px;cursor:pointer;font-family:Outfit,sans-serif;color:var(--muted)">❤ J\'aime</button>'
+    + '<div style="margin-top:.6rem;display:flex;align-items:center;flex-wrap:wrap;gap:.3rem">'
+    + likeBtn
+    + commentBtn
     + '</div>'
+    + commentsSection
     + '</div>';
 }
 
@@ -1390,7 +1493,127 @@ window.likePost = function(btn) {
   btn.style.color = 'var(--red)';
 };
 
+window.toggleLike = async function(postId, btn) {
+  const _esc = typeof escHtml === 'function' ? escHtml : (s) => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  try {
+    const res = await API.req('POST', '/posts/' + postId + '/like', {});
+    const countEl = document.querySelector('.like-count-' + postId);
+    if (countEl) countEl.textContent = res.count;
+    btn.dataset.liked = res.liked ? '1' : '0';
+    btn.style.color = res.liked ? 'var(--clay)' : 'var(--muted)';
+    btn.innerHTML = (res.liked ? '❤️' : '🤍') + ' <span class="like-count-' + postId + '">' + res.count + '</span>';
+  } catch(e) { toast('Erreur', 'error'); }
+};
+
+window.toggleComments = async function(postId) {
+  const _esc = typeof escHtml === 'function' ? escHtml : (s) => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const section = document.getElementById('comments-' + postId);
+  if (!section) return;
+  const isVisible = section.style.display !== 'none';
+  section.style.display = isVisible ? 'none' : 'block';
+  if (!isVisible) {
+    const list = document.getElementById('comments-list-' + postId);
+    if (list) list.innerHTML = '<div style="font-size:12px;color:var(--muted)">Chargement...</div>';
+    try {
+      const comments = await fetch('/api/posts/' + postId + '/comments', {
+        headers: { Authorization: 'Bearer ' + (API.getToken ? API.getToken() : '') }
+      }).then(r => r.json());
+      if (list) {
+        list.innerHTML = Array.isArray(comments) && comments.length ? comments.map(c =>
+          '<div style="display:flex;gap:.5rem;margin-bottom:.5rem;font-size:13px">'
+          + '<div style="width:28px;height:28px;border-radius:50%;background:var(--ink);color:white;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0">'
+          + _esc((c.prenom||'?')[0].toUpperCase()) + '</div>'
+          + '<div><span style="font-weight:600">' + _esc((c.prenom||'') + ' ' + (c.nom||'')) + '</span> '
+          + '<span>' + _esc(c.content) + '</span>'
+          + '</div></div>'
+        ).join('') : '<div style="font-size:12px;color:var(--muted)">Aucun commentaire.</div>';
+      }
+    } catch(e) { if (list) list.innerHTML = '<div style="font-size:12px;color:var(--muted)">Aucun commentaire.</div>'; }
+  }
+};
+
+window.submitComment = async function(postId) {
+  const _esc = typeof escHtml === 'function' ? escHtml : (s) => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const input = document.getElementById('comment-input-' + postId);
+  if (!input) return;
+  const content = input.value.trim();
+  if (!content) return;
+  try {
+    await API.req('POST', '/posts/' + postId + '/comments', { content });
+    input.value = '';
+    const list = document.getElementById('comments-list-' + postId);
+    if (list) {
+      const me = JSON.parse(localStorage.getItem('sl_user') || '{}');
+      const newComment = '<div style="display:flex;gap:.5rem;margin-bottom:.5rem;font-size:13px">'
+        + '<div style="width:28px;height:28px;border-radius:50%;background:var(--clay);color:white;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0">'
+        + _esc((me.prenom||'?')[0].toUpperCase()) + '</div>'
+        + '<div><span style="font-weight:600">' + _esc((me.prenom||'') + ' ' + (me.nom||'')) + '</span> '
+        + '<span>' + _esc(content) + '</span></div></div>';
+      list.innerHTML += newComment;
+      // Increment comment counter
+      const countEl = document.querySelector('.comment-count-' + postId);
+      if (countEl) countEl.textContent = parseInt(countEl.textContent || '0') + 1;
+    }
+  } catch(e) { toast('Erreur envoi commentaire', 'error'); }
+};
+
+window.editPost = function(postId, btn) {
+  const _esc = typeof escHtml === 'function' ? escHtml : (s) => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const card = btn.closest('[data-post-id]');
+  const contentEl = card && card.querySelector('.post-content');
+  if (!contentEl) return;
+  const original = contentEl.querySelector('p') ? contentEl.querySelector('p').textContent : contentEl.textContent;
+  contentEl.innerHTML = '<textarea style="width:100%;min-height:80px;padding:.5rem;border-radius:8px;border:1px solid var(--border);font-size:14px;font-family:Outfit,sans-serif;box-sizing:border-box">' + _esc(original) + '</textarea>'
+    + '<div style="display:flex;gap:.5rem;margin-top:.5rem">'
+    + '<button onclick="savePostEdit(\'' + postId + '\', this)" style="padding:.4rem .8rem;background:var(--clay);color:white;border:none;border-radius:8px;font-size:13px;cursor:pointer;font-family:Outfit,sans-serif;font-weight:600">Enregistrer</button>'
+    + '<button onclick="cancelPostEdit(this)" style="font-size:13px;padding:.4rem .8rem;border:1px solid var(--border);border-radius:8px;background:white;cursor:pointer;font-family:Outfit,sans-serif" data-original="' + _esc(original) + '">Annuler</button>'
+    + '</div>';
+};
+
+window.savePostEdit = async function(postId, btn) {
+  const _esc = typeof escHtml === 'function' ? escHtml : (s) => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const contentEl = btn.closest('.post-content');
+  const textarea = contentEl && contentEl.querySelector('textarea');
+  if (!textarea) return;
+  const newContent = textarea.value.trim();
+  if (!newContent) return;
+  try {
+    await API.req('PATCH', '/posts/' + postId, { content: newContent });
+    if (contentEl) contentEl.innerHTML = '<p style="font-size:13px;color:var(--ink);line-height:1.65;margin:.5rem 0 0;white-space:pre-line">' + _esc(newContent) + '</p>';
+    toast('Post modifié', 'success');
+  } catch(e) { toast('Erreur', 'error'); }
+};
+
+window.cancelPostEdit = function(btn) {
+  const original = btn.dataset.original || '';
+  const _esc = typeof escHtml === 'function' ? escHtml : (s) => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const contentEl = btn.closest('.post-content');
+  if (contentEl) contentEl.innerHTML = '<p style="font-size:13px;color:var(--ink);line-height:1.65;margin:.5rem 0 0;white-space:pre-line">' + _esc(original) + '</p>';
+};
+
+window.deletePostItem = function(postId) {
+  if (typeof confirmAction === 'function') {
+    confirmAction('Supprimer ce post définitivement ?', async () => {
+      try {
+        await API.req('DELETE', '/posts/' + postId, {});
+        const card = document.querySelector('[data-post-id="' + postId + '"]');
+        if (card) card.remove();
+        toast('Post supprimé', 'success');
+      } catch(e) { toast('Erreur', 'error'); }
+    });
+  } else if (confirm('Supprimer ce post définitivement ?')) {
+    API.req('DELETE', '/posts/' + postId, {}).then(() => {
+      const card = document.querySelector('[data-post-id="' + postId + '"]');
+      if (card) card.remove();
+      toast('Post supprimé', 'success');
+    }).catch(() => { toast('Erreur', 'error'); });
+  }
+};
+
 window.loadDashComm = async function() {
+  // Show/hide mobile members toggle
+  const toggleBtn = document.getElementById('toggle-community-sidebar');
+  if (toggleBtn) toggleBtn.style.display = window.innerWidth <= 768 ? 'inline-flex' : 'none';
   // Load posts feed
   const postsBox = document.getElementById('dash-comm-posts');
   if (postsBox) {
@@ -1794,6 +2017,13 @@ window.addEventListener('load', () => {
         .catch(() => {}); // pas de connexion → on garde l'état local
     }
 
+  // Detect /shared/TOKEN in path
+  const _pathMatch = window.location.pathname.match(/^\/shared\/([a-zA-Z0-9]+)$/);
+  if (_pathMatch) {
+    showSharedProject(_pathMatch[1]);
+    return;
+  }
+
   // Handle referral code from URL (?ref=SLXXXXXX)
   const urlParams = new URLSearchParams(window.location.search);
   const refCode = urlParams.get('ref');
@@ -1866,6 +2096,11 @@ window.addEventListener('load', () => {
   // restore saved language
   const savedLang = localStorage.getItem('sl_lang') || 'fr';
   window._currentLang = savedLang;
+  // Sync dropdowns on load
+  const _lsel = document.getElementById('lang-select');
+  if (_lsel) _lsel.value = savedLang;
+  const _lselMob = document.getElementById('lang-select-mob');
+  if (_lselMob) _lselMob.value = savedLang;
   if (savedLang !== 'fr') {
     const btn = document.querySelector('.lbtn[onclick*="setLang(\'' + savedLang + '\'"]');
     setLang(savedLang, btn);
@@ -1873,3 +2108,43 @@ window.addEventListener('load', () => {
     translateCityDropdowns('fr');
   }
 });
+
+// ── Shared project public page ────────────────────────────────────────────────
+async function showSharedProject(token) {
+  const _esc = typeof escHtml === 'function' ? escHtml : (s) => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  document.body.innerHTML = '';
+  const container = document.createElement('div');
+  container.style.cssText = 'max-width:800px;margin:2rem auto;padding:1rem;font-family:system-ui,sans-serif';
+  container.innerHTML = '<div style="text-align:center;padding:2rem"><div style="font-size:2rem">🏗️</div><p>Chargement du projet...</p></div>';
+  document.body.appendChild(container);
+
+  try {
+    const data = await fetch('/api/projects/shared/' + token).then(r => {
+      if (!r.ok) throw new Error('Lien invalide');
+      return r.json();
+    });
+    container.innerHTML =
+      '<div style="background:white;border-radius:16px;box-shadow:0 4px 20px rgba(0,0,0,.1);overflow:hidden">'
+      + '<div style="background:linear-gradient(135deg,#1A1A2E,#E63946);padding:2rem;color:white">'
+      + '<div style="font-size:12px;opacity:.7;margin-bottom:.3rem">Projet partagé — Lecture seule</div>'
+      + '<h1 style="margin:0 0 .5rem;font-size:1.8rem">' + _esc(data.nom) + '</h1>'
+      + '<div style="opacity:.85">' + _esc(data.ville || '') + (data.type_bien ? ' · ' + _esc(data.type_bien) : '') + '</div>'
+      + '</div>'
+      + '<div style="padding:2rem">'
+      + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1rem;margin-bottom:2rem">'
+      + '<div style="background:#f8f9fa;border-radius:12px;padding:1rem;text-align:center"><div style="font-size:2rem;font-weight:700;color:#E63946">' + (data.pct || 0) + '%</div><div style="font-size:12px;color:#666">Avancement</div></div>'
+      + (data.budget ? '<div style="background:#f8f9fa;border-radius:12px;padding:1rem;text-align:center"><div style="font-size:1.5rem;font-weight:700;color:#1A1A2E">' + data.budget.toLocaleString() + '</div><div style="font-size:12px;color:#666">Budget MAD</div></div>' : '')
+      + '</div>'
+      + (data.description ? '<p style="color:#444;line-height:1.6;margin-bottom:2rem">' + _esc(data.description) + '</p>' : '')
+      + (data.photos && data.photos.length ? '<h3>📸 Photos du chantier</h3><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:.8rem">'
+        + data.photos.map(ph => '<div style="border-radius:10px;overflow:hidden"><img src="' + _esc(ph.image_url) + '" style="width:100%;height:120px;object-fit:cover" loading="lazy"><div style="padding:.4rem;font-size:12px;color:#666">' + _esc(ph.description || '') + '</div></div>').join('')
+        + '</div>' : '')
+      + '<div style="margin-top:2rem;text-align:center;padding-top:2rem;border-top:1px solid #eee">'
+      + '<p style="color:#888;font-size:13px">Partagé via <strong>ShantiLink</strong> — Plateforme BTP Maroc</p>'
+      + '<a href="/" style="color:#E63946;font-weight:600;text-decoration:none">→ Créer mon compte gratuit</a>'
+      + '</div></div></div>';
+  } catch(e) {
+    container.innerHTML = '<div style="text-align:center;padding:3rem"><div style="font-size:3rem">❌</div><h2>Lien invalide</h2><p style="color:#888">Ce lien de partage n\'existe pas ou a expiré.</p><a href="/" style="color:#E63946">← Retour à l\'accueil</a></div>';
+  }
+}
+window.showSharedProject = showSharedProject;

@@ -1047,9 +1047,28 @@ function renderPlanningBox(pid, p, phases) {
       <span style="flex:1;font-size:13px;color:var(--amber);font-weight:600">⚠️ Modifications non sauvegardées</span>
       <button onclick="savePlanningPhases()" style="padding:6px 18px;background:var(--gold);color:var(--ink);border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">💾 Sauvegarder</button>
     </div>`
-    + '<div style="margin-bottom:.8rem">'
-    + '<div style="font-family:\'Playfair Display\',serif;font-size:1.2rem;font-weight:600;color:var(--ink)">' + p.nom + '</div>'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">'
+    + '<div>'
+    + '<div style="font-family:\'Playfair Display\',serif;font-size:1.2rem;font-weight:600;color:var(--ink)">📅 ' + p.nom + '</div>'
     + '<div style="font-size:11px;color:var(--muted);margin-top:.2rem">' + (p.type||'') + (p.etages ? ' — R+'+p.etages : ' — RDC') + ' • ' + (p.ville||'') + '</div>'
+    + '</div>'
+    + '<button class="btn-primary" style="font-size:13px;padding:.5rem 1rem;flex-shrink:0" onclick="document.getElementById(\'plan-quick-add-top\')?.classList.toggle(\'hidden\')">+ ' + t('plan_add_task','Ajouter étape') + '</button>'
+    + '</div>'
+    + '<div id="plan-quick-add-top" class="hidden" style="background:var(--white);border:.5px solid var(--border);border-radius:12px;padding:.8rem 1rem;margin-bottom:1rem">'
+    + '<div style="font-size:10px;font-weight:700;color:var(--muted);margin-bottom:.5rem;text-transform:uppercase;letter-spacing:.06em">Ajout rapide</div>'
+    + '<div style="display:flex;gap:.35rem;flex-wrap:wrap;margin-bottom:.6rem">'
+    + quickTpls.map(tpl =>
+        '<button onclick="addQuickPhase(\'' + pid + '\',\'' + tpl[0] + ' ' + tpl[1] + '\')" '
+        + 'style="font-size:10px;padding:4px 10px;border:.5px solid var(--border);border-radius:100px;background:var(--clay-pp);color:var(--ink);cursor:pointer;font-family:Outfit,sans-serif">'
+        + tpl[0] + ' ' + tpl[1] + '</button>'
+      ).join('')
+    + '</div>'
+    + '<div style="display:flex;gap:.4rem;flex-wrap:wrap">'
+    + '<input id="plan-new-label-top" type="text" placeholder="Nom de l\'étape personnalisée..." style="flex:1;min-width:160px;font-size:12px;padding:7px 10px;border:.5px solid var(--border);border-radius:8px;font-family:Outfit,sans-serif;background:var(--clay-pp)">'
+    + '<input id="plan-new-start-top" type="date" title="Date de début" style="font-size:11px;padding:6px 8px;border:.5px solid var(--border);border-radius:8px;font-family:Outfit,sans-serif">'
+    + '<input id="plan-new-end-top" type="date" title="Date de fin" style="font-size:11px;padding:6px 8px;border:.5px solid var(--border);border-radius:8px;font-family:Outfit,sans-serif">'
+    + '<button onclick="addCustomPhaseTop(\'' + pid + '\')" style="font-size:12px;font-weight:600;padding:6px 16px;background:var(--clay);color:white;border:none;border-radius:8px;cursor:pointer;font-family:Outfit,sans-serif">+ Ajouter</button>'
+    + '</div>'
     + '</div>'
     + '<div class="plan-layout">'
     + '<div>' + leftCol + '</div>'
@@ -1077,6 +1096,19 @@ window.addCustomPhase = function(pid) {
   const label = (document.getElementById('plan-new-label') || {}).value || '';
   const start = (document.getElementById('plan-new-start') || {}).value || '';
   const end   = (document.getElementById('plan-new-end')   || {}).value || '';
+  if (!label.trim()) { toast('Entrez un nom pour l\'étape.', 'error'); return; }
+  _planPhases.push({ label: label.trim(), key: null, status: 'attente', startDate: start, endDate: end, notes: '', custom: true });
+  const p = DB.projects.find(x => x.id === pid);
+  _planUnsaved = true;
+  renderPlanningBox(pid, p, _planPhases);
+  savePhases(pid, _planPhases, calcPlanningPct(_planPhases));
+  toast('Étape ajoutée.', 'success');
+};
+
+window.addCustomPhaseTop = function(pid) {
+  const label = (document.getElementById('plan-new-label-top') || {}).value || '';
+  const start = (document.getElementById('plan-new-start-top') || {}).value || '';
+  const end   = (document.getElementById('plan-new-end-top')   || {}).value || '';
   if (!label.trim()) { toast('Entrez un nom pour l\'étape.', 'error'); return; }
   _planPhases.push({ label: label.trim(), key: null, status: 'attente', startDate: start, endDate: end, notes: '', custom: true });
   const p = DB.projects.find(x => x.id === pid);
@@ -1414,6 +1446,21 @@ function savePhases(pid, phases, pct) {
       renderProjets(); renderOverview();
     } catch(e) { toast(e.message, 'error'); }
   }, 600);
+}
+
+async function savePhaseStatus(projectId, phases) {
+  try {
+    const pct = calcPlanningPct(phases);
+    await API.updatePhases(projectId, phases);
+    await API.updatePct(projectId, pct);
+    // Update percentage display elements
+    const pctEl = document.getElementById('project-pct-' + projectId);
+    if (pctEl) pctEl.textContent = pct + '%';
+    // Update in local cache
+    const proj = (window.DB?.projects || []).find(p => p.id === projectId);
+    if (proj) { proj.pct = pct; proj.phases = JSON.stringify(phases); }
+    renderProjets(); renderOverview();
+  } catch(e) { toast('Erreur sauvegarde planning', 'error'); }
 }
 
 window.delProjet = function(pid) {
@@ -2534,6 +2581,26 @@ window.startChatWith = function(userId, userName) {
   const inp = document.getElementById('user-search-input');
   if (res) res.style.display = 'none';
   if (inp) inp.value = '';
+
+  // Add immediately to conversation list if not already present
+  const convList = document.getElementById('conv-list');
+  if (convList) {
+    const existing = convList.querySelector('[data-uid="' + userId + '"]');
+    if (!existing) {
+      const initials = (userName || '?')[0].toUpperCase();
+      const newItem = document.createElement('div');
+      newItem.className = 'msg-item';
+      newItem.dataset.uid = userId;
+      newItem.style.cssText = 'cursor:pointer;padding:.6rem .8rem;border-radius:10px;margin-bottom:.3rem;background:#F0F7FF';
+      newItem.innerHTML = '<div style="display:flex;align-items:center;gap:.4rem">'
+        + '<div style="width:32px;height:32px;border-radius:50%;background:var(--ink);color:white;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0">' + esc(initials) + '</div>'
+        + '<div><div style="font-size:13px;font-weight:600">' + esc(userName) + '</div>'
+        + '<div style="font-size:11px;color:var(--muted)">Nouvelle conversation</div></div></div>';
+      newItem.onclick = function() { openConv(userId, userName); };
+      convList.insertBefore(newItem, convList.firstChild);
+    }
+  }
+
   openConv(userId, userName);
 };
 
@@ -2953,6 +3020,13 @@ window.runSimDash = function() {
 // ── Briefs / Demandes de devis ─────────────────────────────────────────────────
 let _briefsView = 'list'; // 'list' | 'mine'
 
+let _briefsCache = { mine: null, available: null, ts: 0 };
+const BRIEFS_TTL = 30000; // 30s
+
+window._invalidateBriefsCache = function() {
+  _briefsCache = { mine: null, available: null, ts: 0 };
+};
+
 window.loadBriefsPanel = async function() {
   const isPro = currentUser && currentUser.role !== 'client';
   const subEl = document.getElementById('devis-sub');
@@ -2964,14 +3038,110 @@ window.loadBriefsPanel = async function() {
     if (addBtn) addBtn.style.display = 'none';
     if (tabMy) { tabMy.style.background='white'; tabMy.style.color='var(--ink)'; tabMy.style.borderColor='var(--border)'; }
     if (tabAll) { tabAll.style.background='var(--clay)'; tabAll.style.color='white'; tabAll.style.borderColor='var(--clay)'; }
-    await loadBriefsList();
+    await _loadBriefsCached('available');
   } else {
     if (addBtn) addBtn.style.display = 'block';
     if (tabMy) { tabMy.style.background='var(--clay)'; tabMy.style.color='white'; tabMy.style.borderColor='var(--clay)'; }
     if (tabAll) { tabAll.style.background='white'; tabAll.style.color='var(--ink)'; tabAll.style.borderColor='var(--border)'; }
-    await loadMyBriefs();
+    await _loadBriefsCached('mine');
   }
 };
+
+window._loadBriefsCached = async function(tab) {
+  const now = Date.now();
+  if (!_briefsCache[tab] || now - _briefsCache.ts > BRIEFS_TTL) {
+    if (tab === 'mine') {
+      _briefsCache.mine = await API.getMyBriefs().catch(() => []);
+    } else {
+      _briefsCache.available = await API.getBriefs({}).catch(() => []);
+    }
+    _briefsCache.ts = now;
+  }
+  if (tab === 'mine') {
+    _renderMyBriefsList(_briefsCache.mine);
+  } else {
+    _renderAvailableBriefsList(_briefsCache.available);
+  }
+};
+
+// Switch tab without reload
+window.switchBriefsTab = function(tab) {
+  const tabMy = document.getElementById('tab-my-briefs');
+  const tabAll = document.getElementById('tab-all-briefs');
+  if (tab === 'mine') {
+    if (tabMy) { tabMy.style.background='var(--clay)'; tabMy.style.color='white'; tabMy.style.borderColor='var(--clay)'; }
+    if (tabAll) { tabAll.style.background='white'; tabAll.style.color='var(--ink)'; tabAll.style.borderColor='var(--border)'; }
+    _loadBriefsCached('mine');
+  } else {
+    if (tabMy) { tabMy.style.background='white'; tabMy.style.color='var(--ink)'; tabMy.style.borderColor='var(--border)'; }
+    if (tabAll) { tabAll.style.background='var(--clay)'; tabAll.style.color='white'; tabAll.style.borderColor='var(--clay)'; }
+    _loadBriefsCached('available');
+  }
+};
+
+function _renderAvailableBriefsList(briefs) {
+  const el = document.getElementById('briefs-list-content');
+  if (!el) return;
+  if (!briefs || !briefs.length) {
+    el.innerHTML = '<div style="text-align:center;padding:3rem 1rem">'
+      + '<div style="font-size:3rem;margin-bottom:1rem">📋</div>'
+      + '<p style="font-weight:600;margin-bottom:.5rem">Aucune demande de devis</p>'
+      + '<p style="color:var(--muted);font-size:13px;margin-bottom:1.5rem">Créez votre première demande pour recevoir des offres de professionnels</p>'
+      + '<button class="btn-primary" onclick="openNewBriefModal?.()">+ Nouvelle demande</button>'
+      + '</div>';
+    return;
+  }
+  el.innerHTML = briefs.map(b => `
+    <div class="dcard" style="margin-bottom:.8rem;cursor:pointer" onclick="showBriefDetail('${b.id}')">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap">
+        <div>
+          <div style="font-weight:600;font-size:14px;margin-bottom:.3rem">${escHtml(b.titre)}</div>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:.4rem">
+            📍 ${escHtml(b.ville||'Non précisée')} &nbsp;·&nbsp; 🔧 ${escHtml(b.categorie)}
+            ${b.deadline ? ' &nbsp;·&nbsp; 📅 ' + escHtml(b.deadline) : ''}
+          </div>
+          <div style="font-size:12px;color:var(--ink);line-height:1.5;max-height:3em;overflow:hidden">${escHtml(b.description||'')}</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          ${b.budget_max ? `<div style="font-size:13px;font-weight:600;color:var(--clay)">${(b.budget_min||0).toLocaleString('fr-FR')} – ${b.budget_max.toLocaleString('fr-FR')} DH</div>` : ''}
+          <div style="font-size:10px;color:var(--muted);margin-top:.2rem">${timeAgo(b.created_at)}</div>
+          <button onclick="event.stopPropagation();openRespondBrief('${b.id}','${escHtml(b.titre)}')" style="margin-top:.6rem;font-size:11px;font-weight:600;padding:6px 14px;background:var(--clay);color:white;border:none;border-radius:100px;cursor:pointer;font-family:Outfit,sans-serif">Répondre →</button>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function _renderMyBriefsList(briefs) {
+  const el = document.getElementById('briefs-list-content');
+  if (!el) return;
+  const addBtn = document.getElementById('brief-add-btn');
+  if (addBtn) addBtn.style.display = 'block';
+  if (!briefs || !briefs.length) {
+    el.innerHTML = `<div style="text-align:center;padding:3rem;color:var(--muted);font-size:13px">
+      Aucune demande publiée.<br>
+      <span style="font-size:12px;opacity:.7">Décrivez votre projet pour recevoir des devis de professionnels.</span><br>
+      <button onclick="showAddBriefForm()" style="margin-top:1rem;font-size:12px;font-weight:600;padding:9px 18px;background:var(--clay);color:white;border:none;border-radius:100px;cursor:pointer;font-family:Outfit,sans-serif">+ Publier une demande</button>
+    </div>`;
+    return;
+  }
+  el.innerHTML = briefs.map(b => `
+    <div class="dcard" style="margin-bottom:.8rem">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:.8rem">
+        <div>
+          <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.2rem">
+            <span style="font-weight:600;font-size:14px">${escHtml(b.titre)}</span>
+            <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:100px;background:${b.status==='open'?'#e8f5e9':'#f5f5f5'};color:${b.status==='open'?'#2e7d32':'#999'}">${b.status==='open'?'Ouvert':'Clôturé'}</span>
+          </div>
+          <div style="font-size:12px;color:var(--muted)">📍 ${escHtml(b.ville||'—')} · ${escHtml(b.categorie)} · ${timeAgo(b.created_at)}</div>
+          <div style="font-size:12px;color:var(--clay);font-weight:500;margin-top:.4rem">${(b.responses||[]).length} réponse${(b.responses||[]).length!==1?'s':''}</div>
+        </div>
+        <div style="display:flex;gap:.5rem;align-items:center">
+          ${b.status==='open' ? `<button onclick="closeBriefAction('${b.id}')" style="font-size:11px;padding:5px 12px;border:.5px solid var(--border);background:white;border-radius:100px;cursor:pointer;font-family:Outfit,sans-serif;color:var(--muted)">Clôturer</button>` : ''}
+          <button onclick="deleteBriefAction('${b.id}')" style="font-size:11px;padding:5px 12px;border:.5px solid #fcc;background:white;border-radius:100px;cursor:pointer;font-family:Outfit,sans-serif;color:#c00">✕</button>
+        </div>
+      </div>
+    </div>`).join('');
+}
 
 window.loadBriefsList = async function(filters) {
   const el = document.getElementById('briefs-list-content');
@@ -2984,6 +3154,7 @@ window.loadBriefsList = async function(filters) {
     if (villeEl && villeEl.value) params.ville = villeEl.value;
     if (catEl && catEl.value) params.categorie = catEl.value;
     const briefs = await API.getBriefs(params);
+    _briefsCache.available = briefs; _briefsCache.ts = Date.now();
     if (!briefs.length) {
       el.innerHTML = '<div style="text-align:center;padding:3rem 1rem">'
         + '<div style="font-size:3rem;margin-bottom:1rem">📋</div>'
@@ -3020,6 +3191,7 @@ window.loadMyBriefs = async function() {
   el.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--muted);font-size:13px">Chargement…</div>';
   try {
     const briefs = await API.getMyBriefs();
+    _briefsCache.mine = briefs; _briefsCache.ts = Date.now();
     const addBtn = document.getElementById('brief-add-btn');
     if (addBtn) addBtn.style.display = 'block';
     if (!briefs.length) {
@@ -3140,6 +3312,7 @@ window.submitBrief = async function() {
     await API.createBrief({titre,description:desc,ville,categorie:cat,budget_min:budMin,budget_max:budMax,deadline});
     toast('Demande publiée !', 'success');
     document.getElementById('add-brief-form').style.display = 'none';
+    window._invalidateBriefsCache?.();
     await loadMyBriefs();
   } catch(e) { toast(e.message, 'error'); }
   finally { btn.disabled=false; btn.textContent='Publier'; }
@@ -3221,14 +3394,14 @@ window.submitBriefResponse = async function() {
 
 window.closeBriefAction = function(id) {
   confirmAction('Clôturer cette demande ?', async () => {
-    try { await API.closeBrief(id); toast('Demande clôturée', 'success'); await loadMyBriefs(); }
+    try { await API.closeBrief(id); toast('Demande clôturée', 'success'); window._invalidateBriefsCache?.(); await loadMyBriefs(); }
     catch(e) { toast(e.message, 'error'); }
   });
 };
 
 window.deleteBriefAction = function(id) {
   confirmAction('Supprimer cette demande ?', async () => {
-    try { await API.deleteBrief(id); toast('Demande supprimée', 'success'); await loadMyBriefs(); }
+    try { await API.deleteBrief(id); toast('Demande supprimée', 'success'); window._invalidateBriefsCache?.(); await loadMyBriefs(); }
     catch(e) { toast(e.message, 'error'); }
   });
 };
