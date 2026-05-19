@@ -4063,6 +4063,167 @@ if (typeof renderProsList === 'function') {
   // The actual injection happens inside renderProsList by checking d.arc_badge
 }
 
+// ── PAY-01 / BIL-01: Billing panel ───────────────────────────────────────────
+window.renderBillingPanel = async function() {
+  const el = document.getElementById('billing-content');
+  if (!el) return;
+  el.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--muted);font-size:13px">Chargement...</div>';
+
+  let payments = [], invoices = [];
+  try { payments = await API.get('/payments/history'); } catch(e) { payments = []; }
+  try { invoices = await API.get('/invoices'); } catch(e) { invoices = []; }
+
+  const planColors = { starter: '#6B7280', pro: '#E8B84B', premium: '#8B5CF6', business: '#1D4ED8' };
+  const currentPlan = (currentUser && currentUser.plan) || 'starter';
+  const planColor = planColors[currentPlan] || '#6B7280';
+
+  const planSection = '<div class="dcard" style="margin-bottom:1.2rem">'
+    + '<div class="dcard-tit">Plan actuel</div>'
+    + '<div style="display:flex;align-items:center;gap:.8rem;padding:.5rem 0">'
+    + '<span style="font-size:13px;font-weight:700;padding:4px 14px;border-radius:100px;background:' + planColor + ';color:white;text-transform:capitalize">' + currentPlan + '</span>'
+    + '<span style="font-size:12px;color:var(--muted)">Votre abonnement actuel</span>'
+    + '</div>'
+    + '<div style="display:flex;gap:.6rem;flex-wrap:wrap;margin-top:.8rem">'
+    + ['starter', 'pro', 'premium'].map(p => {
+        const prices = { starter: '299', pro: '499', premium: '999' };
+        return '<button onclick="upgradePlan(\'' + p + '\')" style="font-size:12px;font-weight:600;padding:8px 16px;border:1.5px solid ' + (planColors[p]||'#ccc') + ';border-radius:100px;background:' + (currentPlan===p ? planColors[p] : 'transparent') + ';color:' + (currentPlan===p ? 'white' : planColors[p]) + ';cursor:pointer;font-family:Outfit,sans-serif">'
+          + (currentPlan===p ? '✓ ' : '') + p.charAt(0).toUpperCase()+p.slice(1) + ' — ' + prices[p] + ' DH/mois</button>';
+      }).join('')
+    + '</div>'
+    + '</div>';
+
+  const paymentsSection = '<div class="dcard" style="margin-bottom:1.2rem">'
+    + '<div class="dcard-tit">Historique des paiements</div>'
+    + (payments.length === 0
+      ? '<div style="font-size:13px;color:var(--muted);padding:.5rem 0">Aucun paiement enregistré.</div>'
+      : '<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="border-bottom:.5px solid var(--border)">'
+        + '<th style="text-align:left;padding:.4rem .5rem;color:var(--muted);font-weight:600">Date</th>'
+        + '<th style="text-align:left;padding:.4rem .5rem;color:var(--muted);font-weight:600">Plan</th>'
+        + '<th style="text-align:right;padding:.4rem .5rem;color:var(--muted);font-weight:600">Montant</th>'
+        + '<th style="text-align:left;padding:.4rem .5rem;color:var(--muted);font-weight:600">Statut</th>'
+        + '</tr></thead><tbody>'
+        + payments.map(p => {
+            const statusColor = p.status === 'paid' ? 'var(--green)' : p.status === 'pending' ? '#F59E0B' : 'var(--muted)';
+            return '<tr style="border-bottom:.5px solid var(--border)">'
+              + '<td style="padding:.4rem .5rem">' + (p.created_at||'').substring(0,10) + '</td>'
+              + '<td style="padding:.4rem .5rem;text-transform:capitalize">' + (p.plan||'—') + '</td>'
+              + '<td style="padding:.4rem .5rem;text-align:right;font-weight:600">' + ((p.amount||0)/100).toFixed(0) + ' DH</td>'
+              + '<td style="padding:.4rem .5rem"><span style="color:' + statusColor + ';font-weight:600">' + (p.status||'—') + '</span></td>'
+              + '</tr>';
+          }).join('')
+        + '</tbody></table>')
+    + '</div>';
+
+  const invoicesSection = '<div class="dcard">'
+    + '<div class="dcard-tit">Factures</div>'
+    + (invoices.length === 0
+      ? '<div style="font-size:13px;color:var(--muted);padding:.5rem 0">Aucune facture disponible.</div>'
+      : '<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="border-bottom:.5px solid var(--border)">'
+        + '<th style="text-align:left;padding:.4rem .5rem;color:var(--muted);font-weight:600">N°</th>'
+        + '<th style="text-align:left;padding:.4rem .5rem;color:var(--muted);font-weight:600">Date</th>'
+        + '<th style="text-align:right;padding:.4rem .5rem;color:var(--muted);font-weight:600">Total TTC</th>'
+        + '<th style="text-align:left;padding:.4rem .5rem;color:var(--muted);font-weight:600">Statut</th>'
+        + '</tr></thead><tbody>'
+        + invoices.map(inv => '<tr style="border-bottom:.5px solid var(--border)">'
+            + '<td style="padding:.4rem .5rem;font-weight:600">' + (inv.invoice_number||'—') + '</td>'
+            + '<td style="padding:.4rem .5rem">' + (inv.issued_at||'').substring(0,10) + '</td>'
+            + '<td style="padding:.4rem .5rem;text-align:right;font-weight:600">' + (inv.total||0) + ' DH</td>'
+            + '<td style="padding:.4rem .5rem">' + (inv.status||'—') + '</td>'
+            + '</tr>').join('')
+        + '</tbody></table>')
+    + '</div>';
+
+  el.innerHTML = '<div class="dh"><div><div class="dh-title">💳 Facturation</div><div class="dh-sub">Gérez votre abonnement et consultez vos factures</div></div></div>'
+    + planSection + paymentsSection + invoicesSection;
+};
+
+window.upgradePlan = async function(plan) {
+  try {
+    const res = await API.post('/payments/create-checkout', { plan });
+    if (res.checkout_url) window.location.href = res.checkout_url;
+  } catch(e) {
+    alert('Erreur: ' + e.message);
+  }
+};
+
+// ── API-01: API & Développeurs panel ─────────────────────────────────────────
+window.renderApiPanel = async function() {
+  const el = document.getElementById('api-content');
+  if (!el) return;
+  el.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--muted);font-size:13px">Chargement...</div>';
+
+  let keys = [];
+  try { keys = await API.get('/keys'); } catch(e) { keys = []; }
+
+  const keysTable = keys.length === 0
+    ? '<div style="font-size:13px;color:var(--muted);padding:.5rem 0">Aucune clé API créée.</div>'
+    : '<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="border-bottom:.5px solid var(--border)">'
+      + '<th style="text-align:left;padding:.4rem .5rem;color:var(--muted);font-weight:600">Nom</th>'
+      + '<th style="text-align:left;padding:.4rem .5rem;color:var(--muted);font-weight:600">Permissions</th>'
+      + '<th style="text-align:left;padding:.4rem .5rem;color:var(--muted);font-weight:600">Dernière utilisation</th>'
+      + '<th style="text-align:left;padding:.4rem .5rem;color:var(--muted);font-weight:600">Créée le</th>'
+      + '<th style="padding:.4rem .5rem"></th>'
+      + '</tr></thead><tbody>'
+      + keys.map(k => '<tr style="border-bottom:.5px solid var(--border)">'
+          + '<td style="padding:.4rem .5rem;font-weight:600">' + (k.name||'default') + '</td>'
+          + '<td style="padding:.4rem .5rem"><span style="font-size:10px;padding:2px 8px;border-radius:100px;background:var(--sand);color:var(--ink)">' + (k.permissions||'read') + '</span></td>'
+          + '<td style="padding:.4rem .5rem;color:var(--muted)">' + (k.last_used_at ? k.last_used_at.substring(0,16).replace('T',' ') : 'jamais') + '</td>'
+          + '<td style="padding:.4rem .5rem;color:var(--muted)">' + (k.created_at||'').substring(0,10) + '</td>'
+          + '<td style="padding:.4rem .5rem"><button onclick="revokeApiKey(' + k.id + ')" style="font-size:11px;padding:4px 10px;border:.5px solid var(--red);color:var(--red);background:transparent;border-radius:100px;cursor:pointer;font-family:Outfit,sans-serif">Révoquer</button></td>'
+          + '</tr>').join('')
+      + '</tbody></table>';
+
+  el.innerHTML = '<div class="dh"><div><div class="dh-title">🔑 API & Développeurs</div><div class="dh-sub">Gérez vos clés d\'accès à l\'API ShantiLink</div></div></div>'
+    + '<div class="dcard" style="margin-bottom:1.2rem">'
+    + '<div class="dcard-tit">Clés API existantes</div>'
+    + keysTable
+    + '</div>'
+    + '<div class="dcard">'
+    + '<div class="dcard-tit">Créer une nouvelle clé</div>'
+    + '<div style="display:grid;grid-template-columns:1fr 1fr auto;gap:.7rem;align-items:end">'
+    + '<div class="fg" style="margin:0"><label>Nom de la clé</label><input id="api-key-name" type="text" placeholder="Ex: mon-app-externe" style="width:100%;padding:.5rem .8rem;border:.5px solid var(--border);border-radius:10px;font-family:Outfit,sans-serif;font-size:13px"/></div>'
+    + '<div class="fg" style="margin:0"><label>Permissions</label><select id="api-key-perm" style="width:100%;padding:.5rem .8rem;border:.5px solid var(--border);border-radius:10px;font-family:Outfit,sans-serif;font-size:13px"><option value="read">Lecture seule</option><option value="write">Lecture + Écriture</option></select></div>'
+    + '<button onclick="createApiKey()" class="submit-btn" style="margin:0;white-space:nowrap">Créer la clé</button>'
+    + '</div>'
+    + '<div id="api-key-result" style="display:none;margin-top:.8rem;padding:.8rem 1rem;background:var(--green-b);border-radius:10px;font-size:12px;font-weight:600;color:var(--green);word-break:break-all"></div>'
+    + '</div>'
+    + '<div class="dcard" style="margin-top:1.2rem">'
+    + '<div class="dcard-tit">Endpoints disponibles</div>'
+    + '<div style="font-size:12px;color:var(--muted);line-height:2">'
+    + '<code style="background:var(--sand);padding:2px 6px;border-radius:4px">GET /v1/projects</code> — Liste vos projets<br>'
+    + '<code style="background:var(--sand);padding:2px 6px;border-radius:4px">GET /v1/expenses</code> — Liste vos dépenses<br>'
+    + '<div style="margin-top:.5rem;font-size:11px;color:var(--muted)">Utiliser l\'en-tête <code style="background:var(--sand);padding:1px 5px;border-radius:3px">X-API-Key: sl_...</code> pour l\'authentification.</div>'
+    + '</div>'
+    + '</div>';
+};
+
+window.createApiKey = async function() {
+  const name = (document.getElementById('api-key-name') || {}).value || 'default';
+  const perm = (document.getElementById('api-key-perm') || {}).value || 'read';
+  try {
+    const res = await API.post('/keys', { name, permissions: perm });
+    const resultEl = document.getElementById('api-key-result');
+    if (resultEl) {
+      resultEl.style.display = 'block';
+      resultEl.innerHTML = '🔑 Votre clé API (copiez-la maintenant, elle ne sera plus affichée) :<br><br><strong>' + res.api_key + '</strong>';
+    }
+    // Refresh the panel to show new key in the list
+    setTimeout(renderApiPanel, 500);
+  } catch(e) {
+    alert('Erreur: ' + e.message);
+  }
+};
+
+window.revokeApiKey = async function(kid) {
+  if (!confirm('Révoquer cette clé API ? Elle ne fonctionnera plus immédiatement.')) return;
+  try {
+    await API.del('/keys/' + kid);
+    renderApiPanel();
+  } catch(e) {
+    alert('Erreur: ' + e.message);
+  }
+};
+
 // ── Hook: init notifications when dashboard loads ─────────────────────────────
 const _origLoadDashboard = window.loadDashboard;
 window.loadDashboard = async function() {

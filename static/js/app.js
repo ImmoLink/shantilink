@@ -338,6 +338,10 @@ window.initWorkspace = function(role) {
     if (btn) btn.style.display = role === 'promoteur' ? 'flex' : 'none';
   });
 
+  // API-01: API button visible for pro/architecte/promoteur
+  const apiBtn = document.getElementById('sb-api-btn');
+  if (apiBtn) apiBtn.style.display = ['pro', 'architecte', 'promoteur'].includes(role) ? 'flex' : 'none';
+
   // PRO-01: render company profile section after workspace init
   if (typeof window.renderCompanyProfile === 'function') window.renderCompanyProfile();
   // CLT-02: render MRE section

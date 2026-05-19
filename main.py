@@ -276,6 +276,49 @@ def init_db():
         created_at TEXT DEFAULT (datetime('now'))
     )""")
 
+    # PAY-01: payments table
+    _run_migration("""CREATE TABLE IF NOT EXISTS payments (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        amount INTEGER NOT NULL,
+        currency TEXT DEFAULT 'mad',
+        status TEXT DEFAULT 'pending',
+        stripe_session_id TEXT,
+        stripe_payment_intent TEXT,
+        plan TEXT,
+        description TEXT,
+        created_at TEXT DEFAULT (datetime('now')),
+        updated_at TEXT DEFAULT (datetime('now'))
+    )""")
+
+    # BIL-01: invoices table
+    _run_migration("""CREATE TABLE IF NOT EXISTS invoices (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id TEXT NOT NULL,
+        payment_id TEXT,
+        invoice_number TEXT UNIQUE,
+        amount INTEGER,
+        vat_amount INTEGER DEFAULT 0,
+        total INTEGER,
+        currency TEXT DEFAULT 'MAD',
+        status TEXT DEFAULT 'draft',
+        issued_at TEXT DEFAULT (datetime('now')),
+        due_at TEXT,
+        pdf_url TEXT
+    )""")
+
+    # API-01: api_keys table
+    _run_migration("""CREATE TABLE IF NOT EXISTS api_keys (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id TEXT NOT NULL,
+        key_hash TEXT NOT NULL UNIQUE,
+        name TEXT,
+        permissions TEXT DEFAULT 'read',
+        last_used_at TEXT,
+        created_at TEXT DEFAULT (datetime('now')),
+        active INTEGER DEFAULT 1
+    )""")
+
     # ── Indexes (idempotents) ─────────────────────────────────────────────────
     for idx in [
         "CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)",
@@ -3245,6 +3288,207 @@ def bootstrap_reset_admin(body: dict):
         conn.execute(*sql_params("UPDATE users SET password_hash=? WHERE id=?", [hashed, row[0]]))
         conn.commit()
         return {"ok": True, "email": row[1], "message": "Mot de passe réinitialisé"}
+    finally:
+        conn.close()
+
+# ── PAY-01: Stripe payment endpoints ─────────────────────────────────────────
+
+@app.post("/api/payments/create-checkout")
+def create_checkout_session(data: dict = Body(...), user: dict = Depends(get_current_user)):
+    """Crée une session Stripe Checkout. Stripe doit être configuré via STRIPE_SECRET_KEY env var."""
+    stripe_key = os.getenv("STRIPE_SECRET_KEY", "")
+    plan = data.get("plan", "starter")
+    prices = {"starter": 29900, "pro": 49900, "premium": 99900}  # centimes MAD
+    amount = prices.get(plan, 29900)
+    conn = get_db()
+    try:
+        pid = uid()
+        conn.execute(text("INSERT INTO payments (id, user_id, amount, plan, status) VALUES (:id, :uid, :amt, :plan, 'pending')"),
+                     {"id": pid, "uid": user["sub"], "amt": amount, "plan": plan})
+        conn.commit()
+        if not stripe_key:
+            return {"checkout_url": f"/api/payments/success?session_id=dev_{pid}", "session_id": f"dev_{pid}", "payment_id": pid}
+        try:
+            import stripe
+            stripe.api_key = stripe_key
+            session = stripe.checkout.Session.create(
+                payment_method_types=["card"],
+                line_items=[{"price_data": {"currency": "mad", "product_data": {"name": f"Plan ShantiLink {plan.capitalize()}"}, "unit_amount": amount}, "quantity": 1}],
+                mode="payment",
+                success_url=f"{os.getenv('FRONTEND_URL','http://localhost:8000')}/api/payments/success?session_id={{CHECKOUT_SESSION_ID}}",
+                cancel_url=f"{os.getenv('FRONTEND_URL','http://localhost:8000')}/#/dashboard/billing",
+                metadata={"user_id": user["sub"], "plan": plan, "payment_id": pid}
+            )
+            conn.execute(text("UPDATE payments SET stripe_session_id=:sid WHERE id=:id"), {"sid": session.id, "id": pid})
+            conn.commit()
+            return {"checkout_url": session.url, "session_id": session.id, "payment_id": pid}
+        except Exception as e:
+            raise HTTPException(500, f"Stripe error: {str(e)}")
+    finally:
+        conn.close()
+
+@app.get("/api/payments/success")
+def payment_success(session_id: str, user: dict = Depends(get_current_user)):
+    conn = get_db()
+    try:
+        if session_id.startswith("dev_"):
+            pid = session_id[4:]
+            conn.execute(text("UPDATE payments SET status='paid' WHERE id=:id"), {"id": pid})
+            row = conn.execute(text("SELECT plan FROM payments WHERE id=:id"), {"id": pid}).fetchone()
+            if row:
+                conn.execute(text("UPDATE users SET plan=:plan WHERE id=:uid"), {"plan": row.plan, "uid": user["sub"]})
+            conn.commit()
+            return {"ok": True, "status": "paid"}
+        return {"ok": True, "status": "pending"}
+    finally:
+        conn.close()
+
+@app.post("/api/payments/webhook")
+async def stripe_webhook(request: Request):
+    """Webhook Stripe — mettre STRIPE_WEBHOOK_SECRET en env"""
+    import json as _json
+    payload = await request.body()
+    sig = request.headers.get("stripe-signature", "")
+    wh_secret = os.getenv("STRIPE_WEBHOOK_SECRET", "")
+    conn = get_db()
+    try:
+        try:
+            import stripe
+            if wh_secret:
+                event = stripe.Webhook.construct_event(payload, sig, wh_secret)
+            else:
+                event = _json.loads(payload)
+        except ImportError:
+            event = _json.loads(payload)
+        if event["type"] == "checkout.session.completed":
+            session = event["data"]["object"]
+            meta = session.get("metadata", {})
+            uid_v = meta.get("user_id")
+            plan = meta.get("plan")
+            pid = meta.get("payment_id")
+            if pid:
+                conn.execute(text("UPDATE payments SET status='paid' WHERE id=:id"), {"id": pid})
+            if uid_v and plan:
+                conn.execute(text("UPDATE users SET plan=:plan WHERE id=:uid"), {"plan": plan, "uid": uid_v})
+            conn.commit()
+        return {"ok": True}
+    except Exception as e:
+        raise HTTPException(400, str(e))
+    finally:
+        conn.close()
+
+@app.get("/api/payments/history")
+def payment_history(user: dict = Depends(get_current_user)):
+    conn = get_db()
+    try:
+        rows = conn.execute(text("SELECT * FROM payments WHERE user_id=:uid ORDER BY created_at DESC LIMIT 20"), {"uid": user["sub"]}).fetchall()
+        return [dict(r._mapping) for r in rows]
+    finally:
+        conn.close()
+
+# ── BIL-01: Facturation endpoints ─────────────────────────────────────────────
+
+@app.get("/api/invoices")
+def list_invoices(user: dict = Depends(get_current_user)):
+    conn = get_db()
+    try:
+        rows = conn.execute(text("SELECT * FROM invoices WHERE user_id=:uid ORDER BY issued_at DESC"), {"uid": user["sub"]}).fetchall()
+        return [dict(r._mapping) for r in rows]
+    finally:
+        conn.close()
+
+@app.post("/api/admin/invoices/generate")
+def generate_invoice(data: dict = Body(...), admin: dict = Depends(require_admin)):
+    conn = get_db()
+    try:
+        inv_num = "INV-" + datetime.utcnow().strftime("%Y%m%d") + "-" + uid()[:6].upper()
+        amount = data.get("amount", 0)
+        vat = int(amount * 0.20)  # TVA 20% Maroc
+        total = amount + vat
+        conn.execute(text("""
+            INSERT INTO invoices (user_id, payment_id, invoice_number, amount, vat_amount, total, status, due_at)
+            VALUES (:uid, :pid, :num, :amt, :vat, :total, 'issued', date('now','+30 days'))
+        """), {"uid": data["user_id"], "pid": data.get("payment_id"), "num": inv_num, "amt": amount, "vat": vat, "total": total})
+        conn.commit()
+        return {"invoice_number": inv_num, "total": total}
+    finally:
+        conn.close()
+
+# ── API-01: API keys & public API v1 ──────────────────────────────────────────
+
+def get_api_key_user(request: Request):
+    key = request.headers.get("X-API-Key", "")
+    if not key:
+        raise HTTPException(401, "API key required")
+    key_hash = hashlib.sha256(key.encode()).hexdigest()
+    conn = get_db()
+    try:
+        row = conn.execute(text("SELECT u.* FROM api_keys ak JOIN users u ON u.id=ak.user_id WHERE ak.key_hash=:h AND ak.active=1"), {"h": key_hash}).fetchone()
+        if not row:
+            raise HTTPException(401, "Invalid API key")
+        conn.execute(text("UPDATE api_keys SET last_used_at=:now WHERE key_hash=:h"), {"now": now_iso(), "h": key_hash})
+        conn.commit()
+        return dict(row._mapping)
+    finally:
+        conn.close()
+
+@app.post("/api/keys")
+def create_api_key(data: dict = Body(...), user: dict = Depends(get_current_user)):
+    import secrets as _secrets
+    key = "sl_" + _secrets.token_hex(32)
+    key_hash = hashlib.sha256(key.encode()).hexdigest()
+    conn = get_db()
+    try:
+        conn.execute(text("INSERT INTO api_keys (user_id, key_hash, name, permissions) VALUES (:uid, :h, :name, :perm)"),
+                     {"uid": user["sub"], "h": key_hash, "name": data.get("name", "default"), "perm": data.get("permissions", "read")})
+        conn.commit()
+        return {"api_key": key, "note": "Sauvegardez cette clé — elle ne sera plus affichée"}
+    finally:
+        conn.close()
+
+@app.get("/api/keys")
+def list_api_keys(user: dict = Depends(get_current_user)):
+    conn = get_db()
+    try:
+        rows = conn.execute(text("SELECT id, name, permissions, last_used_at, created_at FROM api_keys WHERE user_id=:uid AND active=1"), {"uid": user["sub"]}).fetchall()
+        return [dict(r._mapping) for r in rows]
+    finally:
+        conn.close()
+
+@app.delete("/api/keys/{kid}")
+def revoke_api_key(kid: int, user: dict = Depends(get_current_user)):
+    conn = get_db()
+    try:
+        conn.execute(text("UPDATE api_keys SET active=0 WHERE id=:id AND user_id=:uid"), {"id": kid, "uid": user["sub"]})
+        conn.commit()
+        return {"ok": True}
+    finally:
+        conn.close()
+
+# Public API v1
+@app.get("/v1/projects")
+def public_list_projects(limit: int = 20, offset: int = 0, user: dict = Depends(get_api_key_user)):
+    conn = get_db()
+    try:
+        rows = conn.execute(text("SELECT id, nom, ville, type, budget, created_at FROM projects WHERE user_id=:uid AND deleted=0 LIMIT :lim OFFSET :off"),
+                            {"uid": user["id"], "lim": limit, "off": offset}).fetchall()
+        return {"data": [dict(r._mapping) for r in rows], "limit": limit, "offset": offset}
+    finally:
+        conn.close()
+
+@app.get("/v1/expenses")
+def public_list_expenses(project_id: str = None, user: dict = Depends(get_api_key_user)):
+    conn = get_db()
+    try:
+        if project_id:
+            rows = conn.execute(text("SELECT * FROM expenses WHERE project_id=:pid AND deleted=0"), {"pid": project_id}).fetchall()
+        else:
+            proj_ids = [r.id for r in conn.execute(text("SELECT id FROM projects WHERE user_id=:uid AND deleted=0"), {"uid": user["id"]}).fetchall()]
+            if not proj_ids:
+                return {"data": []}
+            pids_str = ",".join(f"'{i}'" for i in proj_ids)
+            rows = conn.execute(text(f"SELECT * FROM expenses WHERE project_id IN ({pids_str}) AND deleted=0")).fetchall()
+        return {"data": [dict(r._mapping) for r in rows]}
     finally:
         conn.close()
 

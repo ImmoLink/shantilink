@@ -742,6 +742,8 @@
       <button id="sb-team-btn" class="sblink" onclick="showDashPanel('team',this);renderTeamPanel()" style="display:none"><span>👥</span> <span>Mon équipe</span></button>
       <button id="sb-programmes-btn" class="sblink" onclick="showDashPanel('programmes',this);renderProgrammesPanel()" style="display:none"><span>🏢</span> <span>Programmes</span></button>
       <button id="sb-roi-btn" class="sblink" onclick="showDashPanel('roi',this);renderROIPanel()" style="display:none"><span>📈</span> <span>Dashboard ROI</span></button>
+      <button class="sblink" onclick="showDashPanel('billing',this);renderBillingPanel()"><span>💳</span> <span>Facturation</span></button>
+      <button id="sb-api-btn" class="sblink" onclick="showDashPanel('api',this);renderApiPanel()" style="display:none"><span>🔑</span> <span>API</span></button>
       <button class="sblink" onclick="showDashPanel('params',this)"><span>⚙️</span> <span data-i18n="dash_sb_params">Paramètres</span></button>
       <button class="sblink" style="margin-top:auto" onclick="doLogout()"><span>🚪</span> <span data-i18n="dash_sb_logout">Déconnexion</span></button>
     </div>
@@ -1474,6 +1476,16 @@
       <!-- PRM-04: Dashboard ROI -->
       <div id="panel-roi" class="dash-panel">
         <!-- content rendered by renderROIPanel() -->
+      </div>
+
+      <!-- PAY-01 / BIL-01: Facturation -->
+      <div id="panel-billing" class="dash-panel">
+        <div id="billing-content"></div>
+      </div>
+
+      <!-- API-01: API & Développeurs -->
+      <div id="panel-api" class="dash-panel">
+        <div id="api-content"></div>
       </div>
 
     </div>
