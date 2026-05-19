@@ -1537,6 +1537,22 @@ class RatingIn(BaseModel):
     rating: int
     comment: Optional[str] = ""
 
+@app.get("/api/users/search")
+def search_users(q: str = "", limit: int = 20, user: dict = Depends(get_current_user)):
+    """Recherche tous les inscrits par prénom/nom — utilisé pour la messagerie directe."""
+    conn = get_db()
+    try:
+        if not q or len(q) < 2:
+            return []
+        uid_v = user["sub"]
+        rows = conn.execute(*sql_params(
+            "SELECT id, prenom, nom, role, ville FROM users WHERE id != ? AND (prenom LIKE ? OR nom LIKE ? OR email LIKE ?) ORDER BY prenom LIMIT ?",
+            [uid_v, f"%{q}%", f"%{q}%", f"%{q}%", limit]
+        )).fetchall()
+        return [dict(r._mapping) for r in rows]
+    finally:
+        conn.close()
+
 @app.get("/api/community/directory")
 def community_directory(q: str = "", role: str = "", ville: str = "", limit: int = 50):
     conn = get_db()

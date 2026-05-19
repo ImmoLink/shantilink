@@ -84,7 +84,8 @@ const API = {
   getChats()                { return this.get('/chat'); },
   getChat(userId)           { return this.get('/chat/' + userId); },
   sendChat(userId, content) { return this.post('/chat/' + userId, { content }); },
-  searchUsers(q)            { return this.get('/community/directory?q=' + encodeURIComponent(q) + '&limit=10'); },
+  sendMessage(userId, content) { return this.post('/chat/' + userId, { content }); }, // alias pour sendProContact
+  searchUsers(q)            { return this.get('/users/search?q=' + encodeURIComponent(q) + '&limit=10'); },
 
   // Activities
   getActivities() { return this.get('/activities'); },
@@ -105,7 +106,7 @@ const API = {
   createBrief(d)        { return this.post('/briefs', d); },
   respondBrief(id,d)    { return this.post('/briefs/' + id + '/respond', d); },
   respondBriefForm(id,fd) { // ARC-04: multipart with file
-    return fetch(this._base + '/briefs/' + id + '/respond-rich', {
+    return fetch(this.base + '/briefs/' + id + '/respond-rich', {
       method: 'POST',
       headers: { 'Authorization': 'Bearer ' + (this.getToken()||'') },
       credentials: 'include',
