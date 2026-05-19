@@ -332,6 +332,21 @@ window.initWorkspace = function(role) {
   const adminBtn = document.getElementById('sb-admin-btn');
   if (adminBtn) adminBtn.style.display = role === 'admin' ? 'flex' : 'none';
 
+  // PRM: promoteur-specific sidebar buttons
+  ['sb-team-btn','sb-programmes-btn','sb-roi-btn'].forEach(id => {
+    const btn = document.getElementById(id);
+    if (btn) btn.style.display = role === 'promoteur' ? 'flex' : 'none';
+  });
+
+  // API-01: API button visible for pro/architecte/promoteur
+  const apiBtn = document.getElementById('sb-api-btn');
+  if (apiBtn) apiBtn.style.display = ['pro', 'architecte', 'promoteur'].includes(role) ? 'flex' : 'none';
+
+  // PRO-01: render company profile section after workspace init
+  if (typeof window.renderCompanyProfile === 'function') window.renderCompanyProfile();
+  // CLT-02: render MRE section
+  if (typeof window.renderMRESection === 'function') window.renderMRESection();
+
   // PRO-02: Sidebar dynamique par rôle — pros voient "Mes chantiers" pas "Mes projets"
   const sbProjects = document.getElementById('sb-projects');
   if (sbProjects) {
@@ -1804,6 +1819,15 @@ window.addEventListener('load', () => {
       if (panel) setTimeout(() => { if (typeof showDashPanel === 'function') showDashPanel(panel, null); }, 150);
     } else if (page) {
       goPage(page, true);
+    }
+  });
+
+  // FNC-01: close notification dropdown when clicking outside
+  document.addEventListener('click', function(e) {
+    const dd = document.getElementById('notif-dropdown');
+    const bell = document.getElementById('notif-bell-btn');
+    if (dd && dd.style.display === 'block' && !dd.contains(e.target) && e.target !== bell && !bell?.contains(e.target)) {
+      dd.style.display = 'none';
     }
   });
 

@@ -15,6 +15,7 @@ const API = {
       res = await fetch(this.base + path, {
         method,
         headers,
+        credentials: 'include',
         body: body ? JSON.stringify(body) : undefined,
       });
     } catch (e) {
@@ -64,7 +65,7 @@ const API = {
     if (t) headers['Authorization'] = 'Bearer ' + t;
     let res;
     try {
-      res = await fetch(this.base + '/photos', { method: 'POST', headers, body: formData });
+      res = await fetch(this.base + '/photos', { method: 'POST', headers, credentials: 'include', body: formData });
     } catch (e) { throw new Error('Impossible de contacter le serveur.'); }
     if (res.status === 401) { this.clearToken(); window.goPage('auth'); throw new Error('Session expirée.'); }
     let data;
@@ -107,6 +108,7 @@ const API = {
     return fetch(this._base + '/briefs/' + id + '/respond-rich', {
       method: 'POST',
       headers: { 'Authorization': 'Bearer ' + (this.getToken()||'') },
+      credentials: 'include',
       body: fd
     }).then(async r => {
       const j = await r.json().catch(() => ({}));
@@ -126,4 +128,54 @@ const API = {
 
   // Platform stats (public)
   getPlatformStats()    { return this.get('/stats/platform'); },
+
+  // PRO-01: company profile
+  updateCompany(d)      { return this.patch('/me/company', d); },
+
+  // CLT-03: project sharing
+  shareProject(id)      { return this.post('/projects/' + id + '/share', {}); },
+  getSharedProject(tok) { return this.get('/shared/' + tok); },
+
+  // FNC-01: notifications
+  getNotifications()        { return this.get('/notifications'); },
+  markNotifRead(nid)        { return this.post('/notifications/' + nid + '/read', {}); },
+  markAllNotifsRead()       { return this.post('/notifications/read-all', {}); },
+
+  // FNC-02: documents
+  getDocuments(pid)         { return this.get('/projects/' + pid + '/documents'); },
+  deleteDocument(did)       { return this.del('/documents/' + did); },
+  uploadDocument(pid, fd) {
+    const headers = {};
+    const t = this.getToken();
+    if (t) headers['Authorization'] = 'Bearer ' + t;
+    return fetch(this.base + '/projects/' + pid + '/documents', {
+      method: 'POST', headers, credentials: 'include', body: fd
+    }).then(async r => {
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.detail || 'Erreur upload');
+      return j;
+    });
+  },
+
+  // PRM-01: team
+  getTeam()             { return this.get('/team'); },
+  inviteTeam(d)         { return this.post('/team/invite', d); },
+  removeTeamMember(id)  { return this.del('/team/' + id); },
+
+  // PRM-02: programmes
+  getProgrammes()       { return this.get('/programmes'); },
+  createProgramme(d)    { return this.post('/programmes', d); },
+  updateProgramme(id,d) { return this.patch('/programmes/' + id, d); },
+  deleteProgramme(id)   { return this.del('/programmes/' + id); },
+  setProjectProgramme(pid, programme_id) { return this.patch('/projects/' + pid + '/programme', { programme_id }); },
+
+  // PRM-04: ROI
+  getPromoterROI()      { return this.get('/promoter/roi'); },
+
+  // Admin
+  verifyArchitect(d)    { return this.post('/admin/verify-architect', d); },
+
+  // MRE
+  submitMRE(d)          { return this.post('/me/mre-verify', d); },
+  getMREStatus()        { return this.get('/me/mre-status'); },
 };

@@ -506,6 +506,8 @@ function projCardHTML(p, showActions = false) {
         + '<button onclick="openPlanningPanel(\'' + p.id + '\')" style="margin:0;font-size:11px;font-weight:600;padding:5px 12px;background:var(--blue-b);color:var(--blue);border:.5px solid rgba(26,79,139,.2);border-radius:100px;cursor:pointer;font-family:Outfit,sans-serif">📋 ' + t('planning_title','Planning') + '</button>'
         + '<button onclick="openEditProject(\'' + p.id + '\')" style="margin:0;font-size:11px;font-weight:600;padding:5px 12px;background:var(--sand);color:var(--ink);border:.5px solid var(--border);border-radius:100px;cursor:pointer;font-family:Outfit,sans-serif">✏️ Modifier</button>'
         + '<button onclick="delProjet(\'' + p.id + '\')" style="margin:0;font-size:11px;font-weight:500;padding:5px 12px;background:var(--red-b);color:var(--red);border:.5px solid rgba(139,31,31,.2);border-radius:100px;cursor:pointer;font-family:Outfit,sans-serif">' + t('delete_btn','Supprimer') + '</button>'
+        + '<button onclick="shareProject(\'' + p.id + '\')" style="margin:0;font-size:11px;font-weight:600;padding:5px 12px;background:#EFF6FF;color:#1D4ED8;border:.5px solid rgba(29,78,216,.2);border-radius:100px;cursor:pointer;font-family:Outfit,sans-serif">&#x1F517; Partager</button>'
+        + '<button onclick="openDocumentsPanel(\'' + p.id + '\',\'' + p.nom.replace(/'/g,"\\'") + '\')" style="margin:0;font-size:11px;font-weight:600;padding:5px 12px;background:#F0FDF4;color:#059669;border:.5px solid rgba(5,150,105,.2);border-radius:100px;cursor:pointer;font-family:Outfit,sans-serif">&#x1F4C1; Docs</button>'
         + '</div>'
     : '';
 
@@ -2344,8 +2346,9 @@ function renderProsList(pros) {
   list.innerHTML = pros.map(p => {
     const stars = [1,2,3,4,5].map(i => i <= Math.floor(p.note) ? '★' : '☆').join('');
     const verified = p.verified ? '<span class="pro-verified">Vérifié ✓</span>' : '';
+    const arcBadge = p.arc_badge === 'verified' ? '<span style="display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:700;padding:2px 8px;border-radius:100px;background:#EEF2FF;color:#4338CA;border:1px solid #C7D2FE">&#x1F3DB; OA Certifié</span>' : '';
     return '<div class="pro-card"><div class="pro-av">' + esc(p.emoji) + '</div>'
-      + '<div class="pro-info"><div class="pro-name">' + esc(p.nom) + '</div>'
+      + '<div class="pro-info"><div class="pro-name">' + esc(p.nom) + (arcBadge ? ' ' + arcBadge : '') + '</div>'
       + '<div class="pro-role">' + esc(_prosRoleLabels[p.role] || p.role) + '</div>'
       + '<div class="pro-ville">📍 ' + esc(p.ville) + '</div>'
       + '<div class="pro-stars">' + stars + ' ' + esc(String(p.note)) + '/5 (' + esc(String(p.avis)) + ' avis)</div>'
@@ -2512,6 +2515,10 @@ function loadProfilePanel() {
   set('edit-email',  u.email);
   set('edit-ville',  u.ville);
   set('edit-tel',    u.tel);
+  // PRO-01: render company profile section
+  if (typeof window.renderCompanyProfile === 'function') window.renderCompanyProfile();
+  // CLT-02: render MRE section
+  if (typeof window.renderMRESection === 'function') window.renderMRESection();
 }
 
 window.saveProfile = async function() {
@@ -3416,6 +3423,19 @@ window.renderAdminPanel = async function() {
       + '</tr></thead>'
       + '<tbody id="admin-users-tbody">' + renderUserRows(users) + '</tbody>'
       + '</table>'
+      + '</div></div>'
+
+      // ARC-02: Section certification OA
+      + '<div class="dcard" style="margin-top:1.5rem">'
+      + '<div class="dcard-tit">&#x1F3DB; Certification Ordre des Architectes (OA)</div>'
+      + '<div style="font-size:12px;color:var(--muted);margin:.4rem 0 .8rem">Certifier ou révoquer le badge OA d\'un utilisateur architecte.</div>'
+      + '<div style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:flex-end">'
+      + '<div style="display:flex;flex-direction:column;gap:.3rem;flex:1;min-width:180px">'
+      + '<label style="font-size:11px;font-weight:600;color:var(--muted)">ID Utilisateur</label>'
+      + '<input id="arc-user-id-input" type="text" placeholder="ID utilisateur (uid_...)" style="padding:.45rem .8rem;border:.5px solid var(--border);border-radius:8px;font-family:Outfit,sans-serif;font-size:12px"/>'
+      + '</div>'
+      + '<button onclick="adminCertifyOA(\'verify\')" style="padding:.45rem 1.1rem;background:#4338CA;color:white;border:none;border-radius:100px;font-family:Outfit,sans-serif;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap">&#x2713; Certifier OA</button>'
+      + '<button onclick="adminCertifyOA(\'revoke\')" style="padding:.45rem 1.1rem;background:var(--red-b);color:var(--red);border:.5px solid rgba(139,31,31,.2);border-radius:100px;font-family:Outfit,sans-serif;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap">&#x2715; Révoquer</button>'
       + '</div></div>';
 
   } catch(e) {
@@ -3449,6 +3469,15 @@ window.adminDeleteUser = async function(uid) {
     if (typeof _adminRenderRows === 'function') _adminRenderRows();
     toast('Utilisateur supprime', 'success');
   } catch(e) { toast(e.message,'error'); }
+};
+
+window.adminCertifyOA = async function(action) {
+  const uid = (document.getElementById('arc-user-id-input')||{}).value||'';
+  if (!uid.trim()) { toast('ID utilisateur requis', 'error'); return; }
+  try {
+    await API.verifyArchitect({ user_id: uid.trim(), action });
+    toast(action === 'verify' ? 'Badge OA certifié !' : 'Badge OA révoqué', 'success');
+  } catch(e) { toast(e.message, 'error'); }
 };
 
 // ── PROJECT EDITING ───────────────────────────────────────────────────────────
@@ -3563,4 +3592,645 @@ function _runOnboarding(panel, steps, idx) {
     _runOnboarding(panel, steps, idx + 1);
   };
 }
+
+// ── PRO-01: Formulaire profil entreprise ──────────────────────────────────────
+window.renderCompanyProfile = function() {
+  const container = document.getElementById('company-profile-section');
+  if (!container) return;
+  if (!currentUser) return;
+  const proRoles = ['pro', 'architecte', 'promoteur'];
+  if (!proRoles.includes(currentUser.role)) {
+    container.style.display = 'none';
+    return;
+  }
+  container.style.display = 'block';
+  const u = currentUser;
+  container.innerHTML =
+    '<div class="form-section" style="margin-top:1.5rem">'
+    + '<div class="form-title">Profil Entreprise</div>'
+    + '<div class="fg-row">'
+    + '<div class="fg"><label>ICE</label><input type="text" id="cp-ice" value="' + esc(u.ice||'') + '" placeholder="ICE (15 chiffres)"/></div>'
+    + '<div class="fg"><label>CNSS</label><input type="text" id="cp-cnss" value="' + esc(u.cnss||'') + '" placeholder="Numéro CNSS"/></div>'
+    + '</div>'
+    + '<div class="fg-row">'
+    + '<div class="fg"><label>RC (Registre du Commerce)</label><input type="text" id="cp-rc" value="' + esc(u.rc||'') + '" placeholder="Numéro RC"/></div>'
+    + '<div class="fg"><label>RIB bancaire</label><input type="text" id="cp-rib" value="' + esc(u.rib||'') + '" placeholder="RIB (24 chiffres)"/></div>'
+    + '</div>'
+    + '<div class="fg"><label>Raison sociale</label><input type="text" id="cp-company-name" value="' + esc(u.company_name||'') + '" placeholder="Nom de votre société"/></div>'
+    + '<div class="fg"><label>Adresse entreprise</label><input type="text" id="cp-company-address" value="' + esc(u.company_address||'') + '" placeholder="Adresse complète"/></div>'
+    + '<button class="submit-btn" onclick="saveCompanyProfile()">Enregistrer le profil entreprise</button>'
+    + '</div>';
+};
+
+window.saveCompanyProfile = async function() {
+  const fields = {
+    ice: (document.getElementById('cp-ice')||{}).value||'',
+    cnss: (document.getElementById('cp-cnss')||{}).value||'',
+    rc: (document.getElementById('cp-rc')||{}).value||'',
+    rib: (document.getElementById('cp-rib')||{}).value||'',
+    company_name: (document.getElementById('cp-company-name')||{}).value||'',
+    company_address: (document.getElementById('cp-company-address')||{}).value||'',
+  };
+  try {
+    await API.updateCompany(fields);
+    currentUser = { ...currentUser, ...fields };
+    localStorage.setItem('sl_user', JSON.stringify(currentUser));
+    toast('Profil entreprise enregistré !', 'success');
+  } catch(e) { toast(e.message, 'error'); }
+};
+
+// ── CLT-02: UI Vérification MRE ───────────────────────────────────────────────
+window.renderMRESection = function() {
+  const container = document.getElementById('mre-verification-section');
+  if (!container) return;
+  if (!currentUser) return;
+  const u = currentUser;
+  if (u.mre_verified) {
+    container.innerHTML = '<div class="form-section" style="margin-top:1.5rem"><div class="form-title">Statut MRE</div>'
+      + '<div style="display:flex;align-items:center;gap:.8rem;padding:1rem;background:var(--green-b);border-radius:12px">'
+      + '<div style="font-size:1.5rem">&#x2705;</div>'
+      + '<div><div style="font-weight:600;color:var(--green)">MRE Vérifié</div>'
+      + '<div style="font-size:12px;color:var(--green)">Résidence : ' + esc(u.mre_country||'') + '</div></div>'
+      + '</div></div>';
+    return;
+  }
+  container.innerHTML = '<div class="form-section" style="margin-top:1.5rem"><div class="form-title">Vérification MRE</div>'
+    + '<div class="fg"><label>Pays de résidence</label>'
+    + '<select id="mre-country">'
+    + ['France','Espagne','Italie','Belgique','Pays-Bas','Allemagne','Canada','USA','UK','Suisse','Autres']
+      .map(c => '<option value="' + c + '"' + (u.mre_country===c?' selected':'') + '>' + c + '</option>').join('')
+    + '</select></div>'
+    + '<div class="fg"><label>Numéro de document d\'identité</label><input type="text" id="mre-doc-num" placeholder="Passeport / CIN / Titre de séjour" value="' + esc(u.mre_document||'') + '"/></div>'
+    + '<button class="submit-btn" onclick="submitMRE()">Soumettre pour vérification</button>'
+    + '</div>';
+};
+
+window.submitMRE = async function() {
+  const country = (document.getElementById('mre-country')||{}).value||'';
+  const doc = (document.getElementById('mre-doc-num')||{}).value||'';
+  if (!country) { toast('Sélectionnez votre pays de résidence', 'error'); return; }
+  try {
+    await API.submitMRE({ country, document_type: doc });
+    currentUser = { ...currentUser, mre_country: country, mre_document: doc };
+    localStorage.setItem('sl_user', JSON.stringify(currentUser));
+    toast('Demande de vérification MRE envoyée. Traitement sous 48h.', 'success');
+    renderMRESection();
+  } catch(e) { toast(e.message, 'error'); }
+};
+
+// ── CLT-03: Partage projet ─────────────────────────────────────────────────────
+window.shareProject = async function(pid) {
+  try {
+    const res = await API.shareProject(pid);
+    const shareUrl = window.location.origin + '/shared/' + res.share_token;
+    await navigator.clipboard.writeText(shareUrl);
+    toast('Lien copié !', 'success');
+  } catch(e) {
+    toast(e.message || 'Erreur partage', 'error');
+  }
+};
+
+// ── ARC-02: Badge OA dans la liste des professionnels ─────────────────────────
+// renderProsList is extended below to show arc_badge
+// Store reference to original so we can wrap it
+const _origRenderProsList = typeof renderProsList === 'function' ? renderProsList : null;
+
+// ── FNC-01: Notifications in-app ──────────────────────────────────────────────
+let _notifTimer = null;
+let _notifUnread = 0;
+
+window.initNotifications = function() {
+  if (!currentUser) return;
+  loadNotifications();
+  if (_notifTimer) clearInterval(_notifTimer);
+  _notifTimer = setInterval(loadNotifications, 30000);
+};
+
+async function loadNotifications() {
+  if (!currentUser) return;
+  try {
+    const notifs = await API.getNotifications();
+    _notifUnread = notifs.filter(n => !n.read).length;
+    updateNotifBadge(_notifUnread);
+    renderNotifDropdown(notifs);
+  } catch(e) {}
+}
+
+function updateNotifBadge(count) {
+  const badge = document.getElementById('notif-badge');
+  if (!badge) return;
+  badge.textContent = count > 0 ? (count > 99 ? '99+' : count) : '';
+  badge.style.display = count > 0 ? 'flex' : 'none';
+}
+
+function renderNotifDropdown(notifs) {
+  const list = document.getElementById('notif-list');
+  if (!list) return;
+  if (!notifs || !notifs.length) {
+    list.innerHTML = '<div style="padding:1.5rem;text-align:center;font-size:13px;color:var(--muted)">Aucune notification</div>';
+    return;
+  }
+  list.innerHTML = notifs.slice(0,15).map(n => {
+    const timeAgo = _timeAgo(n.created_at);
+    return '<div class="notif-item' + (n.read ? '' : ' notif-unread') + '" onclick="clickNotif(' + n.id + ',\'' + esc(n.link||'') + '\')" style="padding:.7rem 1rem;border-bottom:.5px solid var(--border);cursor:pointer;background:' + (n.read ? 'transparent' : 'var(--clay-pp)') + '">'
+      + '<div style="font-size:12px;font-weight:' + (n.read ? '400' : '600') + ';color:var(--ink)">' + esc(n.title) + '</div>'
+      + (n.body ? '<div style="font-size:11px;color:var(--muted);margin-top:2px">' + esc(n.body) + '</div>' : '')
+      + '<div style="font-size:10px;color:var(--muted);margin-top:3px">' + timeAgo + '</div>'
+      + '</div>';
+  }).join('');
+}
+
+function _timeAgo(isoStr) {
+  if (!isoStr) return '';
+  const diff = Math.floor((Date.now() - new Date(isoStr).getTime()) / 1000);
+  if (diff < 60) return 'à l\'instant';
+  if (diff < 3600) return Math.floor(diff/60) + ' min';
+  if (diff < 86400) return Math.floor(diff/3600) + 'h';
+  return Math.floor(diff/86400) + 'j';
+}
+
+window.clickNotif = async function(nid, link) {
+  try { await API.markNotifRead(nid); } catch(e) {}
+  const dropdown = document.getElementById('notif-dropdown');
+  if (dropdown) dropdown.style.display = 'none';
+  loadNotifications();
+  if (link) {
+    const panel = link.replace('#panel-', '');
+    if (panel && panel !== link) showDashPanel(panel, null);
+  }
+};
+
+window.toggleNotifDropdown = function() {
+  const dd = document.getElementById('notif-dropdown');
+  if (!dd) return;
+  const isOpen = dd.style.display === 'block';
+  dd.style.display = isOpen ? 'none' : 'block';
+  if (!isOpen) loadNotifications();
+};
+
+window.markAllNotifsRead = async function() {
+  try {
+    await API.markAllNotifsRead();
+    loadNotifications();
+    toast('Toutes les notifications marquées lues', 'success');
+  } catch(e) {}
+};
+
+// ── FNC-02: Panel Documents par projet ────────────────────────────────────────
+window.openDocumentsPanel = async function(pid, projectName) {
+  const overlay = document.getElementById('docs-modal-overlay');
+  if (!overlay) {
+    // Create modal dynamically
+    const m = document.createElement('div');
+    m.id = 'docs-modal-overlay';
+    m.style.cssText = 'position:fixed;inset:0;background:rgba(15,29,54,.5);z-index:9000;display:flex;align-items:center;justify-content:center;padding:1rem';
+    m.innerHTML = '<div id="docs-modal" style="background:var(--white);border-radius:20px;width:min(600px,100%);max-height:80vh;overflow:hidden;display:flex;flex-direction:column">'
+      + '<div style="padding:1.2rem 1.5rem;border-bottom:.5px solid var(--border);display:flex;justify-content:space-between;align-items:center">'
+      + '<div style="font-size:15px;font-weight:700" id="docs-modal-title">Documents</div>'
+      + '<button onclick="document.getElementById(\'docs-modal-overlay\').style.display=\'none\'" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:var(--muted)">&#x2715;</button>'
+      + '</div>'
+      + '<div style="padding:1rem 1.5rem;border-bottom:.5px solid var(--border)">'
+      + '<div style="display:flex;gap:.6rem;align-items:center;flex-wrap:wrap">'
+      + '<select id="doc-category-sel" style="font-size:12px;padding:.4rem .7rem;border:.5px solid var(--border);border-radius:8px;font-family:Outfit,sans-serif">'
+      + '<option value="other">Autre</option><option value="permis">Permis de construire</option>'
+      + '<option value="plan_masse">Plan masse</option><option value="etude_impact">Étude d\'impact</option>'
+      + '<option value="contrat">Contrat</option><option value="photo">Photo chantier</option>'
+      + '<option value="devis">Devis/Facture</option>'
+      + '</select>'
+      + '<label style="display:inline-flex;align-items:center;gap:.4rem;font-size:12px;font-weight:600;padding:.4rem 1rem;background:var(--clay);color:white;border-radius:100px;cursor:pointer">'
+      + '&#x2b06; Uploader<input type="file" id="doc-file-input" style="display:none" onchange="uploadDocumentFile(\'' + pid + '\')">'
+      + '</label>'
+      + '</div>'
+      + '</div>'
+      + '<div id="docs-list" style="overflow-y:auto;padding:1rem 1.5rem;flex:1"></div>'
+      + '</div>';
+    document.body.appendChild(m);
+  } else {
+    overlay.style.display = 'flex';
+    const inp = document.getElementById('doc-file-input');
+    if (inp) inp.setAttribute('onchange', 'uploadDocumentFile(\'' + pid + '\')');
+  }
+  document.getElementById('docs-modal-overlay').style.display = 'flex';
+  const titleEl = document.getElementById('docs-modal-title');
+  if (titleEl) titleEl.textContent = 'Documents — ' + (projectName || pid);
+  await refreshDocsList(pid);
+};
+
+async function refreshDocsList(pid) {
+  const list = document.getElementById('docs-list');
+  if (!list) return;
+  list.innerHTML = '<div style="text-align:center;padding:1rem;color:var(--muted);font-size:12px">Chargement...</div>';
+  try {
+    const docs = await API.getDocuments(pid);
+    if (!docs.length) {
+      list.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--muted);font-size:13px">Aucun document. Uploadez le premier.</div>';
+      return;
+    }
+    const catIcon = { permis:'📋', plan_masse:'🗺️', etude_impact:'📊', contrat:'📄', photo:'📷', devis:'💰', other:'📁' };
+    list.innerHTML = docs.map(d => {
+      const icon = catIcon[d.category] || '📁';
+      return '<div style="display:flex;align-items:center;gap:.8rem;padding:.7rem 0;border-bottom:.5px solid var(--border)">'
+        + '<div style="font-size:1.5rem;flex-shrink:0">' + icon + '</div>'
+        + '<div style="flex:1;min-width:0">'
+        + '<div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(d.filename) + '</div>'
+        + '<div style="font-size:10px;color:var(--muted)">' + esc(d.category) + ' · ' + (d.created_at||'').slice(0,10) + '</div>'
+        + '</div>'
+        + '<div style="display:flex;gap:.4rem;flex-shrink:0">'
+        + '<a href="' + esc(d.url) + '" target="_blank" style="font-size:11px;padding:4px 10px;background:var(--blue-b);color:var(--blue);border-radius:100px;text-decoration:none;font-weight:600">&#x21e9; Voir</a>'
+        + '<button onclick="deleteDocumentFile(' + d.id + ',\'' + pid + '\')" style="font-size:11px;padding:4px 10px;background:var(--red-b);color:var(--red);border:.5px solid rgba(139,31,31,.2);border-radius:100px;cursor:pointer;font-family:Outfit,sans-serif;font-weight:600">&#x2715;</button>'
+        + '</div>'
+        + '</div>';
+    }).join('');
+  } catch(e) {
+    list.innerHTML = '<div style="color:var(--red);text-align:center;padding:1rem;font-size:12px">' + esc(e.message) + '</div>';
+  }
+}
+
+window.uploadDocumentFile = async function(pid) {
+  const input = document.getElementById('doc-file-input');
+  const catSel = document.getElementById('doc-category-sel');
+  if (!input || !input.files[0]) return;
+  const fd = new FormData();
+  fd.append('file', input.files[0]);
+  fd.append('category', catSel ? catSel.value : 'other');
+  try {
+    await API.uploadDocument(pid, fd);
+    toast('Document uploadé !', 'success');
+    input.value = '';
+    await refreshDocsList(pid);
+  } catch(e) { toast(e.message, 'error'); }
+};
+
+window.deleteDocumentFile = async function(did, pid) {
+  if (!confirm('Supprimer ce document ?')) return;
+  try {
+    await API.deleteDocument(did);
+    toast('Document supprimé', 'success');
+    await refreshDocsList(pid);
+  } catch(e) { toast(e.message, 'error'); }
+};
+
+// ── PRM-01: Panel équipe promoteur ────────────────────────────────────────────
+window.renderTeamPanel = async function() {
+  const panel = document.getElementById('panel-team');
+  if (!panel) return;
+  if (!currentUser || currentUser.role !== 'promoteur') {
+    panel.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--muted)">Réservé aux promoteurs</div>';
+    return;
+  }
+  panel.innerHTML = '<div style="padding:1.5rem;color:var(--muted);font-size:13px;text-align:center">Chargement...</div>';
+  try {
+    const team = await API.getTeam();
+    panel.innerHTML =
+      '<div class="dh"><div><div class="dh-title">Mon équipe</div><div class="dh-sub">Gérez les accès à vos projets</div></div></div>'
+      + '<div class="dcard" style="margin-bottom:1.2rem">'
+      + '<div class="dcard-tit">Inviter un membre</div>'
+      + '<div style="display:flex;gap:.6rem;flex-wrap:wrap;margin-top:.8rem">'
+      + '<input id="team-email-input" type="email" placeholder="email@example.com" style="flex:1;min-width:180px;padding:.5rem .8rem;border:.5px solid var(--border);border-radius:8px;font-family:Outfit,sans-serif;font-size:13px"/>'
+      + '<select id="team-role-sel" style="padding:.5rem .8rem;border:.5px solid var(--border);border-radius:8px;font-family:Outfit,sans-serif;font-size:13px">'
+      + '<option value="viewer">Lecteur</option><option value="editor">Éditeur</option></select>'
+      + '<button onclick="inviteTeamMember()" style="padding:.5rem 1.2rem;background:var(--clay);color:white;border:none;border-radius:100px;font-family:Outfit,sans-serif;font-size:13px;font-weight:600;cursor:pointer">Inviter</button>'
+      + '</div></div>'
+      + '<div class="dcard">'
+      + '<div class="dcard-tit">Membres (' + team.length + ')</div>'
+      + (team.length ? team.map(m =>
+        '<div style="display:flex;align-items:center;justify-content:space-between;padding:.6rem 0;border-bottom:.5px solid var(--border)">'
+        + '<div><div style="font-size:13px;font-weight:600">' + esc(m.member_email) + '</div>'
+        + '<div style="font-size:11px;color:var(--muted)">' + esc(m.role) + ' · invité le ' + (m.invited_at||'').slice(0,10) + '</div></div>'
+        + '<button onclick="removeTeamMember(' + m.id + ')" style="font-size:11px;padding:4px 10px;background:var(--red-b);color:var(--red);border:.5px solid rgba(139,31,31,.2);border-radius:100px;cursor:pointer;font-family:Outfit,sans-serif">Retirer</button>'
+        + '</div>'
+      ).join('') : '<div style="text-align:center;padding:1.5rem;color:var(--muted);font-size:13px">Aucun membre. Invitez votre équipe.</div>')
+      + '</div>';
+  } catch(e) {
+    panel.innerHTML = '<div style="padding:2rem;color:var(--red);text-align:center">' + esc(e.message) + '</div>';
+  }
+};
+
+window.inviteTeamMember = async function() {
+  const email = (document.getElementById('team-email-input')||{}).value||'';
+  const role = (document.getElementById('team-role-sel')||{}).value||'viewer';
+  if (!email) { toast('Email requis', 'error'); return; }
+  try {
+    await API.inviteTeam({ member_email: email, role });
+    toast('Invitation envoyée à ' + email, 'success');
+    renderTeamPanel();
+  } catch(e) { toast(e.message, 'error'); }
+};
+
+window.removeTeamMember = async function(tid) {
+  if (!confirm('Retirer ce membre ?')) return;
+  try {
+    await API.removeTeamMember(tid);
+    toast('Membre retiré', 'success');
+    renderTeamPanel();
+  } catch(e) { toast(e.message, 'error'); }
+};
+
+// ── PRM-02: Programmes ────────────────────────────────────────────────────────
+let _programmes = [];
+
+window.loadProgrammes = async function() {
+  if (!currentUser || currentUser.role !== 'promoteur') return;
+  try {
+    _programmes = await API.getProgrammes();
+    renderProgrammeDropdown();
+  } catch(e) {}
+};
+
+function renderProgrammeDropdown() {
+  const sel = document.getElementById('proj-programme-sel');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">— Aucun programme —</option>'
+    + _programmes.map(p => '<option value="' + p.id + '">' + esc(p.name) + '</option>').join('');
+}
+
+window.renderProgrammesPanel = async function() {
+  const panel = document.getElementById('panel-programmes');
+  if (!panel) return;
+  if (!currentUser || currentUser.role !== 'promoteur') {
+    panel.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--muted)">Réservé aux promoteurs</div>';
+    return;
+  }
+  try {
+    _programmes = await API.getProgrammes();
+    panel.innerHTML =
+      '<div class="dh"><div><div class="dh-title">Programmes</div><div class="dh-sub">Regroupez vos projets par programme immobilier</div></div></div>'
+      + '<div class="dcard" style="margin-bottom:1.2rem">'
+      + '<div class="dcard-tit">Nouveau programme</div>'
+      + '<div style="display:flex;gap:.6rem;flex-direction:column;margin-top:.8rem">'
+      + '<input id="prog-name-input" type="text" placeholder="Nom du programme" style="padding:.5rem .8rem;border:.5px solid var(--border);border-radius:8px;font-family:Outfit,sans-serif;font-size:13px"/>'
+      + '<input id="prog-desc-input" type="text" placeholder="Description (optionnel)" style="padding:.5rem .8rem;border:.5px solid var(--border);border-radius:8px;font-family:Outfit,sans-serif;font-size:13px"/>'
+      + '<button onclick="createProgramme()" style="padding:.5rem 1.2rem;background:var(--clay);color:white;border:none;border-radius:100px;font-family:Outfit,sans-serif;font-size:13px;font-weight:600;cursor:pointer;align-self:flex-start">Créer</button>'
+      + '</div></div>'
+      + '<div class="dcard">'
+      + '<div class="dcard-tit">Programmes (' + _programmes.length + ')</div>'
+      + (_programmes.length ? _programmes.map(p => {
+        const projCount = DB.projects.filter(proj => String(proj.programme_id) === String(p.id)).length;
+        return '<div style="display:flex;align-items:center;justify-content:space-between;padding:.7rem 0;border-bottom:.5px solid var(--border)">'
+          + '<div><div style="font-size:13px;font-weight:600">' + esc(p.name) + '</div>'
+          + '<div style="font-size:11px;color:var(--muted)">' + projCount + ' projet(s) · ' + (p.description ? esc(p.description) : '') + '</div></div>'
+          + '<div style="display:flex;gap:.4rem">'
+          + '<button onclick="deleteProgramme(' + p.id + ')" style="font-size:11px;padding:4px 10px;background:var(--red-b);color:var(--red);border:.5px solid rgba(139,31,31,.2);border-radius:100px;cursor:pointer;font-family:Outfit,sans-serif">Supprimer</button>'
+          + '</div></div>';
+      }).join('') : '<div style="text-align:center;padding:1.5rem;color:var(--muted);font-size:13px">Aucun programme.</div>')
+      + '</div>';
+  } catch(e) {
+    panel.innerHTML = '<div style="padding:2rem;color:var(--red);text-align:center">' + esc(e.message) + '</div>';
+  }
+};
+
+window.createProgramme = async function() {
+  const name = (document.getElementById('prog-name-input')||{}).value||'';
+  const desc = (document.getElementById('prog-desc-input')||{}).value||'';
+  if (!name.trim()) { toast('Nom requis', 'error'); return; }
+  try {
+    await API.createProgramme({ name: name.trim(), description: desc });
+    toast('Programme créé !', 'success');
+    renderProgrammesPanel();
+  } catch(e) { toast(e.message, 'error'); }
+};
+
+window.deleteProgramme = async function(pid) {
+  if (!confirm('Supprimer ce programme ?')) return;
+  try {
+    await API.deleteProgramme(pid);
+    toast('Programme supprimé', 'success');
+    renderProgrammesPanel();
+  } catch(e) { toast(e.message, 'error'); }
+};
+
+// ── PRM-04: Dashboard ROI promoteur ───────────────────────────────────────────
+window.renderROIPanel = async function() {
+  const panel = document.getElementById('panel-roi');
+  if (!panel) return;
+  if (!currentUser || currentUser.role !== 'promoteur') {
+    panel.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--muted)">Réservé aux promoteurs</div>';
+    return;
+  }
+  panel.innerHTML = '<div style="padding:1.5rem;color:var(--muted);font-size:13px;text-align:center">Chargement...</div>';
+  try {
+    const roi = await API.getPromoterROI();
+    const ratio = roi.roi_ratio || 0;
+    const ratioColor = ratio >= 80 ? 'var(--green)' : ratio >= 50 ? 'var(--amber)' : 'var(--red)';
+    panel.innerHTML =
+      '<div class="dh"><div><div class="dh-title">Dashboard ROI</div><div class="dh-sub">Vue financière de vos programmes immobiliers</div></div></div>'
+      // KPIs
+      + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.8rem;margin-bottom:1.5rem">'
+      + _roiKpi('Projets', roi.nb_projects, '#1D4ED8', '#EFF6FF')
+      + _roiKpi('Budget total', fmt(roi.total_budget), '#0D9488', '#F0FDFA')
+      + _roiKpi('Dépenses', fmt(roi.total_expenses), roi.total_expenses > roi.total_budget ? '#DC2626' : '#D97706', roi.total_expenses > roi.total_budget ? '#FEF2F2' : '#FEF3C7')
+      + _roiKpi('Économies', fmt(roi.total_budget - roi.total_expenses), ratio >= 0 ? '#059669' : '#DC2626', ratio >= 0 ? '#ECFDF5' : '#FEF2F2')
+      + _roiKpi('Briefs actifs', roi.nb_active_briefs, '#7C3AED', '#EDE9FE')
+      + '</div>'
+      // Budget vs Dépenses bar
+      + '<div class="dcard">'
+      + '<div class="dcard-tit">Budget vs Dépenses</div>'
+      + '<div style="margin-top:.8rem">'
+      + (roi.total_budget > 0 ? '<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:.3rem"><span>Consommation budget</span><span style="font-weight:700;color:' + ratioColor + '">' + (100-ratio).toFixed(1) + '%</span></div>'
+        + '<div style="height:12px;background:var(--sand);border-radius:6px;overflow:hidden"><div style="height:100%;width:' + Math.min(100, 100-ratio) + '%;background:' + ratioColor + ';border-radius:6px;transition:width .5s"></div></div>'
+        + '<div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-top:.3rem"><span>' + fmt(roi.total_expenses) + ' dépensés</span><span>/ ' + fmt(roi.total_budget) + ' budget</span></div>'
+        : '<div style="text-align:center;padding:1rem;color:var(--muted);font-size:13px">Aucun projet avec budget</div>')
+      + '</div>'
+      // Project breakdown
+      + '<div style="margin-top:1.2rem">'
+      + DB.projects.filter(p => p.budget > 0).map(p => {
+        const pExp = (DB.expenses||[]).filter(e => e.project_id === p.id && !e.deleted).reduce((s,e) => s+(e.montant||0), 0);
+        const pct = Math.min(100, Math.round(pExp / p.budget * 100));
+        const col = pct > 100 ? 'var(--red)' : pct > 75 ? 'var(--amber)' : 'var(--green)';
+        return '<div style="margin-bottom:.8rem">'
+          + '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:.3rem"><span style="font-weight:600">' + esc(p.nom) + '</span><span style="color:' + col + ';font-weight:700">' + fmt(pExp) + ' / ' + fmt(p.budget) + '</span></div>'
+          + '<div style="height:8px;background:var(--sand);border-radius:4px;overflow:hidden"><div style="height:100%;width:' + pct + '%;background:' + col + ';border-radius:4px"></div></div>'
+          + '</div>';
+      }).join('')
+      + '</div></div>';
+  } catch(e) {
+    panel.innerHTML = '<div style="padding:2rem;color:var(--red);text-align:center">' + esc(e.message) + '</div>';
+  }
+};
+
+function _roiKpi(label, value, color, bg) {
+  return '<div style="background:' + bg + ';border-radius:12px;padding:1rem;border:.5px solid ' + color + '22">'
+    + '<div style="font-size:9px;font-weight:700;color:' + color + ';text-transform:uppercase;letter-spacing:.06em;margin-bottom:.3rem">' + label + '</div>'
+    + '<div style="font-size:1.2rem;font-weight:800;color:' + color + '">' + value + '</div>'
+    + '</div>';
+}
+
+// ── ARC-02: badge dans la liste des pros ──────────────────────────────────────
+// Patch renderProsList to add arc_badge display
+const _origRenderProsListFn = window.renderProsList;
+if (typeof renderProsList === 'function') {
+  // We'll inject arc_badge in the pros list rendering via patching
+  // The actual injection happens inside renderProsList by checking d.arc_badge
+}
+
+// ── PAY-01 / BIL-01: Billing panel ───────────────────────────────────────────
+window.renderBillingPanel = async function() {
+  const el = document.getElementById('billing-content');
+  if (!el) return;
+  el.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--muted);font-size:13px">Chargement...</div>';
+
+  let payments = [], invoices = [];
+  try { payments = await API.get('/payments/history'); } catch(e) { payments = []; }
+  try { invoices = await API.get('/invoices'); } catch(e) { invoices = []; }
+
+  const planColors = { starter: '#6B7280', pro: '#E8B84B', premium: '#8B5CF6', business: '#1D4ED8' };
+  const currentPlan = (currentUser && currentUser.plan) || 'starter';
+  const planColor = planColors[currentPlan] || '#6B7280';
+
+  const planSection = '<div class="dcard" style="margin-bottom:1.2rem">'
+    + '<div class="dcard-tit">Plan actuel</div>'
+    + '<div style="display:flex;align-items:center;gap:.8rem;padding:.5rem 0">'
+    + '<span style="font-size:13px;font-weight:700;padding:4px 14px;border-radius:100px;background:' + planColor + ';color:white;text-transform:capitalize">' + currentPlan + '</span>'
+    + '<span style="font-size:12px;color:var(--muted)">Votre abonnement actuel</span>'
+    + '</div>'
+    + '<div style="display:flex;gap:.6rem;flex-wrap:wrap;margin-top:.8rem">'
+    + ['starter', 'pro', 'premium'].map(p => {
+        const prices = { starter: '299', pro: '499', premium: '999' };
+        return '<button onclick="upgradePlan(\'' + p + '\')" style="font-size:12px;font-weight:600;padding:8px 16px;border:1.5px solid ' + (planColors[p]||'#ccc') + ';border-radius:100px;background:' + (currentPlan===p ? planColors[p] : 'transparent') + ';color:' + (currentPlan===p ? 'white' : planColors[p]) + ';cursor:pointer;font-family:Outfit,sans-serif">'
+          + (currentPlan===p ? '✓ ' : '') + p.charAt(0).toUpperCase()+p.slice(1) + ' — ' + prices[p] + ' DH/mois</button>';
+      }).join('')
+    + '</div>'
+    + '</div>';
+
+  const paymentsSection = '<div class="dcard" style="margin-bottom:1.2rem">'
+    + '<div class="dcard-tit">Historique des paiements</div>'
+    + (payments.length === 0
+      ? '<div style="font-size:13px;color:var(--muted);padding:.5rem 0">Aucun paiement enregistré.</div>'
+      : '<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="border-bottom:.5px solid var(--border)">'
+        + '<th style="text-align:left;padding:.4rem .5rem;color:var(--muted);font-weight:600">Date</th>'
+        + '<th style="text-align:left;padding:.4rem .5rem;color:var(--muted);font-weight:600">Plan</th>'
+        + '<th style="text-align:right;padding:.4rem .5rem;color:var(--muted);font-weight:600">Montant</th>'
+        + '<th style="text-align:left;padding:.4rem .5rem;color:var(--muted);font-weight:600">Statut</th>'
+        + '</tr></thead><tbody>'
+        + payments.map(p => {
+            const statusColor = p.status === 'paid' ? 'var(--green)' : p.status === 'pending' ? '#F59E0B' : 'var(--muted)';
+            return '<tr style="border-bottom:.5px solid var(--border)">'
+              + '<td style="padding:.4rem .5rem">' + (p.created_at||'').substring(0,10) + '</td>'
+              + '<td style="padding:.4rem .5rem;text-transform:capitalize">' + (p.plan||'—') + '</td>'
+              + '<td style="padding:.4rem .5rem;text-align:right;font-weight:600">' + ((p.amount||0)/100).toFixed(0) + ' DH</td>'
+              + '<td style="padding:.4rem .5rem"><span style="color:' + statusColor + ';font-weight:600">' + (p.status||'—') + '</span></td>'
+              + '</tr>';
+          }).join('')
+        + '</tbody></table>')
+    + '</div>';
+
+  const invoicesSection = '<div class="dcard">'
+    + '<div class="dcard-tit">Factures</div>'
+    + (invoices.length === 0
+      ? '<div style="font-size:13px;color:var(--muted);padding:.5rem 0">Aucune facture disponible.</div>'
+      : '<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="border-bottom:.5px solid var(--border)">'
+        + '<th style="text-align:left;padding:.4rem .5rem;color:var(--muted);font-weight:600">N°</th>'
+        + '<th style="text-align:left;padding:.4rem .5rem;color:var(--muted);font-weight:600">Date</th>'
+        + '<th style="text-align:right;padding:.4rem .5rem;color:var(--muted);font-weight:600">Total TTC</th>'
+        + '<th style="text-align:left;padding:.4rem .5rem;color:var(--muted);font-weight:600">Statut</th>'
+        + '</tr></thead><tbody>'
+        + invoices.map(inv => '<tr style="border-bottom:.5px solid var(--border)">'
+            + '<td style="padding:.4rem .5rem;font-weight:600">' + (inv.invoice_number||'—') + '</td>'
+            + '<td style="padding:.4rem .5rem">' + (inv.issued_at||'').substring(0,10) + '</td>'
+            + '<td style="padding:.4rem .5rem;text-align:right;font-weight:600">' + (inv.total||0) + ' DH</td>'
+            + '<td style="padding:.4rem .5rem">' + (inv.status||'—') + '</td>'
+            + '</tr>').join('')
+        + '</tbody></table>')
+    + '</div>';
+
+  el.innerHTML = '<div class="dh"><div><div class="dh-title">💳 Facturation</div><div class="dh-sub">Gérez votre abonnement et consultez vos factures</div></div></div>'
+    + planSection + paymentsSection + invoicesSection;
+};
+
+window.upgradePlan = async function(plan) {
+  try {
+    const res = await API.post('/payments/create-checkout', { plan });
+    if (res.checkout_url) window.location.href = res.checkout_url;
+  } catch(e) {
+    alert('Erreur: ' + e.message);
+  }
+};
+
+// ── API-01: API & Développeurs panel ─────────────────────────────────────────
+window.renderApiPanel = async function() {
+  const el = document.getElementById('api-content');
+  if (!el) return;
+  el.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--muted);font-size:13px">Chargement...</div>';
+
+  let keys = [];
+  try { keys = await API.get('/keys'); } catch(e) { keys = []; }
+
+  const keysTable = keys.length === 0
+    ? '<div style="font-size:13px;color:var(--muted);padding:.5rem 0">Aucune clé API créée.</div>'
+    : '<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="border-bottom:.5px solid var(--border)">'
+      + '<th style="text-align:left;padding:.4rem .5rem;color:var(--muted);font-weight:600">Nom</th>'
+      + '<th style="text-align:left;padding:.4rem .5rem;color:var(--muted);font-weight:600">Permissions</th>'
+      + '<th style="text-align:left;padding:.4rem .5rem;color:var(--muted);font-weight:600">Dernière utilisation</th>'
+      + '<th style="text-align:left;padding:.4rem .5rem;color:var(--muted);font-weight:600">Créée le</th>'
+      + '<th style="padding:.4rem .5rem"></th>'
+      + '</tr></thead><tbody>'
+      + keys.map(k => '<tr style="border-bottom:.5px solid var(--border)">'
+          + '<td style="padding:.4rem .5rem;font-weight:600">' + (k.name||'default') + '</td>'
+          + '<td style="padding:.4rem .5rem"><span style="font-size:10px;padding:2px 8px;border-radius:100px;background:var(--sand);color:var(--ink)">' + (k.permissions||'read') + '</span></td>'
+          + '<td style="padding:.4rem .5rem;color:var(--muted)">' + (k.last_used_at ? k.last_used_at.substring(0,16).replace('T',' ') : 'jamais') + '</td>'
+          + '<td style="padding:.4rem .5rem;color:var(--muted)">' + (k.created_at||'').substring(0,10) + '</td>'
+          + '<td style="padding:.4rem .5rem"><button onclick="revokeApiKey(' + k.id + ')" style="font-size:11px;padding:4px 10px;border:.5px solid var(--red);color:var(--red);background:transparent;border-radius:100px;cursor:pointer;font-family:Outfit,sans-serif">Révoquer</button></td>'
+          + '</tr>').join('')
+      + '</tbody></table>';
+
+  el.innerHTML = '<div class="dh"><div><div class="dh-title">🔑 API & Développeurs</div><div class="dh-sub">Gérez vos clés d\'accès à l\'API ShantiLink</div></div></div>'
+    + '<div class="dcard" style="margin-bottom:1.2rem">'
+    + '<div class="dcard-tit">Clés API existantes</div>'
+    + keysTable
+    + '</div>'
+    + '<div class="dcard">'
+    + '<div class="dcard-tit">Créer une nouvelle clé</div>'
+    + '<div style="display:grid;grid-template-columns:1fr 1fr auto;gap:.7rem;align-items:end">'
+    + '<div class="fg" style="margin:0"><label>Nom de la clé</label><input id="api-key-name" type="text" placeholder="Ex: mon-app-externe" style="width:100%;padding:.5rem .8rem;border:.5px solid var(--border);border-radius:10px;font-family:Outfit,sans-serif;font-size:13px"/></div>'
+    + '<div class="fg" style="margin:0"><label>Permissions</label><select id="api-key-perm" style="width:100%;padding:.5rem .8rem;border:.5px solid var(--border);border-radius:10px;font-family:Outfit,sans-serif;font-size:13px"><option value="read">Lecture seule</option><option value="write">Lecture + Écriture</option></select></div>'
+    + '<button onclick="createApiKey()" class="submit-btn" style="margin:0;white-space:nowrap">Créer la clé</button>'
+    + '</div>'
+    + '<div id="api-key-result" style="display:none;margin-top:.8rem;padding:.8rem 1rem;background:var(--green-b);border-radius:10px;font-size:12px;font-weight:600;color:var(--green);word-break:break-all"></div>'
+    + '</div>'
+    + '<div class="dcard" style="margin-top:1.2rem">'
+    + '<div class="dcard-tit">Endpoints disponibles</div>'
+    + '<div style="font-size:12px;color:var(--muted);line-height:2">'
+    + '<code style="background:var(--sand);padding:2px 6px;border-radius:4px">GET /v1/projects</code> — Liste vos projets<br>'
+    + '<code style="background:var(--sand);padding:2px 6px;border-radius:4px">GET /v1/expenses</code> — Liste vos dépenses<br>'
+    + '<div style="margin-top:.5rem;font-size:11px;color:var(--muted)">Utiliser l\'en-tête <code style="background:var(--sand);padding:1px 5px;border-radius:3px">X-API-Key: sl_...</code> pour l\'authentification.</div>'
+    + '</div>'
+    + '</div>';
+};
+
+window.createApiKey = async function() {
+  const name = (document.getElementById('api-key-name') || {}).value || 'default';
+  const perm = (document.getElementById('api-key-perm') || {}).value || 'read';
+  try {
+    const res = await API.post('/keys', { name, permissions: perm });
+    const resultEl = document.getElementById('api-key-result');
+    if (resultEl) {
+      resultEl.style.display = 'block';
+      resultEl.innerHTML = '🔑 Votre clé API (copiez-la maintenant, elle ne sera plus affichée) :<br><br><strong>' + res.api_key + '</strong>';
+    }
+    // Refresh the panel to show new key in the list
+    setTimeout(renderApiPanel, 500);
+  } catch(e) {
+    alert('Erreur: ' + e.message);
+  }
+};
+
+window.revokeApiKey = async function(kid) {
+  if (!confirm('Révoquer cette clé API ? Elle ne fonctionnera plus immédiatement.')) return;
+  try {
+    await API.del('/keys/' + kid);
+    renderApiPanel();
+  } catch(e) {
+    alert('Erreur: ' + e.message);
+  }
+};
+
+// ── Hook: init notifications when dashboard loads ─────────────────────────────
+const _origLoadDashboard = window.loadDashboard;
+window.loadDashboard = async function() {
+  if (_origLoadDashboard) await _origLoadDashboard.call(this);
+  initNotifications();
+  if (currentUser && (currentUser.role === 'promoteur')) {
+    loadProgrammes();
+  }
+};
 

@@ -212,8 +212,112 @@ def init_db():
         "ALTER TABLE brief_responses ADD COLUMN conditions TEXT DEFAULT ''",
         "ALTER TABLE brief_responses ADD COLUMN phases TEXT DEFAULT NULL",
         "ALTER TABLE brief_responses ADD COLUMN attachment_url TEXT DEFAULT ''",
+        # CLT-02: MRE identity verification fields
+        "ALTER TABLE users ADD COLUMN mre_country TEXT DEFAULT ''",
+        "ALTER TABLE users ADD COLUMN mre_verified INTEGER DEFAULT 0",
+        "ALTER TABLE users ADD COLUMN mre_document TEXT DEFAULT ''",
+        # CLT-03: project share token
+        "ALTER TABLE projects ADD COLUMN share_token TEXT DEFAULT ''",
+        # PRO-01: company profile fields
+        "ALTER TABLE users ADD COLUMN ice TEXT",
+        "ALTER TABLE users ADD COLUMN cnss TEXT",
+        "ALTER TABLE users ADD COLUMN rc TEXT",
+        "ALTER TABLE users ADD COLUMN rib TEXT",
+        "ALTER TABLE users ADD COLUMN company_name TEXT",
+        "ALTER TABLE users ADD COLUMN company_address TEXT",
+        # ARC-02: Ordre des Architectes badge
+        "ALTER TABLE users ADD COLUMN arc_badge TEXT",
+        "ALTER TABLE users ADD COLUMN arc_number TEXT",
+        "ALTER TABLE professionals ADD COLUMN arc_badge TEXT",
+        # PRM-02: programme parent for projects
+        "ALTER TABLE projects ADD COLUMN programme_id INTEGER",
     ]:
         _run_migration(migration)
+
+    # FNC-01: notifications table
+    _run_migration("""CREATE TABLE IF NOT EXISTS notifications (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id TEXT NOT NULL,
+        type TEXT NOT NULL,
+        title TEXT NOT NULL,
+        body TEXT,
+        link TEXT,
+        read INTEGER DEFAULT 0,
+        created_at TEXT DEFAULT (datetime('now'))
+    )""")
+
+    # FNC-02: documents table
+    _run_migration("""CREATE TABLE IF NOT EXISTS documents (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        project_id INTEGER,
+        uploaded_by TEXT NOT NULL,
+        filename TEXT NOT NULL,
+        url TEXT NOT NULL,
+        category TEXT DEFAULT 'other',
+        shared_with TEXT,
+        created_at TEXT DEFAULT (datetime('now'))
+    )""")
+
+    # PRM-01: promoter team table
+    _run_migration("""CREATE TABLE IF NOT EXISTS promoter_team (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        promoter_id TEXT NOT NULL,
+        member_email TEXT NOT NULL,
+        role TEXT DEFAULT 'viewer',
+        invited_at TEXT DEFAULT (datetime('now'))
+    )""")
+
+    # PRM-02: programmes table
+    _run_migration("""CREATE TABLE IF NOT EXISTS programmes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        promoter_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        description TEXT,
+        created_at TEXT DEFAULT (datetime('now'))
+    )""")
+
+    # PAY-01: payments table
+    _run_migration("""CREATE TABLE IF NOT EXISTS payments (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        amount INTEGER NOT NULL,
+        currency TEXT DEFAULT 'mad',
+        status TEXT DEFAULT 'pending',
+        stripe_session_id TEXT,
+        stripe_payment_intent TEXT,
+        plan TEXT,
+        description TEXT,
+        created_at TEXT DEFAULT (datetime('now')),
+        updated_at TEXT DEFAULT (datetime('now'))
+    )""")
+
+    # BIL-01: invoices table
+    _run_migration("""CREATE TABLE IF NOT EXISTS invoices (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id TEXT NOT NULL,
+        payment_id TEXT,
+        invoice_number TEXT UNIQUE,
+        amount INTEGER,
+        vat_amount INTEGER DEFAULT 0,
+        total INTEGER,
+        currency TEXT DEFAULT 'MAD',
+        status TEXT DEFAULT 'draft',
+        issued_at TEXT DEFAULT (datetime('now')),
+        due_at TEXT,
+        pdf_url TEXT
+    )""")
+
+    # API-01: api_keys table
+    _run_migration("""CREATE TABLE IF NOT EXISTS api_keys (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id TEXT NOT NULL,
+        key_hash TEXT NOT NULL UNIQUE,
+        name TEXT,
+        permissions TEXT DEFAULT 'read',
+        last_used_at TEXT,
+        created_at TEXT DEFAULT (datetime('now')),
+        active INTEGER DEFAULT 1
+    )""")
 
     # ── Indexes (idempotents) ─────────────────────────────────────────────────
     for idx in [
@@ -407,6 +511,17 @@ def init_db():
     finally:
         conn.close()
 
+    # CMP-06: auto-purge audit log > 90j au démarrage
+    try:
+        from datetime import timedelta
+        _cutoff = (datetime.utcnow() - timedelta(days=90)).isoformat()
+        _pconn = get_db()
+        _pconn.execute(*sql_params("DELETE FROM agent_audit_log WHERE created_at < ?", [_cutoff]))
+        _pconn.commit()
+        _pconn.close()
+    except Exception:
+        pass
+
 # ── Auth helpers ──────────────────────────────────────────────────────────────
 try:
     from argon2 import PasswordHasher as _PH
@@ -514,6 +629,11 @@ def verify_token(token: str) -> dict:
 
 def get_current_user(request: Request) -> dict:
     auth = request.headers.get("Authorization", "")
+    # CMP-07: fallback to HttpOnly cookie
+    if not auth:
+        cookie_token = request.cookies.get("sl_auth", "")
+        if cookie_token:
+            auth = "Bearer " + cookie_token
     if not auth.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Non authentifié")
     return verify_token(auth[7:])
@@ -607,6 +727,10 @@ class ReviewIn(BaseModel):
 class ChatMessageIn(BaseModel):
     content: str
 
+class MreVerifyIn(BaseModel):
+    country: str  # pays de résidence MRE
+    document_type: str = "passport"  # passport, cni, titre_sejour
+
 # ── App ───────────────────────────────────────────────────────────────────────
 _docs_url = None if os.environ.get("ENV") == "prod" else "/api/docs"
 app = FastAPI(title="ShantiLink API", version="1.0.0", docs_url=_docs_url)
@@ -692,9 +816,111 @@ def health():
 def get_me(user: dict = Depends(get_current_user)):
     conn = get_db()
     try:
-        row = conn.execute(*sql_params("SELECT id,prenom,nom,email,role,ville,plan FROM users WHERE id=?", [user["sub"]])).fetchone()
+        row = conn.execute(*sql_params(
+            "SELECT id,prenom,nom,email,role,ville,plan,tel,bio,photo_url,is_verified,"
+            "mre_country,mre_verified,mre_document,"
+            "ice,cnss,rc,rib,company_name,company_address,"
+            "arc_badge,arc_number "
+            "FROM users WHERE id=?", [user["sub"]]
+        )).fetchone()
         if not row: raise HTTPException(404, "Utilisateur non trouvé")
         return dict(row._mapping)
+    finally:
+        conn.close()
+
+@app.delete("/api/me")
+def delete_my_account(user: dict = Depends(get_current_user)):
+    """CMP-05: RGPD droit à l'effacement — supprime toutes les données utilisateur."""
+    conn = get_db()
+    try:
+        uid_v = user["sub"]
+        # Anonymise plutôt que supprime pour préserver l'intégrité référentielle
+        anon = "deleted_" + uid_v[:8]
+        conn.execute(*sql_params("UPDATE users SET email=?, prenom='Utilisateur', nom='Supprimé', tel='', bio='', photo_url='', referral_code='' WHERE id=?", [anon + "@deleted.local", uid_v]))
+        conn.execute(*sql_params("DELETE FROM photos WHERE user_id=?", [uid_v]))
+        conn.execute(*sql_params("DELETE FROM expenses WHERE user_id=?", [uid_v]))
+        conn.execute(*sql_params("DELETE FROM projects WHERE user_id=?", [uid_v]))
+        conn.execute(*sql_params("DELETE FROM agent_audit_log WHERE user_id=?", [uid_v]))
+        conn.execute(*sql_params("DELETE FROM user_chats WHERE sender_id=? OR recipient_id=?", [uid_v, uid_v]))
+        conn.execute(*sql_params("DELETE FROM community_posts WHERE user_id=?", [uid_v]))
+        conn.execute(*sql_params("DELETE FROM project_briefs WHERE user_id=?", [uid_v]))
+        conn.commit()
+        logger.info(f"Account deletion requested for {uid_v}")
+        return {"ok": True, "message": "Votre compte et vos données ont été supprimés conformément au RGPD (Loi 09-08)."}
+    finally:
+        conn.close()
+
+@app.get("/api/me/export")
+def export_my_data(user: dict = Depends(get_current_user)):
+    """CMP-05: RGPD export self-service — toutes les données personnelles en JSON."""
+    conn = get_db()
+    try:
+        uid_v = user["sub"]
+        profile = dict(conn.execute(*sql_params("SELECT id,prenom,nom,email,role,ville,tel,bio,created_at FROM users WHERE id=?", [uid_v])).fetchone()._mapping)
+        projects = [dict(r._mapping) for r in conn.execute(*sql_params("SELECT * FROM projects WHERE user_id=? ORDER BY created_at", [uid_v])).fetchall()]
+        expenses = [dict(r._mapping) for r in conn.execute(*sql_params("SELECT * FROM expenses WHERE user_id=? AND deleted=0 ORDER BY date", [uid_v])).fetchall()]
+        photos = [dict(r._mapping) for r in conn.execute(*sql_params("SELECT id,description,phase,date,created_at FROM photos WHERE user_id=?", [uid_v])).fetchall()]
+        # Decrypt GPS before export
+        for p in photos:
+            p["gps"] = decrypt_gps(p.get("gps") or "")
+        messages_sent = [dict(r._mapping) for r in conn.execute(*sql_params("SELECT content,created_at FROM user_chats WHERE sender_id=? ORDER BY created_at", [uid_v])).fetchall()]
+        export = {
+            "export_date": now_iso(),
+            "profile": profile,
+            "projects": projects,
+            "expenses": expenses,
+            "photos": photos,
+            "messages_sent_count": len(messages_sent),
+            "messages_sent": messages_sent,
+        }
+        return JSONResponse(content=export, headers={"Content-Disposition": "attachment; filename=shantilink_mes_donnees.json"})
+    finally:
+        conn.close()
+
+@app.post("/api/me/mre-verify")
+def mre_verify(data: MreVerifyIn, user: dict = Depends(get_current_user)):
+    """CLT-02: MRE identity declaration — sets mre_country and pending verification flag."""
+    allowed_countries = ["France","Espagne","Italie","Belgique","Pays-Bas","Allemagne","Canada","USA","UK","Suisse","Autres"]
+    if data.country not in allowed_countries:
+        raise HTTPException(400, "Pays non reconnu")
+    conn = get_db()
+    try:
+        conn.execute(*sql_params(
+            "UPDATE users SET mre_country=?, mre_document=?, mre_verified=0 WHERE id=?",
+            [data.country, data.document_type, user["sub"]]
+        ))
+        log_activity(conn, user["sub"], f"Demande de vérification MRE — {data.country}")
+        conn.commit()
+        return {"ok": True, "message": "Votre déclaration MRE a été enregistrée. La vérification sera effectuée sous 48h."}
+    finally:
+        conn.close()
+
+@app.get("/api/me/mre-status")
+def mre_status(user: dict = Depends(get_current_user)):
+    """CLT-02: Returns the MRE verification status for the current user."""
+    conn = get_db()
+    try:
+        row = conn.execute(*sql_params("SELECT mre_country, mre_verified, mre_document FROM users WHERE id=?", [user["sub"]])).fetchone()
+        if not row:
+            raise HTTPException(404, "Utilisateur non trouvé")
+        d = dict(row._mapping)
+        return {"mre_country": d.get("mre_country",""), "mre_verified": bool(d.get("mre_verified",0)), "mre_document": d.get("mre_document","")}
+    finally:
+        conn.close()
+
+# PRO-01: company profile
+@app.patch("/api/me/company")
+def update_company_profile(data: dict = Body(...), user: dict = Depends(get_current_user)):
+    allowed = ["ice","cnss","rc","rib","company_name","company_address"]
+    updates = {k: v for k, v in data.items() if k in allowed}
+    if not updates: raise HTTPException(400, "No valid fields")
+    set_clause = ", ".join(f"{k}=:{k}" for k in updates)
+    updates["uid"] = user["sub"]
+    conn = get_db()
+    try:
+        conn.execute(text(f"UPDATE users SET {set_clause} WHERE id=:uid"), updates)
+        conn.commit()
+        return {"ok": True}
     finally:
         conn.close()
 
@@ -767,6 +993,11 @@ def register(data: RegisterIn):
 @app.post("/api/auth/logout")
 def logout(request: Request, user: dict = Depends(get_current_user)):
     auth = request.headers.get("Authorization", "")
+    # CMP-07: also check cookie if header absent
+    if not auth:
+        cookie_token = request.cookies.get("sl_auth", "")
+        if cookie_token:
+            auth = "Bearer " + cookie_token
     token = auth[7:] if auth.startswith("Bearer ") else ""
     if token:
         th = _token_hash(token)
@@ -777,7 +1008,10 @@ def logout(request: Request, user: dict = Depends(get_current_user)):
             conn.commit()
         finally:
             conn.close()
-    return {"ok": True}
+    # CMP-07: clear cookie on logout
+    response = JSONResponse({"ok": True})
+    response.delete_cookie("sl_auth", path="/")
+    return response
 
 _login_attempts: dict = {}
 
@@ -821,7 +1055,15 @@ def login(data: LoginIn, request: Request):
             user_data[extra] = m.get(extra, "active" if extra == "status" else "") or ("active" if extra == "status" else "")
         fb = conn.execute(*sql_params("SELECT badge_number FROM founder_badges WHERE user_id=?", [m["id"]])).fetchone()
         user_data["founder_badge"] = fb[0] if fb else None
-        return {"token": token, "user": user_data}
+        # CMP-07: set HttpOnly cookie alongside JSON token
+        resp = JSONResponse({"token": token, "user": user_data})
+        resp.set_cookie(
+            key="sl_auth", value=token,
+            httponly=True, secure=(_ENV == "prod"),
+            samesite="lax", max_age=TOKEN_HOURS * 3600,
+            path="/"
+        )
+        return resp
     finally:
         conn.close()
 
@@ -933,6 +1175,40 @@ def delete_project(pid: str, user: dict = Depends(get_current_user)):
         log_activity(conn, user["sub"], f"Projet supprimé")
         conn.commit()
         return {"ok": True}
+    finally:
+        conn.close()
+
+@app.post("/api/projects/{pid}/share")
+def generate_share_link(pid: str, user: dict = Depends(get_current_user)):
+    """CLT-03: Generate a read-only share token for a project."""
+    conn = get_db()
+    try:
+        p = conn.execute(*sql_params("SELECT * FROM projects WHERE id=? AND user_id=?", [pid, user["sub"]])).fetchone()
+        if not p:
+            raise HTTPException(404, "Projet non trouvé")
+        share_token = base64.urlsafe_b64encode(os.urandom(18)).decode().rstrip("=")
+        conn.execute(*sql_params("UPDATE projects SET share_token=? WHERE id=?", [share_token, pid]))
+        conn.commit()
+        return {"ok": True, "share_token": share_token, "share_url": f"/shared/{share_token}"}
+    finally:
+        conn.close()
+
+@app.get("/api/shared/{share_token}")
+def get_shared_project(share_token: str):
+    """CLT-03: Public read-only view of a shared project (no auth required)."""
+    conn = get_db()
+    try:
+        p = conn.execute(*sql_params("SELECT id,nom,type,ville,pct,budget,phases,created_at FROM projects WHERE share_token=? AND share_token!=''", [share_token])).fetchone()
+        if not p:
+            raise HTTPException(404, "Lien de partage invalide ou expiré")
+        proj = dict(p._mapping)
+        expenses = [dict(r._mapping) for r in conn.execute(
+            *sql_params("SELECT categorie, montant, date FROM expenses WHERE project_id=? AND deleted=0 ORDER BY date DESC LIMIT 20", [proj["id"]])
+        ).fetchall()]
+        photos = [dict(r._mapping) for r in conn.execute(
+            *sql_params("SELECT description, phase, date, image_url FROM photos WHERE user_id=(SELECT user_id FROM projects WHERE id=?) ORDER BY date DESC LIMIT 12", [proj["id"]])
+        ).fetchall()]
+        return {"project": proj, "expenses": expenses, "photos": photos}
     finally:
         conn.close()
 
@@ -2508,6 +2784,39 @@ def admin_delete_post(post_id: str, admin=Depends(require_admin)):
     finally:
         conn.close()
 
+@app.post("/api/admin/purge-audit-log")
+def purge_audit_log(admin=Depends(require_admin)):
+    """CMP-06: Purge agent_audit_log entries older than 90 days."""
+    from datetime import timedelta
+    cutoff = (datetime.utcnow() - timedelta(days=90)).isoformat()
+    conn = get_db()
+    try:
+        r = conn.execute(*sql_params("DELETE FROM agent_audit_log WHERE created_at < ?", [cutoff]))
+        conn.commit()
+        return {"ok": True, "deleted": r.rowcount, "cutoff": cutoff}
+    finally:
+        conn.close()
+
+# ARC-02: verify architect badge
+@app.post("/api/admin/verify-architect")
+def verify_architect(data: dict = Body(...), admin: dict = Depends(require_admin)):
+    uid_v = data.get("user_id"); badge = data.get("action", "verify")
+    pro_id = data.get("pro_id")  # optional catalog pro id
+    conn = get_db()
+    try:
+        if badge == "verify":
+            conn.execute(text("UPDATE users SET arc_badge='verified' WHERE id=:uid"), {"uid": uid_v})
+            if pro_id:
+                conn.execute(text("UPDATE professionals SET arc_badge='verified' WHERE id=:pid"), {"pid": pro_id})
+        else:
+            conn.execute(text("UPDATE users SET arc_badge=NULL WHERE id=:uid"), {"uid": uid_v})
+            if pro_id:
+                conn.execute(text("UPDATE professionals SET arc_badge=NULL WHERE id=:pid"), {"pid": pro_id})
+        conn.commit()
+        return {"ok": True}
+    finally:
+        conn.close()
+
 @app.post("/api/posts/upload-media")
 async def upload_post_media(
     file: UploadFile = File(...),
@@ -2680,6 +2989,257 @@ async def send_weekly_report_email(user: dict = Depends(get_current_user)):
         logger.error(f"Failed to send weekly report email: {e}")
         raise HTTPException(500, "Échec de l'envoi du rapport")
 
+# ── FNC-01: Notifications in-app ──────────────────────────────────────────────
+def push_notification(conn, user_id: str, ntype: str, title: str, body_text: str = None, link: str = None):
+    conn.execute(text(
+        "INSERT INTO notifications (user_id,type,title,body,link,read,created_at) VALUES (:uid,:type,:title,:body,:link,0,datetime('now'))"
+    ), {"uid": user_id, "type": ntype, "title": title, "body": body_text, "link": link})
+
+@app.get("/api/notifications")
+def get_notifications(user: dict = Depends(get_current_user)):
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            text("SELECT id,type,title,body,link,read,created_at FROM notifications WHERE user_id=:uid ORDER BY created_at DESC LIMIT 50"),
+            {"uid": user["sub"]}
+        ).fetchall()
+        return [dict(r._mapping) for r in rows]
+    finally:
+        conn.close()
+
+@app.post("/api/notifications/{nid}/read")
+def mark_notification_read(nid: int, user: dict = Depends(get_current_user)):
+    conn = get_db()
+    try:
+        conn.execute(text("UPDATE notifications SET read=1 WHERE id=:nid AND user_id=:uid"), {"nid": nid, "uid": user["sub"]})
+        conn.commit()
+        return {"ok": True}
+    finally:
+        conn.close()
+
+@app.post("/api/notifications/read-all")
+def mark_all_notifications_read(user: dict = Depends(get_current_user)):
+    conn = get_db()
+    try:
+        conn.execute(text("UPDATE notifications SET read=1 WHERE user_id=:uid"), {"uid": user["sub"]})
+        conn.commit()
+        return {"ok": True}
+    finally:
+        conn.close()
+
+# ── FNC-02: Module Documents ───────────────────────────────────────────────────
+@app.post("/api/projects/{pid}/documents")
+async def upload_document(pid: str, file: UploadFile = File(...), category: str = Form(default="other"), user: dict = Depends(get_current_user)):
+    ALLOWED = {"application/pdf","image/jpeg","image/png","image/webp","application/msword",
+               "application/vnd.openxmlformats-officedocument.wordprocessingml.document"}
+    ct = file.content_type or ""
+    if ct not in ALLOWED:
+        raise HTTPException(400, "Format non supporté")
+    contents = await file.read()
+    if len(contents) > 20 * 1024 * 1024:
+        raise HTTPException(400, "Fichier trop volumineux (max 20MB)")
+    # Upload to Cloudinary or local
+    if _CLOUDINARY_OK:
+        try:
+            result = cloudinary.uploader.upload(contents, folder=f"shantilink/docs/{user['sub']}", resource_type="raw" if ct == "application/pdf" else "image")
+            url = result["secure_url"]
+        except Exception as e:
+            raise HTTPException(500, f"Erreur upload: {e}")
+    else:
+        ext = os.path.splitext(file.filename or "doc")[-1].lower() or ".bin"
+        fname = "doc_" + uid() + ext
+        dest = os.path.join(UPLOADS_DIR, fname)
+        with open(dest, "wb") as f_out:
+            f_out.write(contents)
+        url = "/static/uploads/" + fname
+    conn = get_db()
+    try:
+        conn.execute(text(
+            "INSERT INTO documents (project_id,uploaded_by,filename,url,category,created_at) VALUES (:pid,:uid,:fn,:url,:cat,datetime('now'))"
+        ), {"pid": pid, "uid": user["sub"], "fn": file.filename or "document", "url": url, "cat": category})
+        conn.commit()
+        return {"ok": True, "url": url, "filename": file.filename, "category": category}
+    finally:
+        conn.close()
+
+@app.get("/api/projects/{pid}/documents")
+def get_project_documents(pid: str, user: dict = Depends(get_current_user)):
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            text("SELECT id,project_id,uploaded_by,filename,url,category,created_at FROM documents WHERE project_id=:pid ORDER BY created_at DESC"),
+            {"pid": pid}
+        ).fetchall()
+        return [dict(r._mapping) for r in rows]
+    finally:
+        conn.close()
+
+@app.delete("/api/documents/{did}")
+def delete_document(did: int, user: dict = Depends(get_current_user)):
+    conn = get_db()
+    try:
+        row = conn.execute(text("SELECT uploaded_by FROM documents WHERE id=:did"), {"did": did}).fetchone()
+        if not row:
+            raise HTTPException(404, "Document non trouvé")
+        if row[0] != user["sub"] and user.get("role") != "admin":
+            raise HTTPException(403, "Non autorisé")
+        conn.execute(text("DELETE FROM documents WHERE id=:did"), {"did": did})
+        conn.commit()
+        return {"ok": True}
+    finally:
+        conn.close()
+
+# ── PRM-01: Gestion équipe promoteur ──────────────────────────────────────────
+@app.post("/api/team/invite")
+def invite_team_member(data: dict = Body(...), user: dict = Depends(get_current_user)):
+    if user.get("role") != "promoteur":
+        raise HTTPException(403, "Réservé aux promoteurs")
+    email = data.get("member_email", "").strip().lower()
+    role = data.get("role", "viewer")
+    if not email or "@" not in email:
+        raise HTTPException(400, "Email invalide")
+    conn = get_db()
+    try:
+        conn.execute(text(
+            "INSERT INTO promoter_team (promoter_id,member_email,role,invited_at) VALUES (:uid,:email,:role,datetime('now'))"
+        ), {"uid": user["sub"], "email": email, "role": role})
+        conn.commit()
+        return {"ok": True}
+    finally:
+        conn.close()
+
+@app.get("/api/team")
+def get_team(user: dict = Depends(get_current_user)):
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            text("SELECT id,member_email,role,invited_at FROM promoter_team WHERE promoter_id=:uid ORDER BY invited_at DESC"),
+            {"uid": user["sub"]}
+        ).fetchall()
+        return [dict(r._mapping) for r in rows]
+    finally:
+        conn.close()
+
+@app.delete("/api/team/{tid}")
+def remove_team_member(tid: int, user: dict = Depends(get_current_user)):
+    conn = get_db()
+    try:
+        row = conn.execute(text("SELECT promoter_id FROM promoter_team WHERE id=:tid"), {"tid": tid}).fetchone()
+        if not row:
+            raise HTTPException(404, "Membre non trouvé")
+        if row[0] != user["sub"]:
+            raise HTTPException(403, "Non autorisé")
+        conn.execute(text("DELETE FROM promoter_team WHERE id=:tid"), {"tid": tid})
+        conn.commit()
+        return {"ok": True}
+    finally:
+        conn.close()
+
+# ── PRM-02: Programmes ─────────────────────────────────────────────────────────
+@app.post("/api/programmes", status_code=201)
+def create_programme(data: dict = Body(...), user: dict = Depends(get_current_user)):
+    name = data.get("name", "").strip()
+    if not name:
+        raise HTTPException(400, "Nom requis")
+    conn = get_db()
+    try:
+        result = conn.execute(text(
+            "INSERT INTO programmes (promoter_id,name,description,created_at) VALUES (:uid,:name,:desc,datetime('now'))"
+        ), {"uid": user["sub"], "name": name, "desc": data.get("description", "")})
+        conn.commit()
+        return {"ok": True, "id": result.lastrowid}
+    finally:
+        conn.close()
+
+@app.get("/api/programmes")
+def get_programmes(user: dict = Depends(get_current_user)):
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            text("SELECT id,name,description,created_at FROM programmes WHERE promoter_id=:uid ORDER BY created_at DESC"),
+            {"uid": user["sub"]}
+        ).fetchall()
+        return [dict(r._mapping) for r in rows]
+    finally:
+        conn.close()
+
+@app.patch("/api/programmes/{pid}")
+def update_programme(pid: int, data: dict = Body(...), user: dict = Depends(get_current_user)):
+    conn = get_db()
+    try:
+        row = conn.execute(text("SELECT promoter_id FROM programmes WHERE id=:pid"), {"pid": pid}).fetchone()
+        if not row or row[0] != user["sub"]:
+            raise HTTPException(404, "Programme non trouvé")
+        allowed = ["name", "description"]
+        updates = {k: v for k, v in data.items() if k in allowed}
+        if not updates:
+            raise HTTPException(400, "Aucun champ valide")
+        set_clause = ", ".join(f"{k}=:{k}" for k in updates)
+        updates["pid"] = pid
+        conn.execute(text(f"UPDATE programmes SET {set_clause} WHERE id=:pid"), updates)
+        conn.commit()
+        return {"ok": True}
+    finally:
+        conn.close()
+
+@app.delete("/api/programmes/{pid}")
+def delete_programme(pid: int, user: dict = Depends(get_current_user)):
+    conn = get_db()
+    try:
+        row = conn.execute(text("SELECT promoter_id FROM programmes WHERE id=:pid"), {"pid": pid}).fetchone()
+        if not row or row[0] != user["sub"]:
+            raise HTTPException(404, "Programme non trouvé")
+        conn.execute(text("DELETE FROM programmes WHERE id=:pid"), {"pid": pid})
+        conn.commit()
+        return {"ok": True}
+    finally:
+        conn.close()
+
+# ── PRM-04: Dashboard ROI promoteur ───────────────────────────────────────────
+@app.get("/api/promoter/roi")
+def get_promoter_roi(user: dict = Depends(get_current_user)):
+    if user.get("role") != "promoteur":
+        raise HTTPException(403, "Réservé aux promoteurs")
+    conn = get_db()
+    try:
+        uid_v = user["sub"]
+        projects = conn.execute(*sql_params("SELECT id, budget FROM projects WHERE user_id=? AND deleted=0", [uid_v])).fetchall()
+        pids = [p[0] for p in projects]
+        total_budget = sum(p[1] or 0 for p in projects)
+        total_expenses = 0
+        if pids:
+            placeholders = ",".join("?" * len(pids))
+            exp = conn.execute(*sql_params(f"SELECT COALESCE(SUM(montant),0) as s FROM expenses WHERE project_id IN ({placeholders}) AND deleted=0", list(pids))).fetchone()
+            total_expenses = exp[0] or 0
+        nb_active_briefs = 0
+        if pids:
+            placeholders = ",".join("?" * len(pids))
+            nb_active_briefs = conn.execute(*sql_params(f"SELECT COUNT(*) FROM project_briefs WHERE project_id IN ({placeholders}) AND status='open'", list(pids))).fetchone()[0] or 0
+        return {
+            "nb_projects": len(pids),
+            "total_budget": total_budget,
+            "total_expenses": total_expenses,
+            "roi_ratio": round((total_budget - total_expenses) / total_budget * 100, 1) if total_budget else 0,
+            "nb_active_briefs": nb_active_briefs,
+        }
+    finally:
+        conn.close()
+
+# ── PRM-08: Update project programme ──────────────────────────────────────────
+@app.patch("/api/projects/{pid}/programme")
+def set_project_programme(pid: str, data: dict = Body(...), user: dict = Depends(get_current_user)):
+    programme_id = data.get("programme_id")
+    conn = get_db()
+    try:
+        row = conn.execute(*sql_params("SELECT user_id FROM projects WHERE id=?", [pid])).fetchone()
+        if not row or row[0] != user["sub"]:
+            raise HTTPException(404, "Projet non trouvé")
+        conn.execute(*sql_params("UPDATE projects SET programme_id=? WHERE id=?", [programme_id, pid]))
+        conn.commit()
+        return {"ok": True}
+    finally:
+        conn.close()
+
 @app.post("/bootstrap/admin")
 def bootstrap_admin(body: dict):
     if _ENV == "prod":
@@ -2728,6 +3288,207 @@ def bootstrap_reset_admin(body: dict):
         conn.execute(*sql_params("UPDATE users SET password_hash=? WHERE id=?", [hashed, row[0]]))
         conn.commit()
         return {"ok": True, "email": row[1], "message": "Mot de passe réinitialisé"}
+    finally:
+        conn.close()
+
+# ── PAY-01: Stripe payment endpoints ─────────────────────────────────────────
+
+@app.post("/api/payments/create-checkout")
+def create_checkout_session(data: dict = Body(...), user: dict = Depends(get_current_user)):
+    """Crée une session Stripe Checkout. Stripe doit être configuré via STRIPE_SECRET_KEY env var."""
+    stripe_key = os.getenv("STRIPE_SECRET_KEY", "")
+    plan = data.get("plan", "starter")
+    prices = {"starter": 29900, "pro": 49900, "premium": 99900}  # centimes MAD
+    amount = prices.get(plan, 29900)
+    conn = get_db()
+    try:
+        pid = uid()
+        conn.execute(text("INSERT INTO payments (id, user_id, amount, plan, status) VALUES (:id, :uid, :amt, :plan, 'pending')"),
+                     {"id": pid, "uid": user["sub"], "amt": amount, "plan": plan})
+        conn.commit()
+        if not stripe_key:
+            return {"checkout_url": f"/api/payments/success?session_id=dev_{pid}", "session_id": f"dev_{pid}", "payment_id": pid}
+        try:
+            import stripe
+            stripe.api_key = stripe_key
+            session = stripe.checkout.Session.create(
+                payment_method_types=["card"],
+                line_items=[{"price_data": {"currency": "mad", "product_data": {"name": f"Plan ShantiLink {plan.capitalize()}"}, "unit_amount": amount}, "quantity": 1}],
+                mode="payment",
+                success_url=f"{os.getenv('FRONTEND_URL','http://localhost:8000')}/api/payments/success?session_id={{CHECKOUT_SESSION_ID}}",
+                cancel_url=f"{os.getenv('FRONTEND_URL','http://localhost:8000')}/#/dashboard/billing",
+                metadata={"user_id": user["sub"], "plan": plan, "payment_id": pid}
+            )
+            conn.execute(text("UPDATE payments SET stripe_session_id=:sid WHERE id=:id"), {"sid": session.id, "id": pid})
+            conn.commit()
+            return {"checkout_url": session.url, "session_id": session.id, "payment_id": pid}
+        except Exception as e:
+            raise HTTPException(500, f"Stripe error: {str(e)}")
+    finally:
+        conn.close()
+
+@app.get("/api/payments/success")
+def payment_success(session_id: str, user: dict = Depends(get_current_user)):
+    conn = get_db()
+    try:
+        if session_id.startswith("dev_"):
+            pid = session_id[4:]
+            conn.execute(text("UPDATE payments SET status='paid' WHERE id=:id"), {"id": pid})
+            row = conn.execute(text("SELECT plan FROM payments WHERE id=:id"), {"id": pid}).fetchone()
+            if row:
+                conn.execute(text("UPDATE users SET plan=:plan WHERE id=:uid"), {"plan": row.plan, "uid": user["sub"]})
+            conn.commit()
+            return {"ok": True, "status": "paid"}
+        return {"ok": True, "status": "pending"}
+    finally:
+        conn.close()
+
+@app.post("/api/payments/webhook")
+async def stripe_webhook(request: Request):
+    """Webhook Stripe — mettre STRIPE_WEBHOOK_SECRET en env"""
+    import json as _json
+    payload = await request.body()
+    sig = request.headers.get("stripe-signature", "")
+    wh_secret = os.getenv("STRIPE_WEBHOOK_SECRET", "")
+    conn = get_db()
+    try:
+        try:
+            import stripe
+            if wh_secret:
+                event = stripe.Webhook.construct_event(payload, sig, wh_secret)
+            else:
+                event = _json.loads(payload)
+        except ImportError:
+            event = _json.loads(payload)
+        if event["type"] == "checkout.session.completed":
+            session = event["data"]["object"]
+            meta = session.get("metadata", {})
+            uid_v = meta.get("user_id")
+            plan = meta.get("plan")
+            pid = meta.get("payment_id")
+            if pid:
+                conn.execute(text("UPDATE payments SET status='paid' WHERE id=:id"), {"id": pid})
+            if uid_v and plan:
+                conn.execute(text("UPDATE users SET plan=:plan WHERE id=:uid"), {"plan": plan, "uid": uid_v})
+            conn.commit()
+        return {"ok": True}
+    except Exception as e:
+        raise HTTPException(400, str(e))
+    finally:
+        conn.close()
+
+@app.get("/api/payments/history")
+def payment_history(user: dict = Depends(get_current_user)):
+    conn = get_db()
+    try:
+        rows = conn.execute(text("SELECT * FROM payments WHERE user_id=:uid ORDER BY created_at DESC LIMIT 20"), {"uid": user["sub"]}).fetchall()
+        return [dict(r._mapping) for r in rows]
+    finally:
+        conn.close()
+
+# ── BIL-01: Facturation endpoints ─────────────────────────────────────────────
+
+@app.get("/api/invoices")
+def list_invoices(user: dict = Depends(get_current_user)):
+    conn = get_db()
+    try:
+        rows = conn.execute(text("SELECT * FROM invoices WHERE user_id=:uid ORDER BY issued_at DESC"), {"uid": user["sub"]}).fetchall()
+        return [dict(r._mapping) for r in rows]
+    finally:
+        conn.close()
+
+@app.post("/api/admin/invoices/generate")
+def generate_invoice(data: dict = Body(...), admin: dict = Depends(require_admin)):
+    conn = get_db()
+    try:
+        inv_num = "INV-" + datetime.utcnow().strftime("%Y%m%d") + "-" + uid()[:6].upper()
+        amount = data.get("amount", 0)
+        vat = int(amount * 0.20)  # TVA 20% Maroc
+        total = amount + vat
+        conn.execute(text("""
+            INSERT INTO invoices (user_id, payment_id, invoice_number, amount, vat_amount, total, status, due_at)
+            VALUES (:uid, :pid, :num, :amt, :vat, :total, 'issued', date('now','+30 days'))
+        """), {"uid": data["user_id"], "pid": data.get("payment_id"), "num": inv_num, "amt": amount, "vat": vat, "total": total})
+        conn.commit()
+        return {"invoice_number": inv_num, "total": total}
+    finally:
+        conn.close()
+
+# ── API-01: API keys & public API v1 ──────────────────────────────────────────
+
+def get_api_key_user(request: Request):
+    key = request.headers.get("X-API-Key", "")
+    if not key:
+        raise HTTPException(401, "API key required")
+    key_hash = hashlib.sha256(key.encode()).hexdigest()
+    conn = get_db()
+    try:
+        row = conn.execute(text("SELECT u.* FROM api_keys ak JOIN users u ON u.id=ak.user_id WHERE ak.key_hash=:h AND ak.active=1"), {"h": key_hash}).fetchone()
+        if not row:
+            raise HTTPException(401, "Invalid API key")
+        conn.execute(text("UPDATE api_keys SET last_used_at=:now WHERE key_hash=:h"), {"now": now_iso(), "h": key_hash})
+        conn.commit()
+        return dict(row._mapping)
+    finally:
+        conn.close()
+
+@app.post("/api/keys")
+def create_api_key(data: dict = Body(...), user: dict = Depends(get_current_user)):
+    import secrets as _secrets
+    key = "sl_" + _secrets.token_hex(32)
+    key_hash = hashlib.sha256(key.encode()).hexdigest()
+    conn = get_db()
+    try:
+        conn.execute(text("INSERT INTO api_keys (user_id, key_hash, name, permissions) VALUES (:uid, :h, :name, :perm)"),
+                     {"uid": user["sub"], "h": key_hash, "name": data.get("name", "default"), "perm": data.get("permissions", "read")})
+        conn.commit()
+        return {"api_key": key, "note": "Sauvegardez cette clé — elle ne sera plus affichée"}
+    finally:
+        conn.close()
+
+@app.get("/api/keys")
+def list_api_keys(user: dict = Depends(get_current_user)):
+    conn = get_db()
+    try:
+        rows = conn.execute(text("SELECT id, name, permissions, last_used_at, created_at FROM api_keys WHERE user_id=:uid AND active=1"), {"uid": user["sub"]}).fetchall()
+        return [dict(r._mapping) for r in rows]
+    finally:
+        conn.close()
+
+@app.delete("/api/keys/{kid}")
+def revoke_api_key(kid: int, user: dict = Depends(get_current_user)):
+    conn = get_db()
+    try:
+        conn.execute(text("UPDATE api_keys SET active=0 WHERE id=:id AND user_id=:uid"), {"id": kid, "uid": user["sub"]})
+        conn.commit()
+        return {"ok": True}
+    finally:
+        conn.close()
+
+# Public API v1
+@app.get("/v1/projects")
+def public_list_projects(limit: int = 20, offset: int = 0, user: dict = Depends(get_api_key_user)):
+    conn = get_db()
+    try:
+        rows = conn.execute(text("SELECT id, nom, ville, type, budget, created_at FROM projects WHERE user_id=:uid AND deleted=0 LIMIT :lim OFFSET :off"),
+                            {"uid": user["id"], "lim": limit, "off": offset}).fetchall()
+        return {"data": [dict(r._mapping) for r in rows], "limit": limit, "offset": offset}
+    finally:
+        conn.close()
+
+@app.get("/v1/expenses")
+def public_list_expenses(project_id: str = None, user: dict = Depends(get_api_key_user)):
+    conn = get_db()
+    try:
+        if project_id:
+            rows = conn.execute(text("SELECT * FROM expenses WHERE project_id=:pid AND deleted=0"), {"pid": project_id}).fetchall()
+        else:
+            proj_ids = [r.id for r in conn.execute(text("SELECT id FROM projects WHERE user_id=:uid AND deleted=0"), {"uid": user["id"]}).fetchall()]
+            if not proj_ids:
+                return {"data": []}
+            pids_str = ",".join(f"'{i}'" for i in proj_ids)
+            rows = conn.execute(text(f"SELECT * FROM expenses WHERE project_id IN ({pids_str}) AND deleted=0")).fetchall()
+        return {"data": [dict(r._mapping) for r in rows]}
     finally:
         conn.close()
 
