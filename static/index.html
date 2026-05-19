@@ -738,6 +738,10 @@
       <button class="sblink" onclick="showDashPanel('profil',this)"><span>👤</span> <span id="sb-profile">Mon profil</span></button>
       <button class="sblink" onclick="showDashPanel('parrainage',this)"><span>🎁</span> <span>Parrainage</span></button>
       <button id="sb-admin-btn" class="sblink" onclick="showDashPanel('admin',this)" style="display:none"><span>⚙️</span> <span>Administration</span></button>
+      <!-- PRM sidebar buttons — hidden by default, shown for promoteur role -->
+      <button id="sb-team-btn" class="sblink" onclick="showDashPanel('team',this);renderTeamPanel()" style="display:none"><span>👥</span> <span>Mon équipe</span></button>
+      <button id="sb-programmes-btn" class="sblink" onclick="showDashPanel('programmes',this);renderProgrammesPanel()" style="display:none"><span>🏢</span> <span>Programmes</span></button>
+      <button id="sb-roi-btn" class="sblink" onclick="showDashPanel('roi',this);renderROIPanel()" style="display:none"><span>📈</span> <span>Dashboard ROI</span></button>
       <button class="sblink" onclick="showDashPanel('params',this)"><span>⚙️</span> <span data-i18n="dash_sb_params">Paramètres</span></button>
       <button class="sblink" style="margin-top:auto" onclick="doLogout()"><span>🚪</span> <span data-i18n="dash_sb_logout">Déconnexion</span></button>
     </div>
@@ -764,6 +768,22 @@
             <button style="font-size:12px;padding:8px 14px;background:var(--white);color:var(--ink);border:.5px solid var(--border);border-radius:100px;cursor:pointer;font-family:'Outfit',sans-serif" onclick="showDashPanel('pros',null)">Trouver un pro</button>
             <!-- UXT-07: EUR/MAD toggle -->
             <button id="currency-toggle" title="Changer la devise" onclick="setCurrency(window._currency==='MAD'?'EUR':'MAD')" style="font-size:11px;padding:6px 12px;background:var(--white);color:var(--muted);border:.5px solid var(--border);border-radius:100px;cursor:pointer;font-family:'Outfit',sans-serif">DH → € EUR</button>
+            <!-- FNC-01: Notification bell -->
+            <div style="position:relative;display:inline-flex">
+              <button id="notif-bell-btn" onclick="toggleNotifDropdown()" title="Notifications" style="font-size:1.1rem;padding:6px 10px;background:var(--white);border:.5px solid var(--border);border-radius:100px;cursor:pointer;line-height:1;display:flex;align-items:center;justify-content:center;position:relative">
+                &#x1F514;
+                <span id="notif-badge" style="display:none;position:absolute;top:-4px;right:-4px;background:#DC2626;color:white;font-size:9px;font-weight:700;border-radius:100px;min-width:16px;height:16px;align-items:center;justify-content:center;padding:0 3px;line-height:1"></span>
+              </button>
+              <div id="notif-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:320px;background:var(--white);border:.5px solid var(--border);border-radius:16px;box-shadow:0 8px 32px rgba(15,29,54,.12);z-index:500;overflow:hidden">
+                <div style="padding:.7rem 1rem;border-bottom:.5px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+                  <span style="font-size:13px;font-weight:700">Notifications</span>
+                  <button onclick="markAllNotifsRead()" style="font-size:11px;color:var(--clay);background:none;border:none;cursor:pointer;font-family:Outfit,sans-serif">Tout lire</button>
+                </div>
+                <div id="notif-list" style="max-height:320px;overflow-y:auto">
+                  <div style="padding:1.5rem;text-align:center;font-size:13px;color:var(--muted)">Chargement...</div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
         <!-- KPI row — chaque carte est cliquable -->
@@ -1248,6 +1268,10 @@
             <div style="font-size:12px;color:var(--green);margin-top:2px" data-i18n="profil_trial_desc">Accès complet à toutes les fonctionnalités</div></div>
           </div>
         </div>
+        <!-- PRO-01: Company profile (visible pour pro/architecte/promoteur) -->
+        <div id="company-profile-section" style="display:none"></div>
+        <!-- CLT-02: MRE Verification -->
+        <div id="mre-verification-section"></div>
       </div>
 
       <!-- PARAMÈTRES -->
@@ -1436,6 +1460,22 @@
           <button onclick="if(confirm('Supprimer votre compte et toutes vos données ?')){API.clearToken();doLogout();}" style="padding:9px 18px;background:var(--red-b);color:var(--red);border:.5px solid rgba(139,31,31,.2);border-radius:100px;cursor:pointer;font-family:'Outfit',sans-serif;font-size:12px;font-weight:600" data-i18n="params_delete_btn">Supprimer mon compte</button>
         </div>
       </div>
+
+      <!-- PRM-01: Équipe promoteur -->
+      <div id="panel-team" class="dash-panel">
+        <!-- content rendered by renderTeamPanel() -->
+      </div>
+
+      <!-- PRM-02: Programmes -->
+      <div id="panel-programmes" class="dash-panel">
+        <!-- content rendered by renderProgrammesPanel() -->
+      </div>
+
+      <!-- PRM-04: Dashboard ROI -->
+      <div id="panel-roi" class="dash-panel">
+        <!-- content rendered by renderROIPanel() -->
+      </div>
+
     </div>
   </div>
 </div>
