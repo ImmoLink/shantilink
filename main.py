@@ -111,9 +111,9 @@ def _run_migration(sql: str):
                 # AUTOINCREMENT n'existe pas en PostgreSQL → SERIAL
                 sql = sql.replace("INTEGER PRIMARY KEY AUTOINCREMENT", "SERIAL PRIMARY KEY")
                 sql = sql.replace(" AUTOINCREMENT", "")
-                # datetime('now') est SQLite-only → CURRENT_TIMESTAMP (SQL standard)
-                sql = sql.replace("DEFAULT (datetime('now'))", "DEFAULT CURRENT_TIMESTAMP")
-                sql = sql.replace("DEFAULT datetime('now')", "DEFAULT CURRENT_TIMESTAMP")
+                # datetime('now') SQLite-only; sur colonne TEXT → cast explicite ::TEXT
+                sql = sql.replace("DEFAULT (datetime('now'))", "DEFAULT (NOW()::TEXT)")
+                sql = sql.replace("DEFAULT datetime('now')", "DEFAULT (NOW()::TEXT)")
             mc.execute(text(sql))
             mc.commit()
     except Exception as e:
@@ -250,7 +250,7 @@ def init_db():
         body TEXT,
         link TEXT,
         read INTEGER DEFAULT 0,
-        created_at TEXT DEFAULT (datetime('now'))
+        created_at TEXT
     )""")
 
     # FNC-02: documents table
@@ -262,7 +262,7 @@ def init_db():
         url TEXT NOT NULL,
         category TEXT DEFAULT 'other',
         shared_with TEXT,
-        created_at TEXT DEFAULT (datetime('now'))
+        created_at TEXT
     )""")
 
     # PRM-01: promoter team table
@@ -271,7 +271,7 @@ def init_db():
         promoter_id TEXT NOT NULL,
         member_email TEXT NOT NULL,
         role TEXT DEFAULT 'viewer',
-        invited_at TEXT DEFAULT (datetime('now'))
+        invited_at TEXT
     )""")
 
     # PRM-02: programmes table
@@ -280,7 +280,7 @@ def init_db():
         promoter_id TEXT NOT NULL,
         name TEXT NOT NULL,
         description TEXT,
-        created_at TEXT DEFAULT (datetime('now'))
+        created_at TEXT
     )""")
 
     # PAY-01: payments table
@@ -294,8 +294,8 @@ def init_db():
         stripe_payment_intent TEXT,
         plan TEXT,
         description TEXT,
-        created_at TEXT DEFAULT (datetime('now')),
-        updated_at TEXT DEFAULT (datetime('now'))
+        created_at TEXT,
+        updated_at TEXT
     )""")
 
     # BIL-01: invoices table
@@ -309,7 +309,7 @@ def init_db():
         total INTEGER,
         currency TEXT DEFAULT 'MAD',
         status TEXT DEFAULT 'draft',
-        issued_at TEXT DEFAULT (datetime('now')),
+        issued_at TEXT,
         due_at TEXT,
         pdf_url TEXT
     )""")
@@ -322,7 +322,7 @@ def init_db():
         name TEXT,
         permissions TEXT DEFAULT 'read',
         last_used_at TEXT,
-        created_at TEXT DEFAULT (datetime('now')),
+        created_at TEXT,
         active INTEGER DEFAULT 1
     )""")
 
@@ -3310,8 +3310,8 @@ def create_checkout_session(data: dict = Body(...), user: dict = Depends(get_cur
     conn = get_db()
     try:
         pid = uid()
-        conn.execute(text("INSERT INTO payments (id, user_id, amount, plan, status) VALUES (:id, :uid, :amt, :plan, 'pending')"),
-                     {"id": pid, "uid": user["sub"], "amt": amount, "plan": plan})
+        conn.execute(text("INSERT INTO payments (id, user_id, amount, plan, status, created_at, updated_at) VALUES (:id, :uid, :amt, :plan, 'pending', :now, :now)"),
+                     {"id": pid, "uid": user["sub"], "amt": amount, "plan": plan, "now": now_iso()})
         conn.commit()
         if not stripe_key:
             return {"checkout_url": f"/api/payments/success?session_id=dev_{pid}", "session_id": f"dev_{pid}", "payment_id": pid}
@@ -3412,10 +3412,12 @@ def generate_invoice(data: dict = Body(...), admin: dict = Depends(require_admin
         amount = data.get("amount", 0)
         vat = int(amount * 0.20)  # TVA 20% Maroc
         total = amount + vat
+        from datetime import timedelta
+        due = (datetime.utcnow() + timedelta(days=30)).strftime("%Y-%m-%d")
         conn.execute(text("""
-            INSERT INTO invoices (user_id, payment_id, invoice_number, amount, vat_amount, total, status, due_at)
-            VALUES (:uid, :pid, :num, :amt, :vat, :total, 'issued', date('now','+30 days'))
-        """), {"uid": data["user_id"], "pid": data.get("payment_id"), "num": inv_num, "amt": amount, "vat": vat, "total": total})
+            INSERT INTO invoices (user_id, payment_id, invoice_number, amount, vat_amount, total, status, issued_at, due_at)
+            VALUES (:uid, :pid, :num, :amt, :vat, :total, 'issued', :now, :due)
+        """), {"uid": data["user_id"], "pid": data.get("payment_id"), "num": inv_num, "amt": amount, "vat": vat, "total": total, "now": now_iso(), "due": due})
         conn.commit()
         return {"invoice_number": inv_num, "total": total}
     finally:
@@ -3446,8 +3448,8 @@ def create_api_key(data: dict = Body(...), user: dict = Depends(get_current_user
     key_hash = hashlib.sha256(key.encode()).hexdigest()
     conn = get_db()
     try:
-        conn.execute(text("INSERT INTO api_keys (user_id, key_hash, name, permissions) VALUES (:uid, :h, :name, :perm)"),
-                     {"uid": user["sub"], "h": key_hash, "name": data.get("name", "default"), "perm": data.get("permissions", "read")})
+        conn.execute(text("INSERT INTO api_keys (user_id, key_hash, name, permissions, created_at, active) VALUES (:uid, :h, :name, :perm, :now, 1)"),
+                     {"uid": user["sub"], "h": key_hash, "name": data.get("name", "default"), "perm": data.get("permissions", "read"), "now": now_iso()})
         conn.commit()
         return {"api_key": key, "note": "Sauvegardez cette clé — elle ne sera plus affichée"}
     finally:
