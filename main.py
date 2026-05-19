@@ -332,6 +332,15 @@ def init_db():
         active INTEGER DEFAULT 1
     )""")
 
+    # BUG-06: pro_inquiries table (messages vers pros du catalogue)
+    _run_migration("""CREATE TABLE IF NOT EXISTS pro_inquiries (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        pro_id INTEGER NOT NULL,
+        sender_id TEXT NOT NULL,
+        message TEXT NOT NULL,
+        created_at TEXT
+    )""")
+
     # ── Indexes (idempotents) ─────────────────────────────────────────────────
     for idx in [
         "CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)",
@@ -2437,51 +2446,6 @@ def get_pro_reviews(pro_id: int):
     finally:
         conn.close()
 
-# ── BUG-06: Contact professionnel du catalogue ────────────────────────────────
-@app.post("/api/contact/pro/{pro_id}")
-def contact_pro_catalogue(pro_id: int, data: dict = Body(...), user: dict = Depends(get_current_user)):
-    """Contact un professionnel du catalogue (table professionals, pas users)."""
-    msg = data.get("message", "").strip()
-    if not msg:
-        raise HTTPException(400, "Message requis")
-    conn = get_db()
-    try:
-        pro = conn.execute(text("SELECT id, nom FROM professionals WHERE id=:pid"), {"pid": pro_id}).fetchone()
-        if not pro:
-            raise HTTPException(404, "Professionnel introuvable")
-        # Stocker le message dans une table pro_inquiries
-        conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS pro_inquiries (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                pro_id INTEGER NOT NULL,
-                sender_id TEXT NOT NULL,
-                message TEXT NOT NULL,
-                created_at TEXT
-            )
-        """))
-        conn.execute(text(
-            "INSERT INTO pro_inquiries (pro_id, sender_id, message, created_at) VALUES (:pid, :uid, :msg, :now)"
-        ), {"pid": pro_id, "uid": user["sub"], "msg": msg, "now": now_iso()})
-        conn.commit()
-        return {"ok": True, "message": f"Message envoyé à {pro.nom}"}
-    finally:
-        conn.close()
-
-@app.get("/api/contact/pro/{pro_id}/messages")
-def get_pro_inquiries(pro_id: int, admin: dict = Depends(require_admin)):
-    """Admin: voir les messages reçus par un pro du catalogue."""
-    conn = get_db()
-    try:
-        rows = conn.execute(text("""
-            SELECT pi.*, u.prenom, u.nom, u.email
-            FROM pro_inquiries pi
-            LEFT JOIN users u ON u.id = pi.sender_id
-            WHERE pi.pro_id=:pid ORDER BY pi.created_at DESC
-        """), {"pid": pro_id}).fetchall()
-        return [dict(r._mapping) for r in rows]
-    finally:
-        conn.close()
-
 # ── Referrals ──────────────────────────────────────────────────────────────────
 @app.get("/api/referrals")
 def get_referrals(user: dict = Depends(get_current_user)):
@@ -2788,6 +2752,26 @@ async def extract_voice(data: ExtractVoiceIn, user: dict = Depends(get_current_u
             pass  # fallback regex
     return {"result": _extract_voice_regex(data.transcription)}
 
+# ── Contact professionnel du catalogue ────────────────────────────────────────
+@app.post("/api/contact/pro/{pro_id}")
+def contact_pro_catalogue(pro_id: int, data: dict = Body(...), user: dict = Depends(get_current_user)):
+    """Contact un professionnel du catalogue (table professionals, pas users)."""
+    msg = data.get("message", "").strip()
+    if not msg:
+        raise HTTPException(400, "Message requis")
+    conn = get_db()
+    try:
+        pro = conn.execute(text("SELECT id, nom FROM professionals WHERE id=:pid"), {"pid": pro_id}).fetchone()
+        if not pro:
+            raise HTTPException(404, "Professionnel introuvable")
+        conn.execute(text(
+            "INSERT INTO pro_inquiries (pro_id, sender_id, message, created_at) VALUES (:pid, :uid, :msg, :now)"
+        ), {"pid": pro_id, "uid": user["sub"], "msg": msg, "now": now_iso()})
+        conn.commit()
+        return {"ok": True, "message": f"Message envoyé à {pro.nom}"}
+    finally:
+        conn.close()
+
 # ── Admin routes ───────────────────────────────────────────────────────────────
 def require_admin(user: dict = Depends(get_current_user)):
     conn = get_db()
@@ -2796,6 +2780,21 @@ def require_admin(user: dict = Depends(get_current_user)):
         if not row or row[0] != "admin":
             raise HTTPException(403, "Accès réservé aux administrateurs")
         return user
+    finally:
+        conn.close()
+
+@app.get("/api/contact/pro/{pro_id}/messages")
+def get_pro_inquiries(pro_id: int, admin: dict = Depends(require_admin)):
+    """Admin: voir les messages reçus par un pro du catalogue."""
+    conn = get_db()
+    try:
+        rows = conn.execute(text("""
+            SELECT pi.*, u.prenom, u.nom, u.email
+            FROM pro_inquiries pi
+            LEFT JOIN users u ON u.id = pi.sender_id
+            WHERE pi.pro_id=:pid ORDER BY pi.created_at DESC
+        """), {"pid": pro_id}).fetchall()
+        return [dict(r._mapping) for r in rows]
     finally:
         conn.close()
 
